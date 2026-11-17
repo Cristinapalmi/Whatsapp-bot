@@ -14,7 +14,6 @@ Abre o "Terminal" (Mac) ou "PowerShell" (Windows) e escreve:
 ```bash
 git clone https://github.com/cristinapalmi/whatsapp-bot.git minisseries
 cd minisseries
-git checkout claude/konta-miniseries-platform-wswqtj
 ```
 
 ## 3. Instalar as dependências
