@@ -7,7 +7,9 @@ import { formatKz } from "@/lib/money";
 import { getArtistWallet } from "@/domain/money/ledger";
 import { LiveWallet } from "@/components/LiveWallet";
 import { CopyButton } from "@/components/CopyButton";
-import { IconChart, IconChevronRight, IconClock, IconFilm, IconWallet } from "@/components/icons";
+import { IconChart, IconChevronRight, IconClock, IconFilm, IconGift, IconLink, IconTrophy, IconWallet } from "@/components/icons";
+import { topFans } from "@/domain/points";
+import { monthlyRanking, sortByRevenue, sortByViews } from "@/domain/ranking";
 
 export const metadata: Metadata = { title: "Painel do artista" };
 export const dynamic = "force-dynamic";
@@ -44,11 +46,15 @@ export default async function ArtistDashboard() {
     );
   }
 
-  const [wallet, stats, series] = await Promise.all([
+  const [wallet, stats, series, fans, ranking] = await Promise.all([
     getArtistWallet(db, artist.id),
     artistStats(artist.id),
     db.series.findMany({ where: { artistId: artist.id }, orderBy: { createdAt: "desc" } }),
+    topFans(db, artist.id, 3),
+    monthlyRanking(db),
   ]);
+  const posViews = sortByViews(ranking).findIndex((r) => r.artistId === artist.id) + 1;
+  const posRevenue = sortByRevenue(ranking).findIndex((r) => r.artistId === artist.id) + 1;
   const link = artistLink(artist.slug);
 
   return (
@@ -79,7 +85,29 @@ export default async function ArtistDashboard() {
           <span className="truncate font-semibold text-accent2">{link}</span>
           <CopyButton text={`https://${link}`} label="Copiar link" showText />
         </div>
-        <p className="mt-2 text-xs text-muted">Em breve: "Vieram por ti" — quantos fãs chegaram pelo teu link.</p>
+        <h3 className="mt-4 flex items-center gap-2 font-semibold"><IconLink size={18} /> Vieram por ti</h3>
+        <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-xl bg-surface2 p-3"><p className="font-display text-2xl font-bold">{stats.referral.visits}</p><p className="text-xs text-muted">visitas ao link</p></div>
+          <div className="rounded-xl bg-surface2 p-3"><p className="font-display text-2xl font-bold">{stats.referral.signups}</p><p className="text-xs text-muted">criaram conta</p></div>
+          <div className="rounded-xl bg-surface2 p-3"><p className="font-display text-2xl font-bold">{stats.referral.payers}</p><p className="text-xs text-muted">já pagaram</p></div>
+        </div>
+      </section>
+
+      <section className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="card">
+          <p className="flex items-center gap-2 text-sm text-muted"><IconTrophy size={18} /> Disputa dos artistas (este mês)</p>
+          <p className="mt-1"><span className="font-display text-2xl font-bold text-accent">{posViews}.º</span> <span className="text-sm text-muted">em visualizações</span></p>
+          <p><span className="font-display text-2xl font-bold text-accent">{posRevenue}.º</span> <span className="text-sm text-muted">em apoio do público</span></p>
+          <Link href="/ranking" className="mt-2 inline-block text-sm text-accent2 underline">Ver ranking</Link>
+        </div>
+        <div className="card">
+          <p className="flex items-center gap-2 text-sm text-muted"><IconGift size={18} /> Presentes recebidos</p>
+          <p className="mt-1 font-display text-2xl font-bold">{stats.gifts}</p>
+          <p className="text-sm text-muted">no valor de {formatKz(stats.giftsCents)} (recebes metade)</p>
+          {fans.length > 0 && (
+            <p className="mt-2 text-sm">Fã n.º 1: <strong className="text-accent2">{fans[0].displayName}</strong> ({fans[0].points} pontos)</p>
+          )}
+        </div>
       </section>
 
       <section className="mt-6">
@@ -103,7 +131,7 @@ export default async function ArtistDashboard() {
           ))}
         </ul>
       </section>
-      <p className="mt-6 flex items-center gap-2 text-xs text-muted"><IconChart size={16} /> Ranking "Disputa dos artistas" chega na próxima fase.</p>
+      <p className="mt-6 flex items-center gap-2 text-xs text-muted"><IconChart size={16} /> A tua parte do passe semanal é creditada à segunda-feira, conforme o tempo que o público com passe viu as tuas séries.</p>
     </div>
   );
 }

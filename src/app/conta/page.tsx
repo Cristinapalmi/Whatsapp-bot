@@ -6,7 +6,9 @@ import { formatKz } from "@/lib/money";
 import { formatDateTime } from "@/lib/dates";
 import { formatPhone } from "@/lib/phone";
 import { PaymentStatusBadge } from "@/components/StatusBadge";
-import { IconLogout, IconPlay } from "@/components/icons";
+import { IconLogout, IconPlay, IconStar } from "@/components/icons";
+import { pointsBalance } from "@/domain/points";
+import { business } from "@config/business";
 
 export const metadata: Metadata = { title: "A minha conta" };
 export const dynamic = "force-dynamic";
@@ -14,12 +16,14 @@ export const dynamic = "force-dynamic";
 export default async function AccountPage({ searchParams }: { searchParams: Promise<{ pedido?: string }> }) {
   const user = await requireUser("/conta");
   const { pedido } = await searchParams;
-  const [payments, unlocked] = await Promise.all([
+  const [points, pass, payments, unlocked] = await Promise.all([
+    pointsBalance(db, user.id),
+    db.weeklyPass.findFirst({ where: { userId: user.id, revokedAt: null, endsAt: { gt: new Date() } }, orderBy: { endsAt: "desc" } }),
     db.paymentRequest.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       take: 30,
-      include: { episode: { include: { series: { select: { title: true } } } } },
+      include: { episode: { include: { series: { select: { title: true } } } }, artist: { select: { stageName: true } } },
     }),
     db.entitlement.findMany({
       where: { userId: user.id },
@@ -38,6 +42,25 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       <h1 className="text-2xl font-bold">Olá, {user.name.split(" ")[0]}</h1>
       <p className="text-sm text-muted">{formatPhone(user.phone)}</p>
 
+      <section className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="card">
+          <p className="text-sm text-muted">Passe semanal</p>
+          {pass ? (
+            <p className="mt-1 font-semibold text-ok">Ativo até {formatDateTime(pass.endsAt)}</p>
+          ) : (
+            <>
+              <p className="mt-1 font-semibold">Sem passe ativo</p>
+              <Link href="/pagar?passe=1" className="btn-primary btn-sm mt-3">Ativar por {formatKz(business.weeklyPassPriceKz * 100)}</Link>
+            </>
+          )}
+        </div>
+        <div className="card">
+          <p className="flex items-center gap-2 text-sm text-muted"><IconStar size={16} /> Pontos de fã</p>
+          <p className="font-display text-3xl font-bold text-accent2">{points}</p>
+          <p className="text-xs text-muted">+{business.points.perCompletedEpisode} por episódio visto até ao fim · {business.points.costPerEpisode} pontos = 1 episódio grátis. Os pontos não valem dinheiro.</p>
+        </div>
+      </section>
+
       <section className="mt-6">
         <h2 className="text-lg font-bold">Pedidos de pagamento</h2>
         {payments.length === 0 ? (
@@ -48,7 +71,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
               <li key={p.id} className="card">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold">{p.episode ? `${p.episode.series.title} — Ep. ${p.episode.number}` : p.kind}</p>
+                    <p className="font-semibold">{p.kind === "EPISODE" && p.episode ? `${p.episode.series.title} — Ep. ${p.episode.number}` : p.kind === "WEEKLY_PASS" ? "Passe semanal" : `Presente ${business.gifts.find((g) => g.id === p.giftType)?.label ?? ""} para ${p.artist?.stageName ?? ""}`}</p>
                     <p className="text-xs text-muted">{formatDateTime(p.createdAt)} · {formatKz(p.amountCents)}</p>
                   </div>
                   <PaymentStatusBadge status={p.status} />
@@ -69,7 +92,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             {unlocked.map((u) => (
               <li key={u.id}>
                 <Link href={`/ver/${u.episodeId}`} className="card flex items-center justify-between no-underline hover:bg-surface2">
-                  <span>{u.episode.series.title} — Ep. {u.episode.number}</span>
+                  <span>{u.episode.series.title} — Ep. {u.episode.number}{u.source === "POINTS" ? " (com pontos)" : ""}</span>
                   <IconPlay size={18} className="text-accent" />
                 </Link>
               </li>

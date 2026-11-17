@@ -18,11 +18,12 @@ export const metadata: Metadata = { title: "Carteira" };
 export const dynamic = "force-dynamic";
 
 const KIND_LABEL: Record<string, string> = {
-  PAYMENT_CONFIRMED: "Venda de episódio",
-  PAYMENT_REVERSED: "Venda anulada",
+  PAYMENT_CONFIRMED: "Pagamento do público",
+  PAYMENT_REVERSED: "Pagamento anulado",
   PAYOUT_REQUESTED: "Pedido de levantamento",
   PAYOUT_REJECTED: "Levantamento devolvido",
   PASS_DISTRIBUTION: "Passe semanal",
+  PASS_ROLLOVER: "Passe semanal",
 };
 
 export default async function WalletPage() {

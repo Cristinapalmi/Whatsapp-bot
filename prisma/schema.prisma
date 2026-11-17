@@ -47,6 +47,7 @@ model User {
   processedPayouts PayoutRequest[]   @relation("PayoutProcessor")
   weeklyPasses     WeeklyPass[]
   journalEntries   JournalEntry[]
+  pointsTransactions PointsTransaction[]
 }
 
 enum ConsentDocument {
@@ -125,6 +126,8 @@ model ArtistProfile {
   ledgerAccounts  LedgerAccount[]
   paymentRequests PaymentRequest[]
   watchLogs       WatchLog[]
+  referralVisits  ReferralVisit[]
+  pointsTransactions PointsTransaction[]
 }
 
 enum SeriesStatus {
@@ -187,6 +190,7 @@ model Episode {
   paymentRequests PaymentRequest[]
   watchLogs       WatchLog[]
   reports         Report[]
+  pointsTransactions PointsTransaction[]
 
   @@unique([seriesId, number])
 }
@@ -472,4 +476,38 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([targetType, targetId])
+}
+
+// ---------- Fase 2: pontos de fã e link pessoal ----------
+
+/// Pontos de fã. NÃO têm valor monetário e NUNCA entram no livro-razão.
+/// Saldo de pontos = soma de `delta` do utilizador.
+model PointsTransaction {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Positivo = ganhou; negativo = gastou.
+  delta     Int
+  /// "EPISODE_COMPLETED" | "REDEEM_EPISODE" | "ADMIN_ADJUST"
+  reason    String
+  episodeId String?
+  episode   Episode?       @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+  /// Artista do episódio (para o "Fã n.º 1").
+  artistId  String?
+  artist    ArtistProfile? @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  createdAt DateTime       @default(now())
+
+  @@unique([userId, episodeId, reason])
+  @@index([artistId, userId])
+}
+
+/// Visitas ao link pessoal de cada artista, por dia ("Vieram por ti").
+model ReferralVisit {
+  id       String        @id @default(cuid())
+  artistId String
+  artist   ArtistProfile @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  day      DateTime      @db.Date
+  visits   Int           @default(0)
+
+  @@unique([artistId, day])
 }

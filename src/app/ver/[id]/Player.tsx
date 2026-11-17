@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconGauge, IconLock, IconNext, IconPause, IconPlay, IconSubtitles, IconExpand, IconClock } from "@/components/icons";
+import { IconGauge, IconLock, IconNext, IconPause, IconPlay, IconSubtitles, IconExpand, IconClock, IconGift, IconStar } from "@/components/icons";
 import type { EpisodeState } from "@/domain/access";
 
 type Props = {
@@ -13,6 +13,11 @@ type Props = {
   hookText: string | null;
   next: { id: string; number: number; state: EpisodeState; price: string } | null;
   hasSubtitles: boolean;
+  artist: { slug: string; name: string };
+  passPrice: string;
+  gifts: { id: string; label: string; price: string }[];
+  points: number;
+  pointsCost: number;
 };
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -34,6 +39,8 @@ export function Player(p: Props) {
   const [error, setError] = useState<string | null>(null);
   const [dataSaver, setDataSaver] = useState(true);
   const [subs, setSubs] = useState(true);
+  const [toast, setToast] = useState<string | null>(null);
+  const [showGifts, setShowGifts] = useState(false);
   const lastSent = useRef(0);
   const watchedSinceLastPing = useRef(0);
   const lastTick = useRef<number | null>(null);
@@ -55,7 +62,15 @@ export function Player(p: Props) {
       if (navigator.sendBeacon && completed === false && document.visibilityState === "hidden") {
         navigator.sendBeacon(`/api/progress/${p.episodeId}`, new Blob([body], { type: "application/json" }));
       } else {
-        fetch(`/api/progress/${p.episodeId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true }).catch(() => {});
+        fetch(`/api/progress/${p.episodeId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true })
+          .then((r) => r.json())
+          .then((d) => {
+            if (d?.points > 0) {
+              setToast(`+${d.points} pontos de fã`);
+              setTimeout(() => setToast(null), 4000);
+            }
+          })
+          .catch(() => {});
       }
     },
     [p.episodeId, p.loggedIn],
@@ -172,11 +187,20 @@ export function Player(p: Props) {
             {p.next.state === "pending" ? (
               <p className="badge-pending text-sm"><IconClock size={14} /> O teu pagamento do episódio {p.next.number} está a ser confirmado</p>
             ) : (
-              <Link href={p.loggedIn ? `/pagar?episodio=${p.next.id}` : `/entrar?next=${encodeURIComponent(`/pagar?episodio=${p.next.id}`)}`} className="btn-primary text-lg">
-                <IconLock size={20} /> Desbloqueia por {p.next.price}
-              </Link>
+              <>
+                <Link href={p.loggedIn ? `/pagar?episodio=${p.next.id}` : `/entrar?next=${encodeURIComponent(`/pagar?episodio=${p.next.id}`)}`} className="btn-primary text-lg">
+                  <IconLock size={20} /> Desbloqueia por {p.next.price}
+                </Link>
+                <Link href={p.loggedIn ? "/pagar?passe=1" : `/entrar?next=${encodeURIComponent("/pagar?passe=1")}`} className="btn-secondary">
+                  Ativa o passe semanal · {p.passPrice}
+                </Link>
+                {p.points >= p.pointsCost && (
+                  <Link href={`/pagar?episodio=${p.next.id}`} className="text-sm font-semibold text-accent2 underline">
+                    Ou usa {p.pointsCost} dos teus {p.points} pontos
+                  </Link>
+                )}
+              </>
             )}
-            {/* Fase 2: botão "Ativa o passe semanal" */}
           </div>
         )}
 
@@ -211,20 +235,45 @@ export function Player(p: Props) {
           {playing ? <><IconPause size={20} /> Pausa</> : <><IconPlay size={20} /> Play</>}
         </button>
         {p.next && (p.next.state === "free" || p.next.state === "unlocked") && (
-          <Link href={`/ver/${p.next.id}`} className="btn-secondary"><IconNext size={18} /> Próximo</Link>
+          <Link href={`/ver/${p.next.id}`} className="btn-secondary btn-sm"><IconNext size={18} /> Próximo</Link>
         )}
         {p.hasSubtitles && (
-          <button type="button" onClick={() => setSubs(!subs)} className={subs ? "btn-secondary" : "btn-ghost"} aria-pressed={subs}>
+          <button type="button" onClick={() => setSubs(!subs)} className={subs ? "btn-secondary btn-sm" : "btn-ghost btn-sm"} aria-pressed={subs}>
             <IconSubtitles size={18} /> Legendas
           </button>
         )}
-        <button type="button" onClick={toggleDataSaver} className={dataSaver ? "btn-secondary" : "btn-ghost"} aria-pressed={dataSaver}>
-          <IconGauge size={18} /> {dataSaver ? "Poupar dados (360p)" : "Qualidade 480p"}
+        <button type="button" onClick={toggleDataSaver} className={dataSaver ? "btn-secondary btn-sm" : "btn-ghost btn-sm"} aria-pressed={dataSaver}>
+          <IconGauge size={18} /> {dataSaver ? "Poupar dados" : "480p"}
         </button>
-        <button type="button" onClick={() => videoRef.current?.requestFullscreen?.()} className="btn-ghost" aria-label="Ecrã inteiro" disabled={!src}>
+        <button type="button" onClick={() => videoRef.current?.requestFullscreen?.()} className="btn-ghost btn-sm" aria-label="Ecrã inteiro" disabled={!src}>
           <IconExpand size={18} />
         </button>
+        <button type="button" onClick={() => setShowGifts(!showGifts)} className="btn-secondary btn-sm" aria-expanded={showGifts}>
+          <IconGift size={18} /> Presentes
+        </button>
       </div>
+      {showGifts && (
+        <div className="card mt-3">
+          <p className="text-sm text-muted">Apoia {p.artist.name} com um presente. Metade vai para o artista.</p>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {p.gifts.map((g) => (
+              <Link
+                key={g.id}
+                href={p.loggedIn ? `/pagar?presente=${g.id}&artista=${p.artist.slug}` : `/entrar?next=${encodeURIComponent(`/pagar?presente=${g.id}&artista=${p.artist.slug}`)}`}
+                className="flex min-h-[64px] flex-col items-center justify-center rounded-xl bg-surface2 p-2 text-center no-underline hover:ring-2 hover:ring-accent"
+              >
+                <span className="font-semibold text-fg">{g.label}</span>
+                <span className="text-sm text-accent">{g.price}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+      {toast && (
+        <div role="status" className="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-sm items-center justify-center gap-2 rounded-2xl bg-accent2 px-4 py-3 font-semibold text-[#1A0E05] shadow-xl md:bottom-8">
+          <IconStar size={18} /> {toast}
+        </div>
+      )}
       {!p.loggedIn && <p className="mt-3 text-sm text-muted"><Link href="/registar" className="text-accent2 underline">Cria conta grátis</Link> para guardar o teu progresso.</p>}
     </div>
   );

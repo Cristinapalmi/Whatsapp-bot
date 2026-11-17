@@ -37,6 +37,7 @@ Vais criar 3 contas grátis: **Supabase** (base de dados), **Cloudflare R2** (v�
    - `STORAGE_DRIVER=s3`, `S3_ENDPOINT`, `S3_REGION=auto`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_MEDIA`, `S3_BUCKET_PRIVATE`
    - `PAYMENT_MCX_NUMBER`, `PAYMENT_IBAN`, `PAYMENT_ACCOUNT_HOLDER`, `PAYMENT_BANK_NAME` (os teus dados reais)
    - `NEXT_PUBLIC_BRAND_DOMAIN` (ex.: `o-teu-projeto.vercel.app` ou o teu domínio)
+   - `CRON_SECRET` (frase aleatória) — ativa o fecho semanal automático do passe (ficheiro `vercel.json`, segundas às 01:30 de Luanda; funciona no plano grátis)
 4. **Deploy**. A Vercel cria as tabelas automaticamente (script `vercel-build`).
 5. **Criar a tua conta admin** (uma vez), no teu computador, com o `.env` a apontar para o Supabase:
 ```bash

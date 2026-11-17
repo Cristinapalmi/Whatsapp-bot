@@ -32,3 +32,6 @@ export const IconDownload = (p: P) => <svg {...base(p)}><path d="M12 4.5v11M7.5 
 export const IconLogout = (p: P) => <svg {...base(p)}><path d="M14.5 4.5h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-3M10 16.5L5.5 12 10 7.5M5.5 12H15" /></svg>;
 export const IconStar = (p: P) => <svg {...base(p)}><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6L12 4z" /></svg>;
 export const IconExpand = (p: P) => <svg {...base(p)}><path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15" /></svg>;
+export const IconGift = (p: P) => <svg {...base(p)}><rect x="4" y="9" width="16" height="11.5" rx="1.5" /><path d="M3 9h18M12 9v11.5" /><path d="M12 9c-1.5-3.5-5.5-4-5.5-1.5S10 9 12 9zM12 9c1.5-3.5 5.5-4 5.5-1.5S14 9 12 9z" /></svg>;
+export const IconTrophy = (p: P) => <svg {...base(p)}><path d="M8 4.5h8v5a4 4 0 0 1-8 0v-5z" /><path d="M8 6.5H5a3 3 0 0 0 3 4M16 6.5h3a3 3 0 0 1-3 4M12 13.5v3.5M8.5 20.5h7M9.5 17h5" /></svg>;
+export const IconLink = (p: P) => <svg {...base(p)}><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg>;

@@ -3,7 +3,9 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { canWatch, episodeStates, hasActivePass } from "@/domain/access";
-import { dayUtc } from "@/lib/dates";
+import { dayLuanda } from "@/lib/dates";
+import { awardCompletionPoints } from "@/domain/points";
+import { business } from "@config/business";
 
 const schema = z.object({
   seconds: z.number().int().min(0).max(600),
@@ -30,7 +32,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const existing = await db.watchProgress.findUnique({ where: { userId_episodeId: { userId: user.id, episodeId: id } } });
   const cap = Math.max(60, episode.durationSec * 3);
   const seconds = Math.min(parsed.data.seconds, 30, Math.max(0, cap - (existing?.secondsWatched ?? 0)));
-  const completed = parsed.data.completed && (episode.durationSec === 0 || parsed.data.position >= episode.durationSec * 0.9);
+  // "Visto até ao fim" = chegou aos 90% E viu de facto pelo menos 60% do tempo (não vale saltar para o fim).
+  const totalWatched = (existing?.secondsWatched ?? 0) + seconds;
+  const completed =
+    parsed.data.completed &&
+    (episode.durationSec === 0 || (parsed.data.position >= episode.durationSec * 0.9 && totalWatched >= episode.durationSec * 0.6));
   const firstCompletion = completed && !existing?.completed;
 
   await db.watchProgress.upsert({
@@ -46,10 +52,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (seconds > 0) {
     const viaPass = episode.number > episode.series.freeEpisodes && (await hasActivePass(db, user.id));
     await db.watchLog.upsert({
-      where: { day_userId_episodeId_viaPass: { day: dayUtc(), userId: user.id, episodeId: id, viaPass } },
-      create: { day: dayUtc(), userId: user.id, episodeId: id, artistId: episode.series.artistId, seconds, viaPass },
+      where: { day_userId_episodeId_viaPass: { day: dayLuanda(), userId: user.id, episodeId: id, viaPass } },
+      create: { day: dayLuanda(), userId: user.id, episodeId: id, artistId: episode.series.artistId, seconds, viaPass },
       update: { seconds: { increment: seconds } },
     });
   }
-  return NextResponse.json({ ok: true, firstCompletion });
+  // Pontos de fã (sem valor em dinheiro): +10 na primeira vez que vê o episódio até ao fim
+  const pointsAwarded = firstCompletion ? await awardCompletionPoints(db, user.id, id, episode.series.artistId) : false;
+  return NextResponse.json({ ok: true, firstCompletion, points: pointsAwarded ? business.points.perCompletedEpisode : 0 });
 }

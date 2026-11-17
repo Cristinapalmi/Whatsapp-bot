@@ -8,6 +8,7 @@ import { formatPhone } from "@/lib/phone";
 import { getObjectUrl } from "@/domain/storage";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { Flash } from "@/components/Flash";
+import { business } from "@config/business";
 import { PaymentStatusBadge } from "@/components/StatusBadge";
 import { confirmPaymentAction, rejectPaymentAction, reversePaymentAction } from "../actions";
 
@@ -74,8 +75,8 @@ export default async function AdminPayments({ searchParams }: { searchParams: Pr
                 </div>
                 <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                   <dt className="text-muted">Fã</dt><dd>{p.user.name} · {formatPhone(p.user.phone)}</dd>
-                  <dt className="text-muted">Compra</dt><dd>{p.episode ? `${p.episode.series.title} — Ep. ${p.episode.number}` : p.kind}</dd>
-                  <dt className="text-muted">Artista</dt><dd>{p.artist?.stageName ?? "—"}</dd>
+                  <dt className="text-muted">Compra</dt><dd>{p.kind === "EPISODE" && p.episode ? `${p.episode.series.title} — Ep. ${p.episode.number}` : p.kind === "WEEKLY_PASS" ? "Passe semanal" : `Presente: ${business.gifts.find((g) => g.id === p.giftType)?.label ?? p.giftType}`}</dd>
+                  <dt className="text-muted">Artista</dt><dd>{p.artist?.stageName ?? (p.kind === "WEEKLY_PASS" ? "Fundo do passe (dividido no fecho semanal)" : "—")}</dd>
                   <dt className="text-muted">Método</dt><dd>{p.method === "MULTICAIXA_EXPRESS" ? "Multicaixa Express" : "Transferência bancária"}</dd>
                   <dt className="text-muted">Pagou de</dt><dd>{p.payerPhone ? formatPhone(p.payerPhone) : "—"}</dd>
                   <dt className="text-muted">N.º operação</dt><dd className="font-mono">{p.transactionRef}</dd>

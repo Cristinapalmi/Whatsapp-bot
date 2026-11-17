@@ -1,68 +1,73 @@
-import type { PaymentMethod, PrismaClient } from "@prisma/client";
+import type { PaymentMethod, PrismaClient, Prisma as P } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { business } from "@config/business";
 import { splitRevenue } from "../money/split";
-import { PLATFORM_CASH, PLATFORM_REVENUE, artistAvailable } from "../money/accounts";
+import { PLATFORM_CASH, PLATFORM_REVENUE, artistAvailable, passPool, type AccountSpec } from "../money/accounts";
 import { postEntry } from "../money/ledger";
+import { weekKey } from "../money/weeks";
 import { notify, audit } from "../notify";
 import { UserFacingError } from "../errors";
-import { formatKz } from "@/lib/money";
+import { formatKz, kzToCents } from "@/lib/money";
 
 /**
  * SERVIÇO DE PAGAMENTOS — regras centrais.
  * Usado pelo painel admin (fase manual) e, mais tarde, pelos webhooks dos prestadores.
+ *
+ * Tipos de compra:
+ *  - EPISODE      → 50% para o artista da série (saldo disponível), 50% plataforma.
+ *  - GIFT         → presente a um artista: 50% artista, 50% plataforma.
+ *  - WEEKLY_PASS  → 50% plataforma; 50% vai para o FUNDO DO PASSE da semana,
+ *                   dividido pelos artistas no fecho semanal (tempo de visualização).
  */
 
 /** Normaliza o n.º da operação para comparar duplicados (sem espaços, maiúsculas). */
 export const normalizeTransactionRef = (ref: string) => ref.replace(/[\s\-_.]/g, "").toUpperCase();
 
-export type CreateEpisodePaymentInput = {
+type ProofInput = {
   userId: string;
-  episodeId: string;
   method: PaymentMethod;
   payerPhone: string;
   transactionRef: string;
   proofHash: string;
-  /** Guarda o ficheiro do comprovativo e devolve a chave de armazenamento. Só é chamado se tudo estiver válido. */
+  /** Guarda o ficheiro do comprovativo e devolve a chave. Só é chamado se tudo estiver válido. */
   storeProof: () => Promise<string>;
 };
 
-export async function createEpisodePaymentRequest(db: PrismaClient, input: CreateEpisodePaymentInput) {
+export type CreateEpisodePaymentInput = ProofInput & { episodeId: string };
+export type CreateGiftPaymentInput = ProofInput & { artistId: string; giftId: string };
+export type CreatePassPaymentInput = ProofInput;
+
+/** Verificações comuns: limite de pendentes e comprovativo repetido. */
+async function checkProof(db: PrismaClient, input: ProofInput) {
   const ref = normalizeTransactionRef(input.transactionRef);
   if (ref.length < 4) throw new UserFacingError("Indica o número da operação que aparece no comprovativo.");
-
-  const episode = await db.episode.findUnique({ where: { id: input.episodeId }, include: { series: true } });
-  if (!episode || !episode.published || episode.series.status !== "PUBLISHED")
-    throw new UserFacingError("Episódio não encontrado.");
-  if (episode.number <= episode.series.freeEpisodes) throw new UserFacingError("Este episódio é grátis.");
-
-  const already = await db.entitlement.findUnique({
-    where: { userId_episodeId: { userId: input.userId, episodeId: episode.id } },
-  });
-  if (already) throw new UserFacingError("Já desbloqueaste este episódio.");
-
   const pending = await db.paymentRequest.findMany({ where: { userId: input.userId, status: "PENDING" } });
-  if (pending.some((p) => p.episodeId === episode.id))
-    throw new UserFacingError("Já tens um pedido para este episódio a aguardar confirmação.");
-  if (pending.length >= business.maxPendingPaymentsPerUser)
-    throw new UserFacingError(
-      `Tens ${pending.length} pedidos a aguardar confirmação. Espera que sejam confirmados antes de enviar mais.`,
-    );
-
   const dup = await db.paymentRequest.findFirst({
     where: { OR: [{ proofHash: input.proofHash }, { transactionRef: ref }] },
   });
   if (dup) throw new UserFacingError("Este comprovativo já foi usado noutro pedido.", "DUPLICATE_PROOF");
+  return { ref, pending };
+}
 
+function checkPendingLimit(pending: { id: string }[]) {
+  if (pending.length >= business.maxPendingPaymentsPerUser)
+    throw new UserFacingError(
+      `Tens ${pending.length} pedidos a aguardar confirmação. Espera que sejam confirmados antes de enviar mais.`,
+    );
+}
+
+async function createRequest(
+  db: PrismaClient,
+  input: ProofInput,
+  ref: string,
+  data: Omit<P.PaymentRequestUncheckedCreateInput, "userId" | "method" | "payerPhone" | "transactionRef" | "proofHash" | "proofKey" | "provider">,
+) {
   const proofKey = await input.storeProof();
   try {
     return await db.paymentRequest.create({
       data: {
+        ...data,
         userId: input.userId,
-        kind: "EPISODE",
-        episodeId: episode.id,
-        artistId: episode.series.artistId,
-        amountCents: episode.series.priceCents,
         method: input.method,
         provider: "manual",
         payerPhone: input.payerPhone,
@@ -79,14 +84,70 @@ export async function createEpisodePaymentRequest(db: PrismaClient, input: Creat
   }
 }
 
+export async function createEpisodePaymentRequest(db: PrismaClient, input: CreateEpisodePaymentInput) {
+  const episode = await db.episode.findUnique({ where: { id: input.episodeId }, include: { series: true } });
+  if (!episode || !episode.published || episode.series.status !== "PUBLISHED")
+    throw new UserFacingError("Episódio não encontrado.");
+  if (episode.number <= episode.series.freeEpisodes) throw new UserFacingError("Este episódio é grátis.");
+
+  const already = await db.entitlement.findUnique({
+    where: { userId_episodeId: { userId: input.userId, episodeId: episode.id } },
+  });
+  if (already) throw new UserFacingError("Já desbloqueaste este episódio.");
+
+  if (normalizeTransactionRef(input.transactionRef).length < 4)
+    throw new UserFacingError("Indica o número da operação que aparece no comprovativo.");
+  const pendingNow = await db.paymentRequest.findMany({ where: { userId: input.userId, status: "PENDING" } });
+  if (pendingNow.some((p) => p.episodeId === episode.id))
+    throw new UserFacingError("Já tens um pedido para este episódio a aguardar confirmação.");
+  checkPendingLimit(pendingNow);
+  const { ref } = await checkProof(db, input);
+
+  return createRequest(db, input, ref, {
+    kind: "EPISODE",
+    episodeId: episode.id,
+    artistId: episode.series.artistId,
+    amountCents: episode.series.priceCents,
+  });
+}
+
+export async function createPassPaymentRequest(db: PrismaClient, input: CreatePassPaymentInput) {
+  const { ref, pending } = await checkProof(db, input);
+  if (pending.some((p) => p.kind === "WEEKLY_PASS"))
+    throw new UserFacingError("Já tens um pedido de passe a aguardar confirmação.");
+  checkPendingLimit(pending);
+  return createRequest(db, input, ref, { kind: "WEEKLY_PASS", amountCents: kzToCents(business.weeklyPassPriceKz) });
+}
+
+export function findGift(giftId: string) {
+  const gift = business.gifts.find((g) => g.id === giftId);
+  if (!gift) throw new UserFacingError("Presente inválido.");
+  return gift;
+}
+
+export async function createGiftPaymentRequest(db: PrismaClient, input: CreateGiftPaymentInput) {
+  const gift = findGift(input.giftId);
+  const artist = await db.artistProfile.findUnique({ where: { id: input.artistId } });
+  if (!artist || artist.status !== "APPROVED") throw new UserFacingError("Artista não encontrado.");
+  if (artist.userId === input.userId) throw new UserFacingError("Não podes oferecer presentes a ti próprio.");
+  const { ref, pending } = await checkProof(db, input);
+  checkPendingLimit(pending);
+  return createRequest(db, input, ref, {
+    kind: "GIFT",
+    artistId: artist.id,
+    giftType: gift.id,
+    amountCents: kzToCents(gift.priceKz),
+  });
+}
+
 /**
- * CONFIRMAR um pagamento: desbloqueia, credita 50% ao artista (saldo DISPONÍVEL,
- * porque na fase manual o dinheiro já está na conta da plataforma) e notifica o fã.
- * Tudo numa única transação: ou acontece tudo, ou nada.
+ * CONFIRMAR um pagamento: desbloqueia/ativa, regista o dinheiro no livro-razão
+ * e notifica. Tudo numa única transação: ou acontece tudo, ou nada.
+ * Na fase manual a parte do artista vai para o saldo DISPONÍVEL (o dinheiro já está na conta da plataforma).
  */
 export async function confirmPayment(
   db: PrismaClient,
-  { paymentId, adminId, feeCents }: { paymentId: string; adminId: string | null; feeCents?: number },
+  { paymentId, adminId, feeCents, now = new Date() }: { paymentId: string; adminId: string | null; feeCents?: number; now?: Date },
 ) {
   return db.$transaction(async (tx) => {
     // Muda o estado só se ainda estiver PENDENTE — impede confirmar duas vezes.
@@ -95,7 +156,7 @@ export async function confirmPayment(
       data: {
         status: "CONFIRMED",
         reviewedById: adminId,
-        reviewedAt: new Date(),
+        reviewedAt: now,
         ...(feeCents !== undefined ? { feeCents } : {}),
       },
     });
@@ -103,52 +164,67 @@ export async function confirmPayment(
 
     const p = await tx.paymentRequest.findUniqueOrThrow({
       where: { id: paymentId },
-      include: { episode: { include: { series: true } } },
+      include: { episode: { include: { series: true } }, artist: true },
     });
+    const { netCents, artistCents, platformCents } = splitRevenue(p.amountCents, p.feeCents, business.artistSharePercent);
 
-    if (p.kind !== "EPISODE" || !p.episode || !p.artistId)
-      throw new UserFacingError("Tipo de pagamento ainda não suportado nesta fase.");
-
-    const { netCents, artistCents, platformCents } = splitRevenue(
-      p.amountCents,
-      p.feeCents,
-      business.artistSharePercent,
-    );
+    let shareAccount: AccountSpec;
+    let description: string;
+    if (p.kind === "EPISODE") {
+      if (!p.episode || !p.artistId) throw new Error("Pagamento de episódio sem episódio/artista");
+      shareAccount = artistAvailable(p.artistId);
+      description = `Episódio ${p.episode.number} de "${p.episode.series.title}"`;
+    } else if (p.kind === "GIFT") {
+      if (!p.artistId) throw new Error("Presente sem artista");
+      shareAccount = artistAvailable(p.artistId);
+      description = `Presente ${findGift(p.giftType ?? "").label} para ${p.artist?.stageName ?? "artista"}`;
+    } else {
+      const week = weekKey(now);
+      shareAccount = passPool(week);
+      description = `Passe semanal (fundo ${week})`;
+    }
 
     await postEntry(tx, {
       kind: "PAYMENT_CONFIRMED",
-      description: `Episódio ${p.episode.number} de "${p.episode.series.title}"`,
+      description,
       idempotencyKey: `payment:${p.id}:confirm`,
       paymentRequestId: p.id,
       createdById: adminId ?? undefined,
       lines: [
         { account: PLATFORM_CASH, amountCents: netCents },
         { account: PLATFORM_REVENUE, amountCents: -platformCents },
-        { account: artistAvailable(p.artistId), amountCents: -artistCents },
+        { account: shareAccount, amountCents: -artistCents },
       ],
     });
 
-    const existing = await tx.entitlement.findUnique({
-      where: { userId_episodeId: { userId: p.userId, episodeId: p.episode.id } },
-    });
-    if (!existing) {
-      await tx.entitlement.create({
-        data: { userId: p.userId, episodeId: p.episode.id, source: "PAYMENT", paymentRequestId: p.id },
+    if (p.kind === "EPISODE" && p.episode) {
+      const existing = await tx.entitlement.findUnique({
+        where: { userId_episodeId: { userId: p.userId, episodeId: p.episode.id } },
       });
+      if (!existing) {
+        await tx.entitlement.create({
+          data: { userId: p.userId, episodeId: p.episode.id, source: "PAYMENT", paymentRequestId: p.id },
+        });
+      }
+      await notify(tx, p.userId, "Pagamento confirmado", `O episódio ${p.episode.number} de "${p.episode.series.title}" está desbloqueado. Bom filme!`, `/ver/${p.episode.id}`);
+    } else if (p.kind === "GIFT") {
+      await notify(tx, p.userId, "Presente entregue", `${p.artist?.stageName} recebeu o teu presente. Obrigado pelo apoio!`, "/conta");
+    } else {
+      // Passe: começa agora, ou no fim do passe que ainda estiver ativo (prolonga).
+      const active = await tx.weeklyPass.findFirst({
+        where: { userId: p.userId, revokedAt: null, endsAt: { gt: now } },
+        orderBy: { endsAt: "desc" },
+      });
+      const startsAt = active ? active.endsAt : now;
+      const endsAt = new Date(startsAt.getTime() + business.weeklyPassDays * 86400000);
+      await tx.weeklyPass.create({ data: { userId: p.userId, startsAt, endsAt, paymentRequestId: p.id } });
+      await notify(tx, p.userId, "Passe semanal ativo", `Podes ver todos os episódios até ${endsAt.toLocaleDateString("pt-AO", { timeZone: "Africa/Luanda" })}.`, "/");
     }
 
-    await notify(
-      tx,
-      p.userId,
-      "Pagamento confirmado",
-      `O episódio ${p.episode.number} de "${p.episode.series.title}" está desbloqueado. Bom filme!`,
-      `/ver/${p.episode.id}`,
-    );
-    const artist = await tx.artistProfile.findUnique({ where: { id: p.artistId } });
-    if (artist) {
-      await notify(tx, artist.userId, "Ganhaste dinheiro", `+${formatKz(artistCents)} na tua carteira.`, "/artista/carteira");
+    if (p.artistId && p.artist) {
+      await notify(tx, p.artist.userId, p.kind === "GIFT" ? "Recebeste um presente" : "Ganhaste dinheiro", `+${formatKz(artistCents)} na tua carteira.`, "/artista/carteira");
     }
-    await audit(tx, adminId, "PAYMENT_CONFIRMED", "PaymentRequest", p.id, { artistCents, platformCents });
+    await audit(tx, adminId, "PAYMENT_CONFIRMED", "PaymentRequest", p.id, { kind: p.kind, artistCents, platformCents });
     return { payment: p, artistCents, platformCents };
   });
 }
@@ -174,21 +250,22 @@ export async function rejectPayment(
 }
 
 /**
- * ANULAR um pagamento já confirmado (ex.: descobriu-se que a transferência era falsa).
- * Faz o lançamento inverso exato e retira o acesso ao episódio.
- * A carteira do artista pode ficar negativa; nesse caso os levantamentos ficam
- * bloqueados até ganhos futuros compensarem.
+ * ANULAR um pagamento já confirmado (ex.: transferência falsa, reembolso).
+ * Faz o lançamento inverso e retira o acesso (episódio ou passe).
+ * - A carteira do artista pode ficar negativa; os levantamentos ficam bloqueados até compensar.
+ * - Passe cuja semana JÁ FOI FECHADA: a parte dos artistas sai do fundo da semana ATUAL
+ *   (reduz a próxima distribuição), para a plataforma nunca pagar do próprio bolso.
  */
 export async function reversePayment(
   db: PrismaClient,
-  { paymentId, adminId, reason }: { paymentId: string; adminId: string; reason: string },
+  { paymentId, adminId, reason, now = new Date() }: { paymentId: string; adminId: string; reason: string; now?: Date },
 ) {
   const r = reason.trim();
   if (r.length < 3) throw new UserFacingError("Indica o motivo da anulação.");
   return db.$transaction(async (tx) => {
     const updated = await tx.paymentRequest.updateMany({
       where: { id: paymentId, status: "CONFIRMED" },
-      data: { status: "REVERSED", rejectionReason: r, reviewedById: adminId, reviewedAt: new Date() },
+      data: { status: "REVERSED", rejectionReason: r, reviewedById: adminId, reviewedAt: now },
     });
     if (updated.count !== 1) throw new UserFacingError("Só é possível anular pagamentos confirmados.");
 
@@ -196,23 +273,26 @@ export async function reversePayment(
       where: { idempotencyKey: `payment:${paymentId}:confirm` },
       include: { lines: { include: { account: true } } },
     });
+    const lines: { account: AccountSpec; amountCents: number }[] = [];
+    for (const l of original.lines) {
+      let account: AccountSpec = { code: l.account.code, name: l.account.name, type: l.account.type, artistId: l.account.artistId ?? undefined };
+      if (l.account.code.startsWith("pass-pool:")) {
+        const week = l.account.code.slice("pass-pool:".length);
+        const closed = await tx.journalEntry.findUnique({ where: { idempotencyKey: `pass-close:${week}` } });
+        if (closed) account = passPool(weekKey(now));
+      }
+      lines.push({ account, amountCents: -l.amountCents });
+    }
     await postEntry(tx, {
       kind: "PAYMENT_REVERSED",
       description: `Anulação: ${original.description} — ${r}`,
       idempotencyKey: `payment:${paymentId}:reverse`,
       paymentRequestId: paymentId,
       createdById: adminId,
-      lines: original.lines.map((l) => ({
-        account: {
-          code: l.account.code,
-          name: l.account.name,
-          type: l.account.type,
-          artistId: l.account.artistId ?? undefined,
-        },
-        amountCents: -l.amountCents,
-      })),
+      lines,
     });
     await tx.entitlement.deleteMany({ where: { paymentRequestId: paymentId } });
+    await tx.weeklyPass.updateMany({ where: { paymentRequestId: paymentId }, data: { revokedAt: now } });
     const p = await tx.paymentRequest.findUniqueOrThrow({ where: { id: paymentId } });
     await notify(tx, p.userId, "Pagamento anulado", `Motivo: ${r}`, "/conta");
     await audit(tx, adminId, "PAYMENT_REVERSED", "PaymentRequest", p.id, { reason: r });

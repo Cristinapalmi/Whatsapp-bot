@@ -33,3 +33,21 @@ Vê a denúncia, abre a série e, se for caso disso, **Retirar** com motivo.
 
 ## Verificação de contas (Admin → Resumo)
 "Caixa (livro-razão)" deve ser igual ao dinheiro que recebeste menos o que já pagaste aos artistas. Se não bater, há algum pagamento por confirmar ou anular.
+
+## Passe semanal (Admin → Passe semanal)
+- O fã paga o passe com comprovativo, como um episódio. Ao confirmares, fica com acesso a todos os episódios durante 7 dias (um segundo passe prolonga).
+- Metade vai para a plataforma; a outra metade fica no **fundo da semana**.
+- Segunda-feira às 01:30 (hora de Luanda) a app fecha a semana sozinha: divide o fundo pelos artistas conforme o tempo que o público **com passe** viu cada um. Se ninguém viu, passa para a semana seguinte. Também podes carregar em **"Fechar já as semanas terminadas"**.
+- Se anulares um passe depois de a semana estar fechada, a parte dos artistas sai do fundo da semana atual (a plataforma nunca paga do bolso, e os artistas não perdem o que já receberam).
+
+## Presentes
+O fã escolhe um presente no leitor (Cuca 50 Kz, Muamba 100 Kz, Candonga 200 Kz, Grade 500 Kz) e paga com comprovativo. Confirmas como um pagamento normal: 50% vai logo para a carteira do artista.
+
+## Pontos de fã
+- +10 pontos por episódio visto **mesmo** até ao fim (saltar para o fim não conta).
+- 100 pontos = 1 episódio grátis (botão no ecrã de pagamento). Não gera pagamento ao artista.
+- "Fã n.º 1" = quem tem mais pontos a ver as séries desse artista. Aparece na série, na página do artista e no painel dele.
+- Para dar pontos como prémio (ex.: concurso sem pagamento), pede-me uma função de ajuste — os pontos nunca se trocam por dinheiro.
+
+## Link pessoal e "Vieram por ti"
+Cada artista tem `dominio/nome`. Quem entra por esse link e cria conta fica associado ao artista (30 dias). O painel do artista mostra visitas, contas criadas e quantos já pagaram.

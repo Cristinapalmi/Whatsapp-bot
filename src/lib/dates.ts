@@ -23,3 +23,6 @@ export const formatDateTime = (d: Date) =>
 
 export const formatDate = (d: Date) =>
   new Intl.DateTimeFormat("pt-AO", { dateStyle: "medium", timeZone: "Africa/Luanda" }).format(d);
+
+/** Dia em Luanda (UTC+1), guardado como data à meia-noite — usado nos registos diários. */
+export const dayLuanda = (d = new Date()) => dayUtc(new Date(d.getTime() + 60 * 60 * 1000));

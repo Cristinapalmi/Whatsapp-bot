@@ -35,6 +35,21 @@ export const business = {
     accountHolder: env("PAYMENT_ACCOUNT_HOLDER", "Nome do titular da conta"),
     bankName: env("PAYMENT_BANK_NAME", "Banco"),
   },
+  /** Duração do passe semanal (dias). */
+  weeklyPassDays: 7,
+  /** Presentes para os artistas (valor em Kz). 50% vai para o artista. */
+  gifts: [
+    { id: "CUCA", label: "Cuca", priceKz: 50 },
+    { id: "MUAMBA", label: "Muamba", priceKz: 100 },
+    { id: "CANDONGA", label: "Candonga", priceKz: 200 },
+    { id: "GRADE", label: "Grade", priceKz: 500 },
+  ],
+  /** Pontos de fã — SEM valor em dinheiro. */
+  points: {
+    perCompletedEpisode: 10,
+    /** Pontos necessários para desbloquear 1 episódio. */
+    costPerEpisode: 100,
+  },
   /** Versões dos documentos legais. Mudar a versão obriga a nova aceitação. */
   legalVersions: {
     terms: "2026-11-v1",

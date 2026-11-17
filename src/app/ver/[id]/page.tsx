@@ -6,6 +6,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { formatKz } from "@/lib/money";
 import { canWatch, episodeStates } from "@/domain/access";
+import { pointsBalance } from "@/domain/points";
+import { business } from "@config/business";
+import { kzToCents } from "@/lib/money";
 import { IconChevronLeft, IconClock, IconLock } from "@/components/icons";
 import { Player } from "./Player";
 
@@ -19,7 +22,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
     include: {
       series: {
         include: {
-          artist: { select: { stageName: true } },
+          artist: { select: { stageName: true, slug: true } },
           episodes: { where: { published: true }, orderBy: { number: "asc" }, select: { id: true, number: true, title: true } },
         },
       },
@@ -33,6 +36,8 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
   const next = series.episodes.find((e) => e.number === episode.number + 1) ?? null;
   const nextState = next ? states[next.id] : null;
   const cover = await mediaUrl(series.coverKey);
+  const points = user ? await pointsBalance(db, user.id) : 0;
+  const passPrice = formatKz(kzToCents(business.weeklyPassPriceKz));
 
   return (
     <div className="container-app max-w-3xl">
@@ -50,6 +55,11 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
           hookText={episode.hookText}
           next={next ? { id: next.id, number: next.number, state: nextState!, price: formatKz(series.priceCents) } : null}
           hasSubtitles={!!episode.subtitlesKey}
+          artist={{ slug: series.artist.slug, name: series.artist.stageName }}
+          passPrice={passPrice}
+          gifts={business.gifts.map((g) => ({ id: g.id, label: g.label, price: formatKz(kzToCents(g.priceKz)) }))}
+          points={points}
+          pointsCost={business.points.costPerEpisode}
         />
       ) : (
         <div className="relative mt-2 aspect-video overflow-hidden rounded-2xl bg-surface">
@@ -70,6 +80,12 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
                 <Link href={user ? `/pagar?episodio=${episode.id}` : `/entrar?next=${encodeURIComponent(`/pagar?episodio=${episode.id}`)}`} className="btn-primary">
                   Desbloquear por {formatKz(series.priceCents)}
                 </Link>
+                <Link href={user ? "/pagar?passe=1" : `/entrar?next=${encodeURIComponent("/pagar?passe=1")}`} className="btn-secondary">
+                  Ativa o passe semanal · {passPrice}
+                </Link>
+                {points >= business.points.costPerEpisode && (
+                  <Link href={`/pagar?episodio=${episode.id}`} className="text-sm font-semibold text-accent2 underline">Usar {business.points.costPerEpisode} dos teus {points} pontos</Link>
+                )}
               </>
             )}
           </div>

@@ -24,6 +24,11 @@ Caixa +100 · Receita −50 · Carteira do artista −50 (crédito = o artista g
 **Rejeitas o levantamento:** volta de "Em processamento" para a carteira disponível.
 **Anulas um pagamento:** lançamento exatamente inverso ao da confirmação.
 
+**Fã compra o passe (300 Kz):** Caixa +300 · Receita −150 · Fundo do passe da semana −150.
+**Fecho semanal:** Fundo +150 · Carteiras dos artistas −(parte de cada um, pelo tempo visto com passe) · Receita −(cêntimos de arredondamento). Sem visualizações: Fundo desta semana +150 · Fundo da semana seguinte −150.
+**Presente Cuca (50 Kz):** Caixa +50 · Receita −25 · Carteira do artista −25.
+**Pontos de fã:** não aparecem no livro-razão (tabela à parte, sem valor monetário).
+
 ## Regras testadas automaticamente (`npm test`)
 - divisão 50/50, incluindo valores ímpares e comissões do prestador;
 - passe semanal dividido por tempo de visualização (com restos e semanas sem visualizações);
@@ -33,4 +38,9 @@ Caixa +100 · Receita −50 · Carteira do artista −50 (crédito = o artista g
 - comprovativo repetido e limite de pedidos pendentes;
 - rejeição não mexe em dinheiro; anulação repõe tudo;
 - levantamentos nunca ultrapassam o saldo (nem com dois pedidos em simultâneo), respeitam o mínimo, e a rejeição devolve o valor;
+- semanas do passe em hora de Luanda (incluindo passagem de ano);
+- passe: 50/50, prolongamento, acesso, fecho semanal proporcional, sem repetir, por ordem, fundo que passa de semana, anulação depois do fecho;
+- presentes reais (Cuca 25 Kz para o artista, Grade 250 Kz), presente inválido ou a si próprio recusado;
+- pontos: +10 só uma vez por episódio, 100 = 1 episódio sem mexer no livro-razão, sem gastar duas vezes em simultâneo, Fã n.º 1;
+- ranking mensal por visualizações e receita;
 - no fim, a soma de todo o livro-razão é zero.

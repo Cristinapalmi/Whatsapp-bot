@@ -9,6 +9,7 @@ import { kzToCents } from "@/lib/money";
 import { toActionError } from "@/lib/actions";
 import { confirmPayment, rejectPayment, reversePayment } from "@/domain/payments/service";
 import { markPayoutPaid, rejectPayout } from "@/domain/payouts/service";
+import { closeEndedWeeks } from "@/domain/payments/pass";
 import { audit, notify } from "@/domain/notify";
 import { getUploadUrl, newKey, putObject } from "@/domain/storage";
 import { UserFacingError } from "@/domain/errors";
@@ -236,5 +237,15 @@ export async function resolveReportAction(_: ActionResult, fd: FormData): Promis
     await audit(db, admin.id, `REPORT_${status}`, "Report", id);
     revalidatePath("/admin/denuncias");
     return { ok: "Atualizado." };
+  } catch (e) { return toActionError(e); }
+}
+
+// ---------- Passe semanal ----------
+export async function closeWeeksAction(_: ActionResult, _fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const results = await closeEndedWeeks(db, { adminId: admin.id });
+    revalidatePath("/admin/passe");
+    return { ok: results.length ? `Semanas fechadas: ${results.map((r) => r.week).join(", ")}.` : "Não há semanas terminadas por fechar." };
   } catch (e) { return toActionError(e); }
 }

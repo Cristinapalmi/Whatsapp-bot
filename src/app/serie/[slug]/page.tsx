@@ -7,7 +7,8 @@ import { mediaUrl } from "@/lib/media";
 import { formatKz } from "@/lib/money";
 import { CATEGORY_LABELS } from "@/lib/categories";
 import { episodeStates, type EpisodeState } from "@/domain/access";
-import { IconCheck, IconClock, IconLock, IconPlay } from "@/components/icons";
+import { IconCheck, IconClock, IconLock, IconPlay, IconTrophy } from "@/components/icons";
+import { topFans } from "@/domain/points";
 import { ReportForm } from "./ReportForm";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
   const user = await getCurrentUser();
   const states = await episodeStates(db, user?.id ?? null, series, series.episodes);
   const cover = await mediaUrl(series.coverKey);
+  const [fan1] = await topFans(db, series.artistId, 1);
   const firstWatchable = series.episodes.find((e) => states[e.id] === "free" || states[e.id] === "unlocked");
 
   return (
@@ -47,11 +49,17 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
         <div>
           <span className="badge-price">{CATEGORY_LABELS[series.category]}</span>
           <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">{series.title}</h1>
-          <p className="mt-1 text-muted">de <span className="font-semibold text-fg">{series.artist.stageName}</span></p>
+          <p className="mt-1 text-muted">de <Link href={`/${series.artist.slug}`} className="font-semibold text-fg underline">{series.artist.stageName}</Link></p>
           <p className="mt-3 leading-relaxed text-fg/90">{series.synopsis}</p>
           <p className="mt-3 text-sm text-muted">
             {series.freeEpisodes} {series.freeEpisodes === 1 ? "episódio grátis" : "episódios grátis"} · depois {formatKz(series.priceCents)} por episódio
           </p>
+          {fan1 && (
+            <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent2/15 px-3 py-1.5 text-sm text-accent2">
+              <IconTrophy size={16} /> Fã n.º 1 de {series.artist.stageName}: <strong>{fan1.displayName}</strong> · {fan1.points} pontos
+            </p>
+          )}
+          <div />
           {firstWatchable && (
             <Link href={`/ver/${firstWatchable.id}`} className="btn-primary mt-4">
               <IconPlay size={20} /> Ver episódio {firstWatchable.number}

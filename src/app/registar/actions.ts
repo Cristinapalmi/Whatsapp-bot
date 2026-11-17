@@ -1,5 +1,6 @@
 "use server";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { business } from "@config/business";
 import { db } from "@/lib/db";
@@ -28,12 +29,16 @@ export async function registerAction(_: ActionResult, fd: FormData): Promise<Act
     if (await db.user.findUnique({ where: { phone: data.phone } }))
       return { error: "Já existe uma conta com este número. Entra com a tua palavra-passe." };
     const meta = await requestMeta();
+    // "Vieram por ti": artista cujo link pessoal trouxe esta pessoa
+    const refId = (await cookies()).get("ref")?.value;
+    const referrer = refId ? await db.artistProfile.findFirst({ where: { id: refId, status: "APPROVED" }, select: { id: true } }) : null;
     const user = await db.user.create({
       data: {
         name: data.name,
         phone: data.phone,
         passwordHash: await hashPassword(data.password),
         birthDate: data.birthDate,
+        referredByArtistId: referrer?.id ?? null,
         consents: {
           create: [
             { document: "TERMS", version: business.legalVersions.terms, ...meta },

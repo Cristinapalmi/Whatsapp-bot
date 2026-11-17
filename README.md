@@ -20,7 +20,7 @@ Os primeiros episódios são grátis; os seguintes desbloqueiam-se por pagamento
 ## Estado
 
 - **Fase 1 (MVP) — feita:** registos público/artista com políticas, episódios grátis + gancho, pagamento manual com comprovativo, confirmação no admin, carteira do artista (50%), levantamentos manuais + CSV, painel admin para séries/vídeos, denúncias, textos legais, dados de exemplo, testes das regras de dinheiro.
-- **Fase 2 — a seguir:** passe semanal, presentes, pontos e Fã n.º 1, ranking, link pessoal com "Vieram por ti".
+- **Fase 2 — feita:** passe semanal (300 Kz, 7 dias) com fecho semanal automático, presentes (Cuca, Muamba, Candonga, Grade), pontos de fã e Fã n.º 1, ranking mensal "Disputa dos artistas", link pessoal do artista com "Vieram por ti".
 - **Fase 3:** pagamentos automáticos via prestador, trailers automáticos, exportações avançadas.
 
 ## Tecnologia

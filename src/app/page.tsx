@@ -4,7 +4,9 @@ import { db } from "@/lib/db";
 import { mediaUrl } from "@/lib/media";
 import { CATEGORY_LABELS, HOME_ROWS } from "@/lib/categories";
 import { SeriesRow, type SeriesCardData } from "@/components/SeriesCard";
-import { IconPlay } from "@/components/icons";
+import { IconPlay, IconTrophy } from "@/components/icons";
+import { RankingList } from "@/components/RankingList";
+import { monthlyRanking, sortByViews } from "@/domain/ranking";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +40,7 @@ export default async function Home() {
       artistName: s.artist.stageName, freeEpisodes: s.freeEpisodes,
     });
   }
+  const ranking = sortByViews(await monthlyRanking(db)).filter((r) => r.views > 0).slice(0, 5);
   const featured = series.find((s) => s.featured) ?? series[0];
   const featuredCover = featured ? cards.get(featured.id)?.coverUrl : null;
   const hot = [...series].sort((a, b) => (scoreBySeries.get(b.id) ?? 0) - (scoreBySeries.get(a.id) ?? 0)).slice(0, 10);
@@ -74,6 +77,16 @@ export default async function Home() {
         <SeriesRow key={cat} title={CATEGORY_LABELS[cat]} items={series.filter((s) => s.category === cat).map((s) => cards.get(s.id)!)} />
       ))}
       <SeriesRow title="Novidades" items={series.slice(0, 10).map((s) => cards.get(s.id)!)} />
+
+      {ranking.length > 0 && (
+        <section className="container-app mt-8">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-xl font-bold"><IconTrophy className="text-accent2" /> Disputa dos artistas</h2>
+            <Link href="/ranking" className="text-sm font-semibold text-accent2 underline">Ver tudo</Link>
+          </div>
+          <div className="mt-3"><RankingList rows={ranking} by="views" /></div>
+        </section>
+      )}
 
       <section className="container-app mt-12">
         <div className="card flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
