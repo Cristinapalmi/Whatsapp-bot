@@ -40,5 +40,4 @@ src/domain/payments/   PaymentProvider (manual + adaptadores futuros) e serviço
 src/domain/payouts/    levantamentos dos artistas
 src/app/               ecrãs (público, artista, admin, legal)
 tests/                 testes automáticos das regras de dinheiro
-legacy/                código antigo do bot de WhatsApp (não usado)
 ```
