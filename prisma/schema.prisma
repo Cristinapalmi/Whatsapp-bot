@@ -1,0 +1,475 @@
+// ============================================================
+//  Estrutura da base de dados
+//  Valores de dinheiro: SEMPRE em cêntimos de Kwanza (inteiros).
+//  Ex.: 100 Kz = 10000 cêntimos.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------- Utilizadores e consentimentos ----------
+
+enum Role {
+  PUBLIC
+  ARTIST
+  ADMIN
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  phone        String    @unique // formato normalizado: +2449XXXXXXXX
+  email        String?
+  passwordHash String
+  birthDate    DateTime
+  role         Role      @default(PUBLIC)
+  disabled     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  /// Artista que trouxe este utilizador (link pessoal) — usado na Fase 2.
+  referredByArtistId String?
+
+  consents         Consent[]
+  artistProfile    ArtistProfile?
+  paymentRequests  PaymentRequest[]  @relation("PaymentRequester")
+  reviewedPayments PaymentRequest[]  @relation("PaymentReviewer")
+  entitlements     Entitlement[]
+  watchProgress    WatchProgress[]
+  notifications    Notification[]
+  reports          Report[]
+  auditLogs        AuditLog[]
+  processedPayouts PayoutRequest[]   @relation("PayoutProcessor")
+  weeklyPasses     WeeklyPass[]
+  journalEntries   JournalEntry[]
+}
+
+enum ConsentDocument {
+  TERMS
+  PRIVACY
+  ARTIST_SHOW_SERIES // 1. Autorizo mostrar as minhas séries
+  ARTIST_FREE_EPISODES // 2. Aceito episódios grátis
+  ARTIST_REVENUE_SPLIT // 3. Aceito 50/50, passe e presentes
+  ARTIST_CONTENT_RULES // 4. Conteúdo é meu e respeita as regras
+  ARTIST_WITHDRAWAL_RULES // 5. Regras de levantamento
+}
+
+model Consent {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   ConsentDocument
+  version    String
+  acceptedAt DateTime        @default(now())
+  ip         String?
+  userAgent  String?
+
+  @@index([userId, document])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  phone     String
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([phone, createdAt])
+}
+
+// ---------- Artistas, séries e episódios ----------
+
+enum ArtistStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum Category {
+  TERROR
+  COMEDIA
+  DRAMA
+  MAKAS_FAMILIA
+  ROMANCE
+  ACAO
+  OUTRO
+}
+
+model ArtistProfile {
+  id              String       @id @default(cuid())
+  userId          String       @unique
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stageName       String
+  fullName        String
+  biNumber        String
+  email           String
+  socialUrl       String
+  category        Category
+  photoKey        String?
+  slug            String       @unique // link pessoal: dominio/slug
+  bio             String?
+  status          ArtistStatus @default(PENDING)
+  rejectionReason String?
+  approvedAt      DateTime?
+  approvedById    String?
+  createdAt       DateTime     @default(now())
+
+  series          Series[]
+  payoutAccount   PayoutAccount?
+  payoutRequests  PayoutRequest[]
+  ledgerAccounts  LedgerAccount[]
+  paymentRequests PaymentRequest[]
+  watchLogs       WatchLog[]
+}
+
+enum SeriesStatus {
+  IN_REVIEW // enviada pelo artista, em análise
+  APPROVED // aprovada, mas ainda sem episódios publicados
+  PUBLISHED // visível ao público
+  REJECTED
+  HIDDEN // retirada (denúncia, pedido do artista, etc.)
+}
+
+model Series {
+  id              String       @id @default(cuid())
+  artistId        String
+  artist          ArtistProfile @relation(fields: [artistId], references: [id], onDelete: Restrict)
+  title           String
+  slug            String       @unique
+  synopsis        String       @default("")
+  category        Category
+  coverKey        String?
+  socialUrl       String?
+  plannedEpisodes Int          @default(1)
+  /// Preço por episódio, em cêntimos (50–150 Kz).
+  priceCents      Int          @default(10000)
+  /// Quantos episódios iniciais são grátis.
+  freeEpisodes    Int          @default(2)
+  status          SeriesStatus @default(IN_REVIEW)
+  featured        Boolean      @default(false)
+  rejectionReason String?
+  createdAt       DateTime     @default(now())
+  publishedAt     DateTime?
+
+  episodes        Episode[]
+  reports         Report[]
+
+  @@index([status, category])
+}
+
+model Episode {
+  id            String   @id @default(cuid())
+  seriesId      String
+  series        Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  number        Int
+  title         String
+  synopsis      String?
+  /// Vídeo em qualidade baixa (360p) — usado por defeito / modo poupar dados.
+  videoKey      String?
+  /// Vídeo em qualidade média (480p), opcional.
+  videoKeyHd    String?
+  /// Legendas em WebVTT (.vtt), opcional.
+  subtitlesKey  String?
+  durationSec   Int      @default(0)
+  /// Marca o episódio que termina em suspense (normalmente o último grátis).
+  endsWithHook  Boolean  @default(false)
+  hookText      String?
+  published     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  entitlements    Entitlement[]
+  watchProgress   WatchProgress[]
+  paymentRequests PaymentRequest[]
+  watchLogs       WatchLog[]
+  reports         Report[]
+
+  @@unique([seriesId, number])
+}
+
+// ---------- Pagamentos ----------
+
+enum PaymentKind {
+  EPISODE
+  WEEKLY_PASS
+  GIFT
+}
+
+enum PaymentMethod {
+  MULTICAIXA_EXPRESS
+  BANK_TRANSFER
+  PAYPAY
+  REFERENCE
+}
+
+enum PaymentStatus {
+  PENDING // a aguardar confirmação
+  CONFIRMED
+  REJECTED
+  REVERSED // confirmado e depois anulado (ex.: transferência falsa)
+}
+
+model PaymentRequest {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation("PaymentRequester", fields: [userId], references: [id])
+  kind            PaymentKind
+  episodeId       String?
+  episode         Episode?      @relation(fields: [episodeId], references: [id])
+  /// Artista que recebe os 50% (nulo no passe semanal).
+  artistId        String?
+  artist          ArtistProfile? @relation(fields: [artistId], references: [id])
+  /// Tipo de presente (Fase 2), ex.: "CUCA".
+  giftType        String?
+  amountCents     Int
+  /// Comissão do prestador de pagamento (0 na fase manual).
+  feeCents        Int           @default(0)
+  method          PaymentMethod
+  /// Prestador que tratou o pagamento: "manual", "multicaixa", ...
+  provider        String        @default("manual")
+  providerRef     String?
+  payerPhone      String?
+  /// N.º da operação escrito no comprovativo (normalizado). Único.
+  transactionRef  String?       @unique
+  proofKey        String?
+  /// Impressão digital (SHA-256) do ficheiro do comprovativo. Única.
+  proofHash       String?       @unique
+  status          PaymentStatus @default(PENDING)
+  rejectionReason String?
+  reviewedById    String?
+  reviewedBy      User?         @relation("PaymentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  createdAt       DateTime      @default(now())
+
+  entitlement     Entitlement?
+  weeklyPass      WeeklyPass?
+  journalEntries  JournalEntry[]
+
+  @@index([status, createdAt])
+  @@index([userId, status])
+}
+
+enum EntitlementSource {
+  PAYMENT
+  POINTS // desbloqueado com pontos: NÃO gera pagamento ao artista
+  ADMIN
+}
+
+model Entitlement {
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episodeId        String
+  episode          Episode           @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  source           EntitlementSource
+  paymentRequestId String?           @unique
+  paymentRequest   PaymentRequest?   @relation(fields: [paymentRequestId], references: [id])
+  createdAt        DateTime          @default(now())
+
+  @@unique([userId, episodeId])
+}
+
+/// Passe semanal (Fase 2).
+model WeeklyPass {
+  id               String         @id @default(cuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startsAt         DateTime
+  endsAt           DateTime
+  paymentRequestId String         @unique
+  paymentRequest   PaymentRequest @relation(fields: [paymentRequestId], references: [id])
+  revokedAt        DateTime?
+
+  @@index([userId, endsAt])
+}
+
+// ---------- Visualizações ----------
+
+model WatchProgress {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episodeId      String
+  episode        Episode   @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  secondsWatched Int       @default(0)
+  lastPosition   Int       @default(0)
+  completed      Boolean   @default(false)
+  completedAt    DateTime?
+  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+
+  @@unique([userId, episodeId])
+}
+
+/// Segundos vistos por dia/utilizador/episódio. Base para minutos, ranking e divisão do passe.
+model WatchLog {
+  id        String        @id @default(cuid())
+  day       DateTime      @db.Date
+  userId    String
+  episodeId String
+  episode   Episode       @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  artistId  String
+  artist    ArtistProfile @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  seconds   Int           @default(0)
+  /// O utilizador tinha passe semanal ativo enquanto viu.
+  viaPass   Boolean       @default(false)
+
+  @@unique([day, userId, episodeId, viaPass])
+  @@index([artistId, day])
+}
+
+// ---------- Livro-razão (dupla entrada) ----------
+
+enum AccountType {
+  ASSET // ex.: dinheiro recebido
+  LIABILITY // ex.: o que devemos aos artistas
+  REVENUE // receita da plataforma
+  EXPENSE // ex.: comissões de pagamento
+}
+
+model LedgerAccount {
+  id        String         @id @default(cuid())
+  /// Código único, ex.: "platform:cash", "artist:<id>:available"
+  code      String         @unique
+  name      String
+  type      AccountType
+  artistId  String?
+  artist    ArtistProfile? @relation(fields: [artistId], references: [id])
+  createdAt DateTime       @default(now())
+
+  lines     LedgerLine[]
+}
+
+model JournalEntry {
+  id               String          @id @default(cuid())
+  /// Tipo de movimento, ex.: "PAYMENT_CONFIRMED", "PAYOUT_PAID"
+  kind             String
+  description      String
+  /// Evita lançar o mesmo movimento duas vezes.
+  idempotencyKey   String          @unique
+  paymentRequestId String?
+  paymentRequest   PaymentRequest? @relation(fields: [paymentRequestId], references: [id])
+  payoutRequestId  String?
+  payoutRequest    PayoutRequest?  @relation(fields: [payoutRequestId], references: [id])
+  createdById      String?
+  createdBy        User?           @relation(fields: [createdById], references: [id])
+  createdAt        DateTime        @default(now())
+
+  lines            LedgerLine[]
+}
+
+/// Cada linha: valor positivo = débito, negativo = crédito.
+/// A soma das linhas de cada lançamento é SEMPRE zero.
+model LedgerLine {
+  id          String        @id @default(cuid())
+  entryId     String
+  entry       JournalEntry  @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  accountId   String
+  account     LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  amountCents Int
+  createdAt   DateTime      @default(now())
+
+  @@index([accountId, createdAt])
+}
+
+// ---------- Levantamentos dos artistas ----------
+
+enum PayoutMethod {
+  BANK_IBAN
+  MULTICAIXA_EXPRESS
+}
+
+model PayoutAccount {
+  id         String        @id @default(cuid())
+  artistId   String        @unique
+  artist     ArtistProfile @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  holderName String
+  method     PayoutMethod
+  bankName   String?
+  iban       String?
+  mcxPhone   String?
+  updatedAt  DateTime      @updatedAt
+}
+
+enum PayoutStatus {
+  PROCESSING // em processamento
+  PAID
+  REJECTED
+}
+
+model PayoutRequest {
+  id            String        @id @default(cuid())
+  artistId      String
+  artist        ArtistProfile @relation(fields: [artistId], references: [id])
+  amountCents   Int
+  status        PayoutStatus  @default(PROCESSING)
+  // Cópia dos dados de pagamento no momento do pedido
+  method        PayoutMethod
+  holderName    String
+  bankName      String?
+  iban          String?
+  mcxPhone      String?
+  requestedAt   DateTime      @default(now())
+  processedAt   DateTime?
+  processedById String?
+  processedBy   User?         @relation("PayoutProcessor", fields: [processedById], references: [id])
+  proofKey      String?
+  adminNote     String?
+
+  journalEntries JournalEntry[]
+
+  @@index([status, requestedAt])
+}
+
+// ---------- Notificações, denúncias, auditoria ----------
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String?
+  reporter   User?        @relation(fields: [reporterId], references: [id])
+  seriesId   String?
+  series     Series?      @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  episodeId  String?
+  episode    Episode?     @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  reason     String
+  details    String?
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+  resolvedAt DateTime?
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String
+  targetType String
+  targetId   String
+  data       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+}
