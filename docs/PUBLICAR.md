@@ -87,24 +87,26 @@ Se quiseres outros nomes, usa-os nas variáveis `SUPABASE_BUCKET_MEDIA` e `SUPAB
 | `PAYMENT_IBAN` | o teu IBAN (AO06…) | Os teus dados |
 | `PAYMENT_ACCOUNT_HOLDER` | nome do titular da conta | Os teus dados |
 | `PAYMENT_BANK_NAME` | nome do banco | Os teus dados |
-| `NEXT_PUBLIC_BRAND_DOMAIN` | `o-teu-projeto.vercel.app` (ou o teu domínio) | Endereço do site |
+| `ADMIN_PHONE` | o teu telefone angolano (ex.: `923456789`) | Os teus dados — conta de admin |
+| `ADMIN_PASSWORD` | palavra-passe de admin (mín. 8 caracteres) | Inventas tu |
+| `NEXT_PUBLIC_BRAND_DOMAIN` | só se tiveres **domínio próprio** (ex.: `konta.ao`) | Opcional — sem ele, a app usa o endereço da Vercel |
 
-Opcionais (têm valores por defeito): `NEXT_PUBLIC_BRAND_NAME`, `NEXT_PUBLIC_BRAND_SLOGAN`, `NEXT_PUBLIC_BRAND_COLOR_ACCENT`, `NEXT_PUBLIC_BRAND_COLOR_ACCENT2`, `NEXT_PUBLIC_BRAND_SUPPORT_EMAIL`, `NEXT_PUBLIC_BRAND_SUPPORT_WHATSAPP`, `MIN_WITHDRAWAL_KZ`, `MAX_PENDING_PAYMENTS_PER_USER`.
+Opcional: `SEED_DEMO` = `true` só se quiseres as 6 séries de exemplo no site (para demonstrações). Por defeito não são criadas.
+
+Outros opcionais (têm valores por defeito): `NEXT_PUBLIC_BRAND_NAME`, `NEXT_PUBLIC_BRAND_SLOGAN`, `NEXT_PUBLIC_BRAND_COLOR_ACCENT`, `NEXT_PUBLIC_BRAND_COLOR_ACCENT2`, `NEXT_PUBLIC_BRAND_SUPPORT_EMAIL`, `NEXT_PUBLIC_BRAND_SUPPORT_WHATSAPP`, `MIN_WITHDRAWAL_KZ`, `MAX_PENDING_PAYMENTS_PER_USER`.
 
 4. Carrega em **Deploy**. A Vercel cria as tabelas da base de dados sozinha (script `vercel-build`).
-5. Quando acabar, abre o endereço do site, por exemplo `https://o-teu-projeto.vercel.app`. Se o endereço for diferente do que puseste em `NEXT_PUBLIC_BRAND_DOMAIN`, corrige essa variável e carrega em **Redeploy**.
+5. Quando acabar, abre o endereço do site, por exemplo `https://o-teu-projeto.vercel.app`. Os links pessoais dos artistas usam automaticamente o endereço de produção da Vercel (ou o teu domínio próprio, se o puseres em `NEXT_PUBLIC_BRAND_DOMAIN`).
 
 > Online, o `STORAGE_DRIVER` **tem de ser** `supabase`. A Vercel não guarda ficheiros no disco: com `local`, os comprovativos e os vídeos perdiam-se.
 
-## 5. Criar a tua conta de administração (uma vez)
+## 5. A tua conta de administração (automática)
 
-No teu computador, põe no `.env` os **mesmos** `DATABASE_URL` e `DIRECT_URL` do Supabase, mais `ADMIN_PHONE` e `ADMIN_PASSWORD`, e corre:
-```bash
-SEED_DEMO=false npm run db:seed
-```
-No Windows (PowerShell): `$env:SEED_DEMO="false"; npm run db:seed`
+Não precisas de correr nada. **Em cada deploy**, a Vercel cria a conta de admin com o `ADMIN_PHONE` e a `ADMIN_PASSWORD` (ou atualiza-a, se já existir). Nunca duplica contas nem apaga dados.
+- Para mudar a palavra-passe de admin: muda `ADMIN_PASSWORD` na Vercel → **Deployments → ⋯ → Redeploy**.
+- Se essas variáveis faltarem, o site é publicado na mesma, mas sem conta de admin. Nos registos do deploy aparece `[admin] Conta de administração não criada: ...` com o motivo.
 
-Sem `SEED_DEMO=false`, o comando também cria as 6 séries de exemplo. É útil para mostrar a artistas, mas retira-as antes do lançamento.
+Para entrar: abre o site → **Entrar** → escreve o telefone do `ADMIN_PHONE` e a `ADMIN_PASSWORD` → vais parar ao painel **Administração**.
 
 ## 6. Verificar que tudo funciona
 1. Entra como admin → **Séries** → abre uma série → carrega uma capa e um vídeo pequeno. A barra de progresso tem de chegar aos 100%.

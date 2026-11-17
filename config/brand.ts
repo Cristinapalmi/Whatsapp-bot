@@ -17,6 +17,28 @@ const env = (key: string, fallback: string) => {
   return v && v.trim().length > 0 ? v.trim() : fallback;
 };
 
+/** Tira "https://", barras e espaços: "https://exemplo.ao/" → "exemplo.ao". */
+const cleanHost = (v?: string) => (v ?? "").trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "").toLowerCase();
+
+/**
+ * Endereço público do site (usado nos links pessoais dos artistas e nos trailers).
+ *  1. NEXT_PUBLIC_BRAND_DOMAIN, se for um DOMÍNIO PRÓPRIO (ex.: konta.ao) — tem sempre prioridade.
+ *  2. Senão, o endereço de produção que a Vercel dá automaticamente
+ *     (VERCEL_PROJECT_PRODUCTION_URL, ex.: konta-app-iota.vercel.app). Se um dia ligares um
+ *     domínio próprio na Vercel, este valor passa a ser esse domínio.
+ *  3. Senão, NEXT_PUBLIC_BRAND_DOMAIN mesmo que seja *.vercel.app, e por fim localhost:3000.
+ * Assim, um NEXT_PUBLIC_BRAND_DOMAIN antigo/errado do tipo "*.vercel.app" não estraga os links.
+ */
+export function resolveDomain(e: Record<string, string | undefined> = process.env): string {
+  const configured = cleanHost(e.NEXT_PUBLIC_BRAND_DOMAIN);
+  const vercel = cleanHost(e.VERCEL_PROJECT_PRODUCTION_URL || e.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL);
+  const isVercelHost = (h: string) => h.endsWith(".vercel.app");
+  if (configured && !isVercelHost(configured) && !configured.startsWith("localhost")) return configured;
+  if (vercel) return vercel;
+  if (configured) return configured;
+  return "localhost:3000";
+}
+
 export const brand = {
   /** Nome da plataforma (provisório). */
   name: env("NEXT_PUBLIC_BRAND_NAME", "KONTA"),
@@ -27,8 +49,8 @@ export const brand = {
     "NEXT_PUBLIC_BRAND_DESCRIPTION",
     "Séries curtas feitas por criadores angolanos. Os primeiros episódios são grátis.",
   ),
-  /** Domínio público, sem https:// (usado nos links pessoais dos artistas). */
-  domain: env("NEXT_PUBLIC_BRAND_DOMAIN", "localhost:3000"),
+  /** Domínio público, sem https:// (usado nos links pessoais dos artistas). Ver resolveDomain(). */
+  domain: resolveDomain(),
   /** Cores (tema escuro). */
   colors: {
     accent: env("NEXT_PUBLIC_BRAND_COLOR_ACCENT", "#FF7A2F"), // laranja

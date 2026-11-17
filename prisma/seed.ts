@@ -2,9 +2,11 @@
  * DADOS DE EXEMPLO — corre com: npm run db:seed
  *
  * Cria:
- *  - 1 conta de administração (telefone/palavra-passe do .env: ADMIN_PHONE / ADMIN_PASSWORD)
- *  - 1 conta de artista de teste:  +244 900 000 002 / artista123
- *  - 1 conta de fã de teste:       +244 900 000 003 / fa123456
+ *  - 1 conta de administração (só se ADMIN_PHONE e ADMIN_PASSWORD estiverem definidos)
+ *  - 1 conta de artista de teste:  +244 900 000 002 / artista123  (no computador)
+ *  - 1 conta de fã de teste:       +244 900 000 003 / fa123456     (no computador)
+ *    Na Vercel (online) estas duas contas recebem palavras-passe aleatórias: as séries de
+ *    exemplo aparecem, mas ninguém consegue entrar nessas contas.
  *  - 6 artistas fictícios e 6 séries com episódios, ganchos e preços
  *
  * Para NÃO criar os dados de exemplo (só a conta admin), define SEED_DEMO=false.
@@ -12,6 +14,8 @@
  */
 import { PrismaClient, type Category, type ConsentDocument } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
+import { ensureAdmin } from "../src/domain/admin-bootstrap";
 
 try {
   process.loadEnvFile?.(".env");
@@ -77,17 +81,14 @@ const DEMOS: Demo[] = [
 ];
 
 const hash = (pw: string) => bcrypt.hash(pw, 10);
+/** Online (Vercel) as contas de teste ficam com palavras-passe aleatórias. */
+const ONLINE = !!process.env.VERCEL;
+const testPassword = (pw: string) => (ONLINE ? randomBytes(24).toString("hex") : pw);
 
 async function main() {
-  // ---------- Administração ----------
-  const adminPhone = process.env.ADMIN_PHONE ?? "+244900000001";
-  const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123";
-  await db.user.upsert({
-    where: { phone: adminPhone },
-    update: { role: "ADMIN" },
-    create: { name: "Administração", phone: adminPhone, passwordHash: await hash(adminPassword), birthDate: new Date("1990-01-01"), role: "ADMIN" },
-  });
-  console.log(`Admin: ${adminPhone}`);
+  // ---------- Administração (nunca com palavra-passe por defeito) ----------
+  const admin = await ensureAdmin(db, { phone: process.env.ADMIN_PHONE, password: process.env.ADMIN_PASSWORD });
+  console.log(admin.status === "skipped" ? `Admin não criado: ${admin.reason}` : `Admin: ${admin.phone} (${admin.status})`);
 
   if (process.env.SEED_DEMO === "false") return;
 
@@ -98,7 +99,7 @@ async function main() {
     create: {
       name: "Fã de Teste",
       phone: "+244900000003",
-      passwordHash: await hash("fa123456"),
+      passwordHash: await hash(testPassword("fa123456")),
       birthDate: new Date("2000-05-10"),
       consents: { create: [{ document: "TERMS", version: VERSION }, { document: "PRIVACY", version: VERSION }] },
     },
@@ -114,7 +115,7 @@ async function main() {
         name: d.artist.fullName,
         phone: d.artist.phone,
         email: `${d.artist.slug}@exemplo.ao`,
-        passwordHash: await hash(isTestArtist ? "artista123" : `demo-${Math.random()}`),
+        passwordHash: await hash(isTestArtist ? testPassword("artista123") : randomBytes(24).toString("hex")),
         birthDate: new Date("1994-03-15"),
         role: "ARTIST",
         consents: { create: ARTIST_DOCS.map((document) => ({ document, version: VERSION })) },
@@ -181,7 +182,7 @@ async function main() {
       },
     });
   }
-  console.log("Contas de teste: artista +244900000002 / artista123 · fã +244900000003 / fa123456");
+  if (!ONLINE) console.log("Contas de teste: artista +244900000002 / artista123 · fã +244900000003 / fa123456");
 }
 
 main()
