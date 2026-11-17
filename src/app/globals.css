@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html { background: rgb(var(--c-bg)); color: rgb(var(--c-text)); color-scheme: dark; }
+body { @apply font-sans antialiased; background: rgb(var(--c-bg)); min-height: 100dvh; }
+h1, h2, h3 { font-family: var(--font-display), system-ui, sans-serif; letter-spacing: -0.025em; }
+a { @apply underline-offset-4; }
+:focus-visible { outline: 3px solid rgb(var(--c-accent2)); outline-offset: 2px; border-radius: 6px; }
+
+@layer components {
+  .btn { @apply inline-flex min-h-tap items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-semibold transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none; }
+  /* Texto escuro sobre laranja: contraste acessível (WCAG AA) */
+  .btn-primary { @apply btn bg-accent text-[#1A0E05] hover:brightness-110; }
+  .btn-secondary { @apply btn bg-surface2 text-fg hover:bg-[#322e29]; }
+  .btn-ghost { @apply btn bg-transparent text-fg hover:bg-surface2; }
+  .btn-danger { @apply btn bg-danger/15 text-danger hover:bg-danger/25; }
+  .btn-sm { @apply min-h-tap px-3 py-2 text-sm; }
+  .card { @apply rounded-2xl bg-surface p-4; }
+  .label { @apply mb-1 block text-sm font-medium text-fg; }
+  .hint { @apply mt-1 text-xs text-muted; }
+  .input { @apply block w-full min-h-tap rounded-xl border border-white/10 bg-surface2 px-4 py-3 text-base text-fg placeholder:text-muted/70 focus:border-accent focus:outline-none; }
+  .badge { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold; }
+  .badge-free { @apply badge bg-ok/15 text-ok; }
+  .badge-unlocked { @apply badge bg-accent2/15 text-accent2; }
+  .badge-pending { @apply badge bg-warn/15 text-warn; }
+  .badge-price { @apply badge bg-accent/15 text-accent; }
+  .badge-muted { @apply badge bg-white/10 text-muted; }
+  .badge-danger { @apply badge bg-danger/15 text-danger; }
+  .container-app { @apply mx-auto w-full max-w-5xl px-4; }
+  .table { @apply w-full text-left text-sm; }
+  .table th { @apply py-2 pr-3 font-medium text-muted; }
+  .table td { @apply border-t border-white/5 py-3 pr-3 align-top; }
+  .checkbox { @apply mt-1 h-6 w-6 shrink-0 accent-accent; }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }

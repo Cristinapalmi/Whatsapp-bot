@@ -1,0 +1,240 @@
+"use server";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { business } from "@config/business";
+import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
+import { kzToCents } from "@/lib/money";
+import { toActionError } from "@/lib/actions";
+import { confirmPayment, rejectPayment, reversePayment } from "@/domain/payments/service";
+import { markPayoutPaid, rejectPayout } from "@/domain/payouts/service";
+import { audit, notify } from "@/domain/notify";
+import { getUploadUrl, newKey, putObject } from "@/domain/storage";
+import { UserFacingError } from "@/domain/errors";
+import type { ActionResult } from "@/components/ActionForm";
+
+const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
+
+// ---------- Pagamentos ----------
+export async function confirmPaymentAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    await confirmPayment(db, { paymentId: str(fd, "id"), adminId: admin.id });
+  } catch (e) { return toActionError(e); }
+  redirect("/admin/pagamentos?feito=confirmado");
+}
+export async function rejectPaymentAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    await rejectPayment(db, { paymentId: str(fd, "id"), adminId: admin.id, reason: str(fd, "reason") });
+  } catch (e) { return toActionError(e); }
+  redirect("/admin/pagamentos?feito=rejeitado");
+}
+export async function reversePaymentAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    await reversePayment(db, { paymentId: str(fd, "id"), adminId: admin.id, reason: str(fd, "reason") });
+  } catch (e) { return toActionError(e); }
+  redirect("/admin/pagamentos?estado=REVERSED&feito=anulado");
+}
+
+// ---------- Levantamentos ----------
+export async function markPayoutPaidAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    let proofKey: string | undefined;
+    const file = fd.get("proof");
+    if (file instanceof File && file.size > 0) {
+      const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" }[file.type];
+      if (!ext) return { error: "Comprovativo tem de ser imagem ou PDF." };
+      if (file.size > 5 * 1024 * 1024) return { error: "Máximo 5 MB." };
+      proofKey = newKey("payouts", ext);
+      await putObject("private", proofKey, Buffer.from(await file.arrayBuffer()), file.type);
+    }
+    await markPayoutPaid(db, { payoutId: str(fd, "id"), adminId: admin.id, proofKey, note: str(fd, "note") || undefined });
+  } catch (e) { return toActionError(e); }
+  redirect("/admin/levantamentos?feito=pago");
+}
+export async function rejectPayoutAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    await rejectPayout(db, { payoutId: str(fd, "id"), adminId: admin.id, reason: str(fd, "reason") });
+  } catch (e) { return toActionError(e); }
+  redirect("/admin/levantamentos?feito=rejeitado");
+}
+
+// ---------- Artistas ----------
+export async function reviewArtistAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const id = str(fd, "id");
+    const decision = str(fd, "decision") as "APPROVED" | "REJECTED" | "SUSPENDED";
+    if (!["APPROVED", "REJECTED", "SUSPENDED"].includes(decision)) return { error: "Decisão inválida." };
+    const reason = str(fd, "reason");
+    if (decision !== "APPROVED" && reason.length < 3) return { error: "Indica o motivo." };
+    const artist = await db.artistProfile.update({
+      where: { id },
+      data: {
+        status: decision,
+        rejectionReason: decision === "APPROVED" ? null : reason,
+        ...(decision === "APPROVED" ? { approvedAt: new Date(), approvedById: admin.id } : {}),
+      },
+    });
+    const msg = {
+      APPROVED: ["Conta de artista aprovada", "Já podes enviar séries e acompanhar a tua carteira."],
+      REJECTED: ["Registo de artista não aprovado", `Motivo: ${reason}`],
+      SUSPENDED: ["Conta de artista suspensa", `Motivo: ${reason}`],
+    }[decision];
+    await notify(db, artist.userId, msg[0], msg[1], "/artista");
+    await audit(db, admin.id, `ARTIST_${decision}`, "ArtistProfile", id, { reason });
+    revalidatePath("/admin/artistas");
+    return { ok: "Guardado." };
+  } catch (e) { return toActionError(e); }
+}
+
+// ---------- Séries ----------
+const seriesSchema = z.object({
+  id: z.string(),
+  title: z.string().trim().min(2).max(80),
+  synopsis: z.string().trim().max(1000),
+  category: z.enum(["TERROR", "COMEDIA", "DRAMA", "MAKAS_FAMILIA", "ROMANCE", "ACAO", "OUTRO"]),
+  priceKz: z.coerce.number().int().min(business.episodePriceMinKz, `Preço mínimo ${business.episodePriceMinKz} Kz`).max(business.episodePriceMaxKz, `Preço máximo ${business.episodePriceMaxKz} Kz`),
+  freeEpisodes: z.coerce.number().int().min(0).max(50),
+  plannedEpisodes: z.coerce.number().int().min(1).max(200),
+  featured: z.literal("on").optional(),
+});
+
+export async function saveSeriesAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const d = seriesSchema.parse(Object.fromEntries(fd));
+    let coverKey: string | undefined;
+    const cover = fd.get("cover");
+    if (cover instanceof File && cover.size > 0) {
+      const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[cover.type];
+      if (!ext) return { error: "Capa tem de ser JPG, PNG ou WEBP." };
+      if (cover.size > 2 * 1024 * 1024) return { error: "Capa: máximo 2 MB (usa uma imagem 600×900)." };
+      coverKey = newKey("covers", ext);
+      await putObject("media", coverKey, Buffer.from(await cover.arrayBuffer()), cover.type);
+    }
+    if (d.featured) await db.series.updateMany({ where: { featured: true, NOT: { id: d.id } }, data: { featured: false } });
+    await db.series.update({
+      where: { id: d.id },
+      data: {
+        title: d.title, synopsis: d.synopsis, category: d.category, priceCents: kzToCents(d.priceKz),
+        freeEpisodes: d.freeEpisodes, plannedEpisodes: d.plannedEpisodes, featured: !!d.featured,
+        ...(coverKey ? { coverKey } : {}),
+      },
+    });
+    await audit(db, admin.id, "SERIES_UPDATED", "Series", d.id, { priceKz: d.priceKz, freeEpisodes: d.freeEpisodes });
+    revalidatePath(`/admin/series/${d.id}`);
+    return { ok: "Série guardada." };
+  } catch (e) { return toActionError(e); }
+}
+
+export async function setSeriesStatusAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const id = str(fd, "id");
+    const status = str(fd, "status") as "APPROVED" | "PUBLISHED" | "REJECTED" | "HIDDEN";
+    if (!["APPROVED", "PUBLISHED", "REJECTED", "HIDDEN"].includes(status)) return { error: "Estado inválido." };
+    const reason = str(fd, "reason");
+    const series = await db.series.findUniqueOrThrow({ where: { id }, include: { artist: true, episodes: true } });
+    if (status === "PUBLISHED") {
+      const published = series.episodes.filter((e) => e.published && e.videoKey);
+      if (published.length === 0) throw new UserFacingError("Publica pelo menos um episódio com vídeo antes de publicar a série.");
+      if (!series.coverKey) throw new UserFacingError("Carrega a capa antes de publicar.");
+    }
+    if ((status === "REJECTED" || status === "HIDDEN") && reason.length < 3) return { error: "Indica o motivo." };
+    await db.series.update({
+      where: { id },
+      data: { status, rejectionReason: reason || null, ...(status === "PUBLISHED" && !series.publishedAt ? { publishedAt: new Date() } : {}) },
+    });
+    const msg: Record<string, string> = {
+      APPROVED: `A tua série "${series.title}" foi aprovada. Vamos preparar os episódios.`,
+      PUBLISHED: `A tua série "${series.title}" já está publicada!`,
+      REJECTED: `A tua série "${series.title}" não foi aprovada. Motivo: ${reason}`,
+      HIDDEN: `A tua série "${series.title}" foi retirada. Motivo: ${reason}`,
+    };
+    await notify(db, series.artist.userId, "Atualização da série", msg[status], "/artista");
+    await audit(db, admin.id, `SERIES_${status}`, "Series", id, { reason });
+    revalidatePath(`/admin/series/${id}`);
+    return { ok: "Estado atualizado." };
+  } catch (e) { return toActionError(e); }
+}
+
+const episodeSchema = z.object({
+  seriesId: z.string(),
+  id: z.string().optional(),
+  number: z.coerce.number().int().min(1).max(500),
+  title: z.string().trim().min(1).max(100),
+  synopsis: z.string().trim().max(500).optional(),
+  durationSec: z.coerce.number().int().min(0).max(3600),
+  endsWithHook: z.literal("on").optional(),
+  hookText: z.string().trim().max(200).optional(),
+  published: z.literal("on").optional(),
+});
+
+export async function saveEpisodeAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const d = episodeSchema.parse(Object.fromEntries(fd));
+    const values = {
+      number: d.number, title: d.title, synopsis: d.synopsis || null, durationSec: d.durationSec,
+      endsWithHook: !!d.endsWithHook, hookText: d.hookText || null, published: !!d.published,
+    };
+    let subtitlesKey: string | undefined;
+    const subs = fd.get("subtitles");
+    if (subs instanceof File && subs.size > 0) {
+      if (!subs.name.toLowerCase().endsWith(".vtt")) return { error: "Legendas têm de estar em formato .vtt" };
+      subtitlesKey = newKey("subtitles", "vtt");
+      await putObject("media", subtitlesKey, Buffer.from(await subs.arrayBuffer()), "text/vtt");
+    }
+    if (d.id) {
+      const ep = await db.episode.findUniqueOrThrow({ where: { id: d.id } });
+      if (values.published && !ep.videoKey) return { error: "Carrega o vídeo antes de publicar o episódio." };
+      await db.episode.update({ where: { id: d.id }, data: { ...values, ...(subtitlesKey ? { subtitlesKey } : {}) } });
+    } else {
+      if (await db.episode.findUnique({ where: { seriesId_number: { seriesId: d.seriesId, number: d.number } } }))
+        return { error: `Já existe o episódio ${d.number}.` };
+      await db.episode.create({ data: { seriesId: d.seriesId, ...values, published: false, ...(subtitlesKey ? { subtitlesKey } : {}) } });
+    }
+    await audit(db, admin.id, "EPISODE_SAVED", "Series", d.seriesId, { number: d.number });
+    revalidatePath(`/admin/series/${d.seriesId}`);
+    return { ok: "Episódio guardado." };
+  } catch (e) { return toActionError(e); }
+}
+
+/** Gera um link para o navegador enviar o vídeo diretamente para o armazenamento. */
+export async function createVideoUploadAction(episodeId: string, quality: "low" | "medium", contentType: string) {
+  await requireAdmin();
+  if (!["video/mp4", "video/webm"].includes(contentType)) throw new Error("O vídeo tem de ser MP4.");
+  const ep = await db.episode.findUniqueOrThrow({ where: { id: episodeId } });
+  const key = newKey(`videos/${ep.seriesId}`, contentType === "video/webm" ? "webm" : "mp4");
+  return { key, url: await getUploadUrl("media", key, contentType) };
+}
+
+export async function attachVideoAction(episodeId: string, quality: "low" | "medium", key: string, durationSec: number) {
+  const admin = await requireAdmin();
+  if (!key.startsWith("videos/")) throw new Error("Chave inválida");
+  const ep = await db.episode.update({
+    where: { id: episodeId },
+    data: quality === "medium" ? { videoKeyHd: key } : { videoKey: key, ...(durationSec > 0 ? { durationSec: Math.round(durationSec) } : {}) },
+  });
+  await audit(db, admin.id, "VIDEO_UPLOADED", "Episode", episodeId, { quality, key });
+  revalidatePath(`/admin/series/${ep.seriesId}`);
+}
+
+// ---------- Denúncias ----------
+export async function resolveReportAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const id = str(fd, "id");
+    const status = str(fd, "status") === "RESOLVED" ? "RESOLVED" : "DISMISSED";
+    await db.report.update({ where: { id }, data: { status, resolvedAt: new Date() } });
+    await audit(db, admin.id, `REPORT_${status}`, "Report", id);
+    revalidatePath("/admin/denuncias");
+    return { ok: "Atualizado." };
+  } catch (e) { return toActionError(e); }
+}
