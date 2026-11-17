@@ -8,7 +8,7 @@ export async function Header() {
   const user = await getCurrentUser();
   const unread = user ? await db.notification.count({ where: { userId: user.id, readAt: null } }) : 0;
   return (
-    <header className="sticky top-0 z-30 border-b border-white/5 bg-bg/90 backdrop-blur">
+    <header className="print:hidden sticky top-0 z-30 border-b border-white/5 bg-bg/90 backdrop-blur">
       <div className="container-app flex h-14 items-center justify-between gap-3">
         <Link href="/" className="font-display text-2xl font-extrabold tracking-tight text-accent no-underline">
           {brand.name}

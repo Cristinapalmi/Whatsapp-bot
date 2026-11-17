@@ -51,3 +51,16 @@ O fã escolhe um presente no leitor (Cuca 50 Kz, Muamba 100 Kz, Candonga 200 Kz,
 
 ## Link pessoal e "Vieram por ti"
 Cada artista tem `dominio/nome`. Quem entra por esse link e cria conta fica associado ao artista (30 dias). O painel do artista mostra visitas, contas criadas e quantos já pagaram.
+
+## Trailers
+Ver `docs/TRAILERS.md`. Resumo: `npm run trailer -- <serie>` no teu computador. O artista recebe uma notificação e descarrega o trailer no painel.
+
+## Exportações e extratos (Admin → Exportações)
+Escolhe o mês e descarrega (CSV para o Excel):
+- **Pagamentos do público:** cada pedido, com a parte do artista e a da plataforma.
+- **Ganhos por artista:** saldo no início, episódios, presentes, passe, anulações, levantamentos e saldo no fim.
+- **Livro-razão:** débitos e créditos, para o contabilista.
+- **Desempenho das séries:** espectadores, minutos, vendas e conversão.
+- **Levantamentos** e **Aceitações da Política do Artista** (prova legal das 5 caixas).
+
+Cada artista tem um **extrato mensal** (Carteira → "Extrato mensal") que pode imprimir ou guardar em PDF. Tu também abres o extrato de qualquer artista a partir da página de Exportações.

@@ -21,6 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ["/admin/artistas", "Artistas", artists],
     ["/admin/series", "Séries", series],
     ["/admin/denuncias", "Denúncias", reports],
+    ["/admin/exportacoes", "Exportações", 0],
   ];
   return (
     <div className="container-app">

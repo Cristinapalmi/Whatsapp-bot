@@ -8,6 +8,8 @@ import { ALL_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { saveEpisodeAction, saveSeriesAction, setSeriesStatusAction } from "../../actions";
 import { VideoUploader } from "./VideoUploader";
+import { CopyButton } from "@/components/CopyButton";
+import { formatDateTime } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Editar série" };
 
@@ -19,6 +21,8 @@ export default async function AdminSeriesDetail({ params }: { params: Promise<{ 
   });
   if (!s) notFound();
   const cover = await mediaUrl(s.coverKey);
+  const trailer = await mediaUrl(s.trailerKey);
+  const trailerCmd = `npm run trailer -- ${s.slug}`;
   const nextNumber = (s.episodes.at(-1)?.number ?? 0) + 1;
 
   return (
@@ -84,6 +88,24 @@ export default async function AdminSeriesDetail({ params }: { params: Promise<{ 
         <label className="flex items-center gap-3 self-end text-sm"><input type="checkbox" name="featured" defaultChecked={s.featured} className="checkbox" /> Destaque na página inicial</label>
         <div className="sm:col-span-2"><SubmitButton>Guardar definições</SubmitButton></div>
       </ActionForm>
+
+      <h2 className="mt-8 text-lg font-bold">Trailer para as redes sociais</h2>
+      <div className="card mt-2 grid gap-4 sm:grid-cols-[160px_1fr]">
+        <div className="aspect-[9/16] overflow-hidden rounded-xl bg-surface2">
+          {trailer ? <video src={trailer} controls preload="none" className="h-full w-full object-cover" /> : <p className="p-3 text-xs text-muted">Ainda sem trailer</p>}
+        </div>
+        <div className="space-y-3 text-sm">
+          <p>Vídeo vertical de ~30 s: excerto do episódio 1 + cartão final "O resto está em … · link na bio" com o link pessoal do artista.</p>
+          {s.trailerUpdatedAt && <p className="text-muted">Atualizado: {formatDateTime(s.trailerUpdatedAt)}</p>}
+          <p className="font-semibold">Gerar automaticamente (no teu computador):</p>
+          <div className="flex items-center gap-2 rounded-xl bg-surface2 px-3 py-2 font-mono text-xs">
+            <span className="flex-1 break-all">{trailerCmd}</span>
+            <CopyButton text={trailerCmd} label="Copiar comando" />
+          </div>
+          <p className="text-xs text-muted">Opções: <code>--inicio 12</code> (segundo onde começa), <code>--duracao 20</code>, <code>--episodio 2</code>. Ver docs/TRAILERS.md.</p>
+          <VideoUploader episodeId={s.id} quality="trailer" hasVideo={!!s.trailerKey} label="Ou carregar um trailer feito à mão" />
+        </div>
+      </div>
 
       <h2 className="mt-8 text-lg font-bold">Episódios</h2>
       <p className="text-sm text-muted">Vídeos em MP4 já comprimidos (ver docs/VIDEOS.md). Carrega a versão 360p (obrigatória) e, se quiseres, a 480p.</p>

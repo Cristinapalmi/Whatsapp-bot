@@ -208,16 +208,31 @@ export async function saveEpisodeAction(_: ActionResult, fd: FormData): Promise<
 }
 
 /** Gera um link para o navegador enviar o vídeo diretamente para o armazenamento. */
-export async function createVideoUploadAction(episodeId: string, quality: "low" | "medium", contentType: string) {
+export async function createVideoUploadAction(targetId: string, quality: "low" | "medium" | "trailer", contentType: string) {
   await requireAdmin();
   if (!["video/mp4", "video/webm"].includes(contentType)) throw new Error("O vídeo tem de ser MP4.");
-  const ep = await db.episode.findUniqueOrThrow({ where: { id: episodeId } });
-  const key = newKey(`videos/${ep.seriesId}`, contentType === "video/webm" ? "webm" : "mp4");
+  const ext = contentType === "video/webm" ? "webm" : "mp4";
+  if (quality === "trailer") {
+    const series = await db.series.findUniqueOrThrow({ where: { id: targetId } });
+    const key = newKey(`trailers/${series.id}`, ext);
+    return { key, url: await getUploadUrl("media", key, contentType) };
+  }
+  const ep = await db.episode.findUniqueOrThrow({ where: { id: targetId } });
+  const key = newKey(`videos/${ep.seriesId}`, ext);
   return { key, url: await getUploadUrl("media", key, contentType) };
 }
 
-export async function attachVideoAction(episodeId: string, quality: "low" | "medium", key: string, durationSec: number) {
+export async function attachVideoAction(episodeId: string, quality: "low" | "medium" | "trailer", key: string, durationSec: number) {
   const admin = await requireAdmin();
+  if (quality === "trailer") {
+    // Aqui "episodeId" é o id da série
+    if (!key.startsWith("trailers/")) throw new Error("Chave inválida");
+    const series = await db.series.update({ where: { id: episodeId }, data: { trailerKey: key, trailerUpdatedAt: new Date() } , include: { artist: true } });
+    await notify(db, series.artist.userId, "O teu trailer está pronto", `Descarrega o trailer de "${series.title}" e publica no TikTok e no Instagram.`, "/artista");
+    await audit(db, admin.id, "TRAILER_UPLOADED", "Series", series.id, { key });
+    revalidatePath(`/admin/series/${series.id}`);
+    return;
+  }
   if (!key.startsWith("videos/")) throw new Error("Chave inválida");
   const ep = await db.episode.update({
     where: { id: episodeId },

@@ -13,12 +13,12 @@ export default async function RankingPage({ searchParams }: { searchParams: Prom
   const range = monthRange(mes);
   const rows = await monthlyRanking(db, range.key);
   const sorted = (by === "views" ? sortByViews(rows) : sortByRevenue(rows)).filter((r) => (by === "views" ? r.views > 0 : r.earnedCents > 0));
-  const label = new Intl.DateTimeFormat("pt-AO", { month: "long", year: "numeric", timeZone: "UTC" }).format(range.fromDay);
+  const label = new Intl.DateTimeFormat("pt-AO", { month: "long", year: "numeric", timeZone: "UTC" }).format(range.fromDay).replace(/^./, (c) => c.toUpperCase());
 
   return (
     <div className="container-app max-w-2xl">
       <h1 className="text-3xl font-bold">Disputa dos artistas</h1>
-      <p className="mt-1 capitalize text-muted">{label}</p>
+      <p className="mt-1 text-muted">{label}</p>
       <div className="mt-4 flex gap-2">
         <Link href={`/ranking?por=vistas&mes=${range.key}`} className={by === "views" ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>Mais vistos</Link>
         <Link href={`/ranking?por=receita&mes=${range.key}`} className={by === "revenue" ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>Mais apoiados</Link>

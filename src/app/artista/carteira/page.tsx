@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { business } from "@config/business";
 import { db } from "@/lib/db";
@@ -99,7 +100,10 @@ export default async function WalletPage() {
       </section>
 
       <section className="mt-6">
-        <h2 className="text-lg font-bold">Movimentos</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg font-bold">Movimentos</h2>
+          <Link href="/extrato" className="btn-secondary btn-sm no-underline">Extrato mensal (PDF/CSV)</Link>
+        </div>
         <ul className="mt-2 divide-y divide-white/5 rounded-2xl bg-surface px-4">
           {movements.length === 0 && <li className="py-3 text-sm text-muted">Sem movimentos.</li>}
           {movements.map((m) => (

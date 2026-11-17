@@ -158,6 +158,9 @@ model Series {
   rejectionReason String?
   createdAt       DateTime     @default(now())
   publishedAt     DateTime?
+  /// Trailer vertical (~30 s) para o artista publicar no TikTok/Instagram.
+  trailerKey       String?
+  trailerUpdatedAt DateTime?
 
   episodes        Episode[]
   reports         Report[]

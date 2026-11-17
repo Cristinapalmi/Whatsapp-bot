@@ -51,12 +51,12 @@ const localPath = (b: Bucket, key: string) => {
 };
 const tokenSecret = () => new TextEncoder().encode(process.env.SESSION_SECRET ?? "dev-secret-dev-secret-dev-secret!!");
 
-export async function signLocalToken(payload: { b: Bucket; k: string; op: "get" | "put"; ct?: string }, seconds: number) {
+export async function signLocalToken(payload: { b: Bucket; k: string; op: "get" | "put"; ct?: string; dl?: string }, seconds: number) {
   return new SignJWT(payload).setProtectedHeader({ alg: "HS256" }).setExpirationTime(`${seconds}s`).sign(tokenSecret());
 }
 export async function verifyLocalToken(token: string) {
   const { payload } = await jwtVerify(token, tokenSecret());
-  return payload as { b: Bucket; k: string; op: "get" | "put"; ct?: string };
+  return payload as { b: Bucket; k: string; op: "get" | "put"; ct?: string; dl?: string };
 }
 export async function readLocal(b: Bucket, key: string) {
   return fs.readFile(localPath(b, key));
@@ -81,13 +81,29 @@ export async function putObject(b: Bucket, key: string, data: Buffer, contentTyp
   await s3Client().send(new PutObjectCommand({ Bucket: bucketName(b), Key: key, Body: data, ContentType: contentType }));
 }
 
-/** Link temporário para ver/descarregar um ficheiro. */
-export async function getObjectUrl(b: Bucket, key: string, expiresSeconds = 3600) {
+/**
+ * Link temporário para ver/descarregar um ficheiro.
+ * Com `downloadName`, o navegador descarrega o ficheiro com esse nome em vez de o abrir.
+ */
+export async function getObjectUrl(b: Bucket, key: string, expiresSeconds = 3600, opts: { downloadName?: string } = {}) {
   // Ficheiros estáticos de exemplo (pasta /public) — ex.: "/samples/demo.mp4"
   if (key.startsWith("/")) return key;
-  if (driver() === "local") return `/api/files?t=${await signLocalToken({ b, k: key, op: "get" }, expiresSeconds)}`;
-  return getSignedUrl(s3Client(), new GetObjectCommand({ Bucket: bucketName(b), Key: key }), { expiresIn: expiresSeconds });
+  if (driver() === "local")
+    return `/api/files?t=${await signLocalToken({ b, k: key, op: "get", dl: opts.downloadName }, expiresSeconds)}`;
+  return getSignedUrl(
+    s3Client(),
+    new GetObjectCommand({
+      Bucket: bucketName(b),
+      Key: key,
+      ...(opts.downloadName ? { ResponseContentDisposition: `attachment; filename="${opts.downloadName.replace(/"/g, "")}"` } : {}),
+    }),
+    { expiresIn: expiresSeconds },
+  );
 }
+
+/** Caminho no disco de um ficheiro guardado localmente (só STORAGE_DRIVER=local). */
+export const localFilePath = (b: Bucket, key: string) => localPath(b, key);
+export const storageDriver = driver;
 
 /**
  * Link temporário para o NAVEGADOR enviar um ficheiro grande diretamente para o

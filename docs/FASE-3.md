@@ -25,4 +25,5 @@
 ## Outras peças da Fase 3
 - **Código por SMS/WhatsApp (OTP)** no registo — `src/lib/auth.ts`.
 - **Vídeo HLS** (Bunny/Cloudflare Stream) — `src/domain/video/index.ts`.
-- **Trailers automáticos** de ~30 s com ffmpeg ("O resto está em [nome] · link na bio").
+- ~~Trailers automáticos~~ — **feito** (ver `docs/TRAILERS.md`).
+- ~~Exportações avançadas~~ — **feito** (Admin → Exportações; extrato mensal do artista).

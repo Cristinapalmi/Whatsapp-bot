@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const t = new URL(req.url).searchParams.get("t");
   if (!t) return new NextResponse("Not found", { status: 404 });
   try {
-    const { b, k, op } = await verifyLocalToken(t);
+    const { b, k, op, dl } = await verifyLocalToken(t);
     if (op !== "get") throw new Error();
     const data = await readLocal(b, k);
     const ext = k.split(".").pop()?.toLowerCase() ?? "";
@@ -33,7 +33,12 @@ export async function GET(req: Request) {
       });
     }
     return new NextResponse(new Uint8Array(data), {
-      headers: { "Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": "private, max-age=3600" },
+      headers: {
+        "Content-Type": type,
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "private, max-age=3600",
+        ...(dl ? { "Content-Disposition": `attachment; filename="${dl.replace(/"/g, "")}"` } : {}),
+      },
     });
   } catch {
     return new NextResponse("Not found", { status: 404 });

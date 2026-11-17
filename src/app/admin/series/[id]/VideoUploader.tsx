@@ -16,7 +16,7 @@ function readDuration(file: File): Promise<number> {
 }
 
 /** Envia o vídeo DIRETAMENTE para o armazenamento (R2), com barra de progresso. */
-export function VideoUploader({ episodeId, quality, hasVideo, label }: { episodeId: string; quality: "low" | "medium"; hasVideo: boolean; label: string }) {
+export function VideoUploader({ episodeId, quality, hasVideo, label }: { episodeId: string; quality: "low" | "medium" | "trailer"; hasVideo: boolean; label: string }) {
   const router = useRouter();
   const [progress, setProgress] = useState<number | null>(null);
   const [msg, setMsg] = useState<string | null>(null);

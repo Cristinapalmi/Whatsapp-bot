@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { IconCheck, IconCopy } from "./icons";
 
-export function CopyButton({ text, label = "Copiar", showText }: { text: string; label?: string; showText?: boolean }) {
+export function CopyButton({ text, label = "Copiar", showText, buttonText = "Copiar" }: { text: string; label?: string; showText?: boolean; buttonText?: string }) {
   const [done, setDone] = useState(false);
   return (
     <button
@@ -18,7 +18,7 @@ export function CopyButton({ text, label = "Copiar", showText }: { text: string;
       }}
     >
       {done ? <IconCheck size={18} /> : <IconCopy size={18} />}
-      {showText && (done ? "Copiado" : "Copiar")}
+      {showText && (done ? "Copiado" : buttonText)}
     </button>
   );
 }

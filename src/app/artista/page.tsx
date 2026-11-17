@@ -7,8 +7,11 @@ import { formatKz } from "@/lib/money";
 import { getArtistWallet } from "@/domain/money/ledger";
 import { LiveWallet } from "@/components/LiveWallet";
 import { CopyButton } from "@/components/CopyButton";
-import { IconChart, IconChevronRight, IconClock, IconFilm, IconGift, IconLink, IconTrophy, IconWallet } from "@/components/icons";
+import { IconChart, IconChevronRight, IconClock, IconDownload, IconFilm, IconGift, IconLink, IconTrophy, IconWallet } from "@/components/icons";
 import { topFans } from "@/domain/points";
+import { getObjectUrl } from "@/domain/storage";
+import { trailerCaption } from "@/domain/trailer";
+import { brand } from "@config/brand";
 import { monthlyRanking, sortByRevenue, sortByViews } from "@/domain/ranking";
 
 export const metadata: Metadata = { title: "Painel do artista" };
@@ -56,6 +59,9 @@ export default async function ArtistDashboard() {
   const posViews = sortByViews(ranking).findIndex((r) => r.artistId === artist.id) + 1;
   const posRevenue = sortByRevenue(ranking).findIndex((r) => r.artistId === artist.id) + 1;
   const link = artistLink(artist.slug);
+  const trailers = await Promise.all(
+    series.map(async (s) => (s.trailerKey ? getObjectUrl("media", s.trailerKey, 6 * 3600, { downloadName: `trailer-${s.slug}.mp4` }) : null)),
+  );
 
   return (
     <div className="container-app max-w-3xl">
@@ -117,16 +123,25 @@ export default async function ArtistDashboard() {
         </div>
         {series.length === 0 && <p className="mt-2 text-sm text-muted">Ainda não enviaste séries.</p>}
         <ul className="mt-2 space-y-2">
-          {series.map((s) => (
-            <li key={s.id} className="card flex items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold">{s.title}</p>
-                <p className="text-xs text-muted">{s.plannedEpisodes} episódios · {s.freeEpisodes} grátis · {formatKz(s.priceCents)}</p>
+          {series.map((s, i) => (
+            <li key={s.id} className="card">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{s.title}</p>
+                  <p className="text-xs text-muted">{s.plannedEpisodes} episódios · {s.freeEpisodes} grátis · {formatKz(s.priceCents)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={SERIES_STATUS[s.status][1]}>{SERIES_STATUS[s.status][0]}</span>
+                  {s.status === "PUBLISHED" && <Link href={`/serie/${s.slug}`} aria-label="Ver série" className="btn-ghost btn-sm"><IconChevronRight size={18} /></Link>}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={SERIES_STATUS[s.status][1]}>{SERIES_STATUS[s.status][0]}</span>
-                {s.status === "PUBLISHED" && <Link href={`/serie/${s.slug}`} aria-label="Ver série" className="btn-ghost btn-sm"><IconChevronRight size={18} /></Link>}
-              </div>
+              {trailers[i] && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
+                  <a href={trailers[i]!} className="btn-primary btn-sm no-underline" download><IconDownload size={18} /> Descarregar trailer</a>
+                  <CopyButton text={trailerCaption({ title: s.title, brand: brand.name, link: link })} label="Copiar legenda para o TikTok" showText buttonText="Copiar legenda" />
+                  <span className="w-full text-xs text-muted">Publica o trailer no TikTok/Instagram com o teu link na bio. Quem vier pelo link conta em "Vieram por ti".</span>
+                </div>
+              )}
             </li>
           ))}
         </ul>
