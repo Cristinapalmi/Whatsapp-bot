@@ -2,8 +2,8 @@
 
 ## Lista de tarefas — Fase 1
 - [ ] Criar conta **GitHub** (já tens) e confirmar acesso ao repositório.
-- [ ] Criar conta **Supabase** (grátis) e um projeto → copiar `DATABASE_URL` e `DIRECT_URL`.
-- [ ] Criar conta **Cloudflare** e ativar **R2** (pede cartão; 10 GB grátis) → 2 buckets + chave API + CORS.
+- [ ] Criar conta **Supabase** (grátis, sem cartão) e um projeto → copiar `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL` e a chave secreta.
+- [ ] Criar os 2 buckets privados (`media` e `privado`) — `npm run storage:setup` faz isto sozinho.
 - [ ] Criar conta **Vercel** (grátis) e importar o projeto.
 - [ ] Decidir o **número Multicaixa Express** e o **IBAN** que aparecem no ecrã de pagamento (idealmente uma conta só para a plataforma, para ser fácil conferir).
 - [ ] Escolher a **palavra-passe de administração** e o `SESSION_SECRET`.
@@ -15,12 +15,13 @@
 ## Custos mensais esperados (valores aproximados — confirma nos sites)
 | Fase | Serviços | Custo/mês |
 |---|---|---|
-| Arranque (até ~1.000 utilizadores) | Supabase grátis + R2 grátis (10 GB) + Vercel grátis | **0 $** (+ domínio ~1 $/mês) |
-| Crescimento (~10.000 utilizadores) | Supabase Pro 25 $ + R2 ~0,015 $/GB guardado (100 GB ≈ 1,5 $) + Vercel grátis ou Pro 20 $ | **~27–50 $** |
+| Arranque (testes e primeiros fãs) | Supabase grátis (BD + 1 GB de ficheiros + ~5 GB/mês de tráfego) + Vercel grátis | **0 $** (+ domínio ~1 $/mês) |
+| Crescimento (~10.000 utilizadores) | Supabase Pro 25 $ (100 GB de ficheiros, 250 GB/mês de tráfego) + Vercel grátis ou Pro 20 $ | **~25–50 $** |
+| Muito tráfego de vídeo | tráfego extra no Supabase ~0,09 $/GB — ou passar os ficheiros para o Cloudflare R2 (sem custo de tráfego, pede cartão) | conforme o uso |
 | Vídeo com HLS automático | Bunny Stream (~0,005 $/GB guardado + ~0,005–0,01 $/GB entregue) | **+5–30 $** conforme os minutos vistos |
 | SMS para códigos (Fase 3) | depende do fornecedor angolano | por mensagem |
 
-Porquê R2: o Cloudflare R2 **não cobra pelo tráfego de saída** — num site de vídeo é a maior poupança.
+Atenção ao **tráfego de vídeo**: no plano grátis do Supabase, ~5 GB/mês dão para uns 500–1.000 episódios vistos. É o primeiro limite que vais atingir — quando isso acontecer, passa para o Pro (já com receita). O código também suporta o Cloudflare R2 (`STORAGE_DRIVER=s3`) se um dia tiveres cartão e quiseres poupar no tráfego.
 
 ## Notas legais importantes (confirmar com jurista)
 1. **BNA — guardar saldos de artistas.** A app regista quanto se deve a cada artista ("carteira"). Confirmar se isto é apenas uma dívida comercial registada (normal) ou se pode ser visto como emissão de moeda eletrónica / serviço de pagamento, que exige autorização do Banco Nacional de Angola. **Por isso o público não tem saldo pré-pago na app.**

@@ -1,57 +1,137 @@
-# Pôr a app online (custo inicial: 0 €)
+# Pôr a app online (custo inicial: 0 €, sem cartão)
 
-Vais criar 3 contas grátis: **Supabase** (base de dados), **Cloudflare R2** (vídeos, capas e comprovativos) e **Vercel** (o site). Todas aceitam entrar com a conta do GitHub.
+Precisas de **2 contas grátis**, as duas sem cartão:
+- **Supabase**: base de dados **e** ficheiros (vídeos, capas, trailers, comprovativos).
+- **Vercel**: o site.
 
-## 1. Supabase — base de dados
-1. https://supabase.com → "Start your project" → entra com o GitHub.
-2. "New project": nome `minisseries`, escolhe uma palavra-passe forte (**guarda-a**), região **West EU (Ireland)** ou **Central EU (Frankfurt)** — as mais próximas de Angola com bom preço.
-3. Quando estiver pronto: botão **Connect** (no topo) → separador "ORMs" → **Prisma**. Copia:
-   - `DATABASE_URL` (porta **6543**, termina em `?pgbouncer=true`)
-   - `DIRECT_URL` (porta **5432**)
-   Substitui `[YOUR-PASSWORD]` pela palavra-passe do passo 2.
+Entra nas duas com a tua conta do **GitHub** (botão "Continue with GitHub").
 
-> Nota: no plano grátis, o projeto entra em pausa após 7 dias sem uso. Quando tiveres utilizadores reais, passa para o plano Pro (~25 $/mês).
+---
 
-## 2. Cloudflare R2 — ficheiros
-1. https://dash.cloudflare.com → cria conta → menu **R2 Object Storage** → ativa (pede cartão, mas os primeiros 10 GB são grátis e **não pagas pelo tráfego de vídeo**).
-2. Cria 2 "buckets": `minisseries-media` e `minisseries-privado`. Ambos **privados** (não ativar acesso público).
-3. **R2 → Manage R2 API Tokens → Create API token**, permissão "Object Read & Write" nos dois buckets. Guarda o **Access Key ID**, o **Secret Access Key** e o endpoint (`https://<ID>.r2.cloudflarestorage.com`).
-4. **CORS** (obrigatório para os vídeos tocarem e para o admin carregar vídeos): em cada bucket → Settings → CORS policy → cola (troca pelo teu domínio):
-```json
-[
-  {
-    "AllowedOrigins": ["https://o-teu-dominio.ao", "https://o-teu-projeto.vercel.app"],
-    "AllowedMethods": ["GET", "PUT", "HEAD"],
-    "AllowedHeaders": ["*"],
-    "MaxAgeSeconds": 3600
-  }
-]
+## 1. Supabase: criar o projeto e copiar a base de dados
+
+1. Vai a https://supabase.com e carrega em **Start your project**. Entra com o GitHub.
+2. Carrega em **New project** e preenche:
+   - **Name:** `minisseries` (ou o que quiseres).
+   - **Database Password:** carrega em "Generate a password" e **guarda-a num sítio seguro**.
+   - **Region:** **West EU (Ireland)** ou **Central EU (Frankfurt)**, as mais próximas de Angola.
+3. Carrega em **Create new project** e espera 1–2 minutos.
+4. No topo da página, carrega em **Connect** → separador **ORMs** → escolhe **Prisma**. Copia os dois valores:
+   - `DATABASE_URL`: tem a porta **6543** e termina em `?pgbouncer=true`.
+   - `DIRECT_URL`: tem a porta **5432**.
+
+   Em ambos, troca `[YOUR-PASSWORD]` pela palavra-passe do passo 2.
+
+## 2. Supabase: copiar as chaves de acesso aos ficheiros
+
+1. No menu da esquerda, carrega no ícone da roda dentada (**Project Settings**).
+2. Em **Data API**, copia o **Project URL**, por exemplo `https://abcdefgh.supabase.co`. Este é o `SUPABASE_URL`.
+3. Em **API Keys**, copia a chave **secreta**. Pode aparecer de duas formas:
+   - **Secret key**, que começa por `sb_secret_...` (carrega em "Reveal" para a ver);
+   - ou, no separador "Legacy API keys", a chave **`service_role`** (carrega em "Reveal").
+
+   Esta é a `SUPABASE_SERVICE_ROLE_KEY`.
+
+> ⚠️ **A chave secreta dá acesso total ao projeto.** Usa-a **só** no `.env` e nas variáveis da Vercel. Nunca a mandes por WhatsApp, nunca a publiques, e nunca a ponhas numa variável que comece por `NEXT_PUBLIC_`. **Não** uses a chave "anon"/"publishable": essa é pública e não serve aqui.
+
+## 3. Supabase: criar os 2 buckets (pastas de ficheiros)
+
+Os dois buckets têm de ser **privados**. Os ficheiros só se abrem com links temporários criados pela app, por isso ninguém consegue partilhar um episódio pago nem ver comprovativos.
+
+### Opção A: automática (recomendada)
+No teu computador, com o `.env` preenchido com `STORAGE_DRIVER="supabase"`, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`, corre:
+```bash
+npm run storage:setup
 ```
+O comando cria os buckets e **testa tudo**: guarda um ficheiro, abre-o, faz um envio direto e apaga-o. No fim tem de aparecer `Supabase Storage pronto.`
 
-## 3. Vercel — o site
-1. https://vercel.com → entra com o GitHub → **Add New → Project** → escolhe o repositório.
-2. "Branch": o ramo do projeto (ou o `main`, depois de juntares o código).
-3. Em **Environment Variables**, adiciona todas as variáveis do `.env.example`, com os valores reais:
-   - `DATABASE_URL`, `DIRECT_URL` (Supabase)
-   - `SESSION_SECRET` (frase longa nova — não reutilizes a do computador)
-   - `STORAGE_DRIVER=s3`, `S3_ENDPOINT`, `S3_REGION=auto`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_MEDIA`, `S3_BUCKET_PRIVATE`
-   - `PAYMENT_MCX_NUMBER`, `PAYMENT_IBAN`, `PAYMENT_ACCOUNT_HOLDER`, `PAYMENT_BANK_NAME` (os teus dados reais)
-   - `NEXT_PUBLIC_BRAND_DOMAIN` (ex.: `o-teu-projeto.vercel.app` ou o teu domínio)
-   - `CRON_SECRET` (frase aleatória) — ativa o fecho semanal automático do passe (ficheiro `vercel.json`, segundas às 01:30 de Luanda; funciona no plano grátis)
-4. **Deploy**. A Vercel cria as tabelas automaticamente (script `vercel-build`).
-5. **Criar a tua conta admin** (uma vez), no teu computador, com o `.env` a apontar para o Supabase:
+### Opção B: à mão, no site do Supabase
+1. No menu da esquerda, carrega em **Storage** → **New bucket**.
+2. Primeiro bucket:
+   - **Name:** `media`
+   - **Public bucket:** **desligado** (privado)
+   - Abre **Additional configuration** e preenche:
+     - **Restrict file size:** ligado, **50 MB**
+     - **Allowed MIME types:** `video/mp4, video/webm, image/jpeg, image/png, image/webp, image/svg+xml, text/vtt`
+   - Carrega em **Save**.
+3. Segundo bucket:
+   - **Name:** `privado`
+   - **Public bucket:** **desligado**
+   - **Restrict file size:** **5 MB**
+   - **Allowed MIME types:** `image/jpeg, image/png, image/webp, application/pdf`
+   - Carrega em **Save**.
+4. Não precisas de criar "policies" (regras de acesso). A app usa a chave secreta no servidor e cria links temporários para cada ficheiro.
+
+Se quiseres outros nomes, usa-os nas variáveis `SUPABASE_BUCKET_MEDIA` e `SUPABASE_BUCKET_PRIVATE`.
+
+> Limite do plano grátis: **50 MB por ficheiro**. Um episódio de 3 minutos em 360p tem uns 10–18 MB, por isso cabe bem. Vê `docs/VIDEOS.md` para comprimir os vídeos.
+
+## 4. Vercel: publicar o site
+
+1. Vai a https://vercel.com, entra com o GitHub e carrega em **Add New → Project**.
+2. Escolhe o repositório `Whatsapp-bot` e carrega em **Import**.
+3. Abre **Environment Variables** e acrescenta, uma a uma, as variáveis desta tabela:
+
+| Nome | Valor | De onde vem |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://...:6543/postgres?pgbouncer=true` | Passo 1.4 |
+| `DIRECT_URL` | `postgresql://...:5432/postgres` | Passo 1.4 |
+| `SESSION_SECRET` | uma frase longa e aleatória (mín. 32 caracteres) | Inventas tu |
+| `CRON_SECRET` | outra frase aleatória | Inventas tu (fecho semanal do passe) |
+| `STORAGE_DRIVER` | `supabase` | Escreve exatamente isto |
+| `SUPABASE_URL` | `https://xxxx.supabase.co` | Passo 2.2 |
+| `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_...` ou a chave `service_role` | Passo 2.3 (**secreta**) |
+| `SUPABASE_BUCKET_MEDIA` | `media` | Passo 3 |
+| `SUPABASE_BUCKET_PRIVATE` | `privado` | Passo 3 |
+| `PAYMENT_MCX_NUMBER` | o teu número Multicaixa Express | Os teus dados |
+| `PAYMENT_IBAN` | o teu IBAN (AO06…) | Os teus dados |
+| `PAYMENT_ACCOUNT_HOLDER` | nome do titular da conta | Os teus dados |
+| `PAYMENT_BANK_NAME` | nome do banco | Os teus dados |
+| `NEXT_PUBLIC_BRAND_DOMAIN` | `o-teu-projeto.vercel.app` (ou o teu domínio) | Endereço do site |
+
+Opcionais (têm valores por defeito): `NEXT_PUBLIC_BRAND_NAME`, `NEXT_PUBLIC_BRAND_SLOGAN`, `NEXT_PUBLIC_BRAND_COLOR_ACCENT`, `NEXT_PUBLIC_BRAND_COLOR_ACCENT2`, `NEXT_PUBLIC_BRAND_SUPPORT_EMAIL`, `NEXT_PUBLIC_BRAND_SUPPORT_WHATSAPP`, `MIN_WITHDRAWAL_KZ`, `MAX_PENDING_PAYMENTS_PER_USER`.
+
+4. Carrega em **Deploy**. A Vercel cria as tabelas da base de dados sozinha (script `vercel-build`).
+5. Quando acabar, abre o endereço do site, por exemplo `https://o-teu-projeto.vercel.app`. Se o endereço for diferente do que puseste em `NEXT_PUBLIC_BRAND_DOMAIN`, corrige essa variável e carrega em **Redeploy**.
+
+> Online, o `STORAGE_DRIVER` **tem de ser** `supabase`. A Vercel não guarda ficheiros no disco: com `local`, os comprovativos e os vídeos perdiam-se.
+
+## 5. Criar a tua conta de administração (uma vez)
+
+No teu computador, põe no `.env` os **mesmos** `DATABASE_URL` e `DIRECT_URL` do Supabase, mais `ADMIN_PHONE` e `ADMIN_PASSWORD`, e corre:
 ```bash
 SEED_DEMO=false npm run db:seed
 ```
-   (Sem `SEED_DEMO=false` cria também as 6 séries de exemplo — útil para mostrar a artistas, mas apaga-as/retira-as antes do lançamento.)
+No Windows (PowerShell): `$env:SEED_DEMO="false"; npm run db:seed`
 
-> ⚠️ Online, `STORAGE_DRIVER` **tem de ser** `s3`. A Vercel não guarda ficheiros no disco.
+Sem `SEED_DEMO=false`, o comando também cria as 6 séries de exemplo. É útil para mostrar a artistas, mas retira-as antes do lançamento.
 
-## 4. Domínio próprio (opcional, ~10–15 €/ano)
-Vercel → o teu projeto → Settings → Domains → adiciona o domínio e segue as instruções de DNS. Depois atualiza `NEXT_PUBLIC_BRAND_DOMAIN` e o CORS do R2.
+## 6. Verificar que tudo funciona
+1. Entra como admin → **Séries** → abre uma série → carrega uma capa e um vídeo pequeno. A barra de progresso tem de chegar aos 100%.
+2. Abre a série no telemóvel e carrega em play.
+3. Cria uma conta de fã de teste, envia um comprovativo e confirma-o no admin. O comprovativo tem de aparecer em **Pagamentos**.
 
-## 5. Instalar no telemóvel
-Abre o site no Chrome do Android → menu ⋮ → **"Adicionar ao ecrã principal"**.
+Se alguma coisa falhar, corre `npm run storage:setup` no computador: a mensagem de erro diz o que está mal.
+
+## 7. Domínio próprio (opcional, ~10–15 €/ano)
+Na Vercel: o teu projeto → **Settings → Domains** → adiciona o domínio e segue as instruções. Depois atualiza `NEXT_PUBLIC_BRAND_DOMAIN` e carrega em **Redeploy**.
+
+## 8. Instalar no telemóvel
+No Android, abre o site no Chrome → menu ⋮ → **Adicionar ao ecrã principal**.
 
 ## Mudar o nome da marca
-Vercel → Settings → Environment Variables → muda `NEXT_PUBLIC_BRAND_NAME` (e slogan/cores) → **Redeploy**. Para os ícones com a nova inicial: `node scripts/generate-icons.mjs "NOVONOME"` no computador e envia as alterações.
+Na Vercel: **Settings → Environment Variables** → muda `NEXT_PUBLIC_BRAND_NAME` (e o slogan e as cores, se quiseres) → **Redeploy**. Para os ícones ficarem com a nova inicial, corre no computador `node scripts/generate-icons.mjs "NOVONOME"` e envia as alterações para o GitHub.
+
+---
+
+## Limites do plano grátis e quando pagar (confirma os valores no site do Supabase)
+| | Grátis | Pro (~25 $/mês) |
+|---|---|---|
+| Base de dados | 500 MB | 8 GB |
+| Ficheiros guardados | 1 GB (~70–100 episódios de 3 min em 360p) | 100 GB |
+| Tráfego de saída (vídeos vistos) | ~5 GB/mês (~500–1.000 episódios vistos) | 250 GB/mês (~25.000–50.000), depois ~0,09 $/GB |
+| Pausa por inatividade | sim, após 7 dias sem uso | não |
+
+Na prática, o plano grátis chega para testes e para os primeiros fãs. Quando tiveres algumas centenas de visualizações por mês, passa para o **Pro**. Para isso já precisas de cartão, mas também já terás receita.
+
+**Mais tarde (opcional):** se o tráfego de vídeo ficar caro, podes passar só os ficheiros para o Cloudflare R2, que não cobra o tráfego. Basta mudar `STORAGE_DRIVER=s3` e preencher as variáveis `S3_...`. O código já suporta, sem mudar mais nada.

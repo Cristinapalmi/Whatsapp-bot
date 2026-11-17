@@ -10,7 +10,7 @@ Os primeiros episódios são grátis; os seguintes desbloqueiam-se por pagamento
 | Guia | Para quê |
 |---|---|
 | [docs/INSTALAR.md](docs/INSTALAR.md) | Correr a app no teu computador |
-| [docs/PUBLICAR.md](docs/PUBLICAR.md) | Pôr a app online (Supabase + Cloudflare R2 + Vercel) |
+| [docs/PUBLICAR.md](docs/PUBLICAR.md) | Pôr a app online (Supabase + Vercel, sem cartão) |
 | [docs/OPERAR.md](docs/OPERAR.md) | O dia a dia: confirmar pagamentos, pagar artistas, carregar séries |
 | [docs/VIDEOS.md](docs/VIDEOS.md) | Como preparar os vídeos (360p/480p) com o ffmpeg |
 | [docs/TAREFAS-E-CUSTOS.md](docs/TAREFAS-E-CUSTOS.md) | O que tens de fazer, custos, e notas legais (BNA, APD) |
@@ -27,7 +27,7 @@ Os primeiros episódios são grátis; os seguintes desbloqueiam-se por pagamento
 
 ## Tecnologia
 
-Next.js 15 (App Router) + TypeScript + Tailwind · PostgreSQL (Supabase) + Prisma · Cloudflare R2 para ficheiros · Vercel.
+Next.js 15 (App Router) + TypeScript + Tailwind · PostgreSQL + Storage no Supabase · Prisma · Vercel.
 
 ## Pastas principais
 

@@ -15,7 +15,7 @@ function readDuration(file: File): Promise<number> {
   });
 }
 
-/** Envia o vídeo DIRETAMENTE para o armazenamento (R2), com barra de progresso. */
+/** Envia o vídeo DIRETAMENTE para o armazenamento (Supabase Storage), com barra de progresso. */
 export function VideoUploader({ episodeId, quality, hasVideo, label }: { episodeId: string; quality: "low" | "medium" | "trailer"; hasVideo: boolean; label: string }) {
   const router = useRouter();
   const [progress, setProgress] = useState<number | null>(null);
@@ -23,7 +23,7 @@ export function VideoUploader({ episodeId, quality, hasVideo, label }: { episode
 
   async function onFile(file: File) {
     setMsg(null);
-    if (file.size > 200 * 1024 * 1024) return setMsg("Ficheiro demasiado grande (máx. 200 MB). Comprime primeiro.");
+    if (file.size > 50 * 1024 * 1024) return setMsg("Ficheiro demasiado grande (máx. 50 MB). Comprime primeiro — ver docs/VIDEOS.md.");
     try {
       const duration = await readDuration(file);
       const { url, key } = await createVideoUploadAction(episodeId, quality, file.type || "video/mp4");

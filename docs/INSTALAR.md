@@ -31,7 +31,7 @@ Abre o ficheiro `.env` num editor de texto (Bloco de Notas, VS Code) e muda:
 - `DATABASE_URL` e `DIRECT_URL` → o endereço da tua base de dados (Supabase ou local).
 - `SESSION_SECRET` → uma frase longa e aleatória (mín. 32 caracteres).
 - `ADMIN_PHONE` e `ADMIN_PASSWORD` → o teu telefone e a palavra-passe de administração.
-- Deixa `STORAGE_DRIVER="local"` (os ficheiros ficam na pasta `storage/`).
+- Deixa `STORAGE_DRIVER="local"` (os ficheiros ficam na pasta `storage/`). Para testar com o Supabase Storage no computador, segue `PUBLICAR.md` (passos 2 e 3).
 
 ## 5. Criar as tabelas e os dados de exemplo
 ```bash

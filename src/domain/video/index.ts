@@ -6,7 +6,7 @@ import { getObjectUrl } from "../storage";
  * ADAPTADOR DE VÍDEO.
  *
  * Fase 1 — "storage": ficheiros MP4 já comprimidos (360p e, opcionalmente, 480p)
- * guardados no armazenamento (R2). Comando ffmpeg recomendado em docs/VIDEOS.md.
+ * guardados no armazenamento (Supabase Storage). Comando ffmpeg recomendado em docs/VIDEOS.md.
  *
  * Mais tarde — trocar VIDEO_PROVIDER para:
  *   "bunny"       → Bunny Stream (HLS automático, ~5–10 $/mês no início).

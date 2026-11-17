@@ -4,25 +4,50 @@ import crypto from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * ARMAZENAMENTO DE FICHEIROS (vídeos, capas, fotos, comprovativos).
  *
- *  STORAGE_DRIVER=local → pasta ./storage no computador (só para desenvolvimento).
- *  STORAGE_DRIVER=s3    → Cloudflare R2 (ou qualquer serviço compatível com S3).
+ *  STORAGE_DRIVER=local    → pasta ./storage no computador (só para desenvolvimento).
+ *  STORAGE_DRIVER=supabase → Supabase Storage (recomendado online — não precisa de cartão).
+ *  STORAGE_DRIVER=s3       → Cloudflare R2 (ou outro serviço compatível com S3), opcional.
  *
- * Há dois "baldes":
- *  - "media":   vídeos, capas e fotos de artistas.
+ * Há dois "baldes" (buckets), ambos PRIVADOS:
+ *  - "media":   vídeos, capas, legendas, trailers e fotos de artistas.
  *  - "private": comprovativos de pagamento (só a administração vê).
  * Todos os ficheiros são privados: o acesso é sempre por links temporários assinados.
  */
 
 export type Bucket = "media" | "private";
 
-const driver = () => (process.env.STORAGE_DRIVER ?? "local") as "local" | "s3";
+const driver = () => (process.env.STORAGE_DRIVER ?? "local") as "local" | "supabase" | "s3";
+
+// ---------- Supabase Storage ----------
+let supabase: SupabaseClient | null = null;
+function supabaseClient() {
+  if (!supabase) {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) throw new Error("Supabase Storage não configurado: faltam SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ver .env.example)");
+    // Chave secreta: só é usada no servidor, nunca chega ao navegador.
+    supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  }
+  return supabase;
+}
+const supabaseBucket = (b: Bucket) =>
+  b === "media" ? process.env.SUPABASE_BUCKET_MEDIA || "media" : process.env.SUPABASE_BUCKET_PRIVATE || "privado";
+
+/** Só para testes: obriga a recriar o cliente (ex.: depois de mudar variáveis). */
+export function resetStorageClientsForTests() {
+  supabase = null;
+  s3 = null;
+}
 
 // ---------- S3 / Cloudflare R2 ----------
 let s3: S3Client | null = null;
+export const bucketIdFor = (b: Bucket) => (driver() === "supabase" ? supabaseBucket(b) : b);
+export { supabaseClient };
 function s3Client() {
   if (!s3) {
     const { S3_ENDPOINT, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = process.env;
@@ -78,6 +103,11 @@ export function newKey(prefix: string, ext: string) {
 
 export async function putObject(b: Bucket, key: string, data: Buffer, contentType: string) {
   if (driver() === "local") return writeLocal(b, key, data);
+  if (driver() === "supabase") {
+    const { error } = await supabaseClient().storage.from(supabaseBucket(b)).upload(key, data, { contentType, upsert: false });
+    if (error) throw new Error(`Erro ao guardar ficheiro no Supabase: ${error.message}`);
+    return;
+  }
   await s3Client().send(new PutObjectCommand({ Bucket: bucketName(b), Key: key, Body: data, ContentType: contentType }));
 }
 
@@ -90,6 +120,13 @@ export async function getObjectUrl(b: Bucket, key: string, expiresSeconds = 3600
   if (key.startsWith("/")) return key;
   if (driver() === "local")
     return `/api/files?t=${await signLocalToken({ b, k: key, op: "get", dl: opts.downloadName }, expiresSeconds)}`;
+  if (driver() === "supabase") {
+    const { data, error } = await supabaseClient()
+      .storage.from(supabaseBucket(b))
+      .createSignedUrl(key, expiresSeconds, opts.downloadName ? { download: opts.downloadName } : undefined);
+    if (error || !data) throw new Error(`Erro ao criar link do ficheiro no Supabase: ${error?.message ?? "sem dados"}`);
+    return data.signedUrl;
+  }
   return getSignedUrl(
     s3Client(),
     new GetObjectCommand({
@@ -112,6 +149,12 @@ export const storageDriver = driver;
 export async function getUploadUrl(b: Bucket, key: string, contentType: string, expiresSeconds = 3600) {
   if (driver() === "local")
     return `/api/files/upload?t=${await signLocalToken({ b, k: key, op: "put", ct: contentType }, expiresSeconds)}`;
+  if (driver() === "supabase") {
+    // Link de envio do Supabase (válido 2 horas). O navegador faz PUT do ficheiro para este link.
+    const { data, error } = await supabaseClient().storage.from(supabaseBucket(b)).createSignedUploadUrl(key);
+    if (error || !data) throw new Error(`Erro ao criar link de envio no Supabase: ${error?.message ?? "sem dados"}`);
+    return data.signedUrl;
+  }
   return getSignedUrl(
     s3Client(),
     new PutObjectCommand({ Bucket: bucketName(b), Key: key, ContentType: contentType }),
@@ -122,6 +165,11 @@ export async function getUploadUrl(b: Bucket, key: string, contentType: string, 
 export async function deleteObject(b: Bucket, key: string) {
   if (key.startsWith("/")) return;
   if (driver() === "local") return fs.rm(localPath(b, key), { force: true });
+  if (driver() === "supabase") {
+    const { error } = await supabaseClient().storage.from(supabaseBucket(b)).remove([key]);
+    if (error) throw new Error(`Erro ao apagar ficheiro no Supabase: ${error.message}`);
+    return;
+  }
   await s3Client().send(new DeleteObjectCommand({ Bucket: bucketName(b), Key: key }));
 }
 

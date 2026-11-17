@@ -83,7 +83,7 @@ async function main() {
       console.log(`- ${series.title}: o episódio ${epNumber} não tem vídeo. Ignorado.`);
       continue;
     }
-    // Origem do vídeo: ficheiro de exemplo, ficheiro local, ou link temporário do R2
+    // Origem do vídeo: ficheiro de exemplo, ficheiro local, ou link temporário do armazenamento online
     let input: string;
     if (key.startsWith("/")) input = path.join("public", key);
     else if (storage.storageDriver() === "local") input = storage.localFilePath("media", key);
