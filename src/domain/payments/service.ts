@@ -6,6 +6,7 @@ import { PLATFORM_CASH, PLATFORM_REVENUE, artistAvailable, passPool, type Accoun
 import { postEntry } from "../money/ledger";
 import { weekKey } from "../money/weeks";
 import { notify, audit } from "../notify";
+import { welcomeOffer } from "../coins/welcome";
 import { UserFacingError } from "../errors";
 import { formatKz, kzToCents } from "@/lib/money";
 import { creditCoinLot, reverseCoinPurchase } from "../coins/service";
@@ -127,10 +128,15 @@ export async function createCoinPaymentRequest(db: PrismaClient, input: CreateCo
   if (!pack || !pack.active) throw new UserFacingError("Este pacote de moedas não está disponível.");
   const { ref, pending } = await checkProof(db, input);
   checkPendingLimit(pending);
+  // Oferta de boas-vindas: verificada AQUI no servidor (nunca confiamos no que vem do telemóvel)
+  const user = await db.user.findUnique({ where: { id: input.userId }, select: { id: true, welcomeOfferStartedAt: true } });
+  const offer = await welcomeOffer(db, user);
+  const bonusCoins = offer && offer.expiresAt && offer.packId === pack.id ? offer.bonusCoins : 0;
   return createRequest(db, input, ref, {
     kind: "COINS",
     coinPackId: pack.id,
-    coins: pack.coins,
+    coins: pack.coins + bonusCoins,
+    bonusCoins,
     amountCents: kzToCents(pack.priceKz),
   });
 }

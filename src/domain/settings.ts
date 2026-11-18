@@ -13,6 +13,10 @@ export const INT_SETTINGS = [
   { group: "precos", key: "tierPricePremium", label: "Premium 💎 (moedas por episódio)", def: 30, min: 1, max: 1000 },
   { group: "precos", key: "tierUpgradeUnlocks", label: "Desbloqueios pagos para subir a Normal", def: 100, min: 1, max: 100000 },
   { group: "precos", key: "seasonDiscountPercent", label: "Desconto da temporada (%)", def: 20, min: 0, max: 90 },
+  // Oferta de boas-vindas (só para quem nunca comprou moedas)
+  { group: "ofertas", key: "welcomePackKz", label: "Pacote da oferta de boas-vindas (Kz)", hint: "Tem de existir um pacote ativo com este preço.", def: 1000, min: 100, max: 1000000 },
+  { group: "ofertas", key: "welcomeBonusCoins", label: "Moedas extra da oferta", def: 50, min: 1, max: 100000 },
+  { group: "ofertas", key: "welcomeOfferHours", label: "Duração da oferta (horas)", def: 24, min: 1, max: 720 },
 ] as const satisfies readonly IntSetting[];
 
 export type IntSettingKey = (typeof INT_SETTINGS)[number]["key"];

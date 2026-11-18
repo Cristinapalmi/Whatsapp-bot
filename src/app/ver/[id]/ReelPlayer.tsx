@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EpisodeState } from "@/domain/access";
-import { UnlockPanel } from "@/components/UnlockPanel";
+import { UnlockSheet, type SheetPack, type SheetSeason, type SheetWelcome } from "@/components/UnlockSheet";
 import {
   IconBookmark, IconCheck, IconChevronLeft, IconClock, IconCoin, IconGauge, IconGift, IconLock, IconPlay, IconStar, IconSubtitles, IconX,
 } from "@/components/icons";
@@ -18,6 +18,12 @@ type Props = {
   episodes: ReelEpisode[];
   initialIndex: number;
   priceCoins: number;
+  season: SheetSeason;
+  packs: SheetPack[];
+  welcome: SheetWelcome;
+  payLines: { label: string; value: string }[];
+  payerPhone: string;
+  pendingPayment: boolean;
   /** Série retirada: aviso no topo e sem desbloqueios. */
   withdrawnNotice?: string | null;
   balance: number;
@@ -61,6 +67,8 @@ export function ReelPlayer(p: Props) {
   const [arrivedFromAd, setArrivedFromAd] = useState(false);
   const [finished, setFinished] = useState(false);
   const [caption, setCaption] = useState<string | null>(null);
+  const [lockClosed, setLockClosed] = useState(false);
+  const [season, setSeason] = useState(p.season);
   const trackRef = useRef<HTMLTrackElement>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -162,6 +170,7 @@ export function ReelPlayer(p: Props) {
       setArrivedFromAd(!!opts.fromEnd && adUnlocked.has(ep.id));
       setSheet(null);
       setIndex(to);
+      setLockClosed(false);
     },
     [index, p.episodes.length, ep.id, adUnlocked, sendProgress],
   );
@@ -245,6 +254,12 @@ export function ReelPlayer(p: Props) {
       setAdUnlocked((s) => new Set(s).add(id));
     }
     setArrivedFromAd(false);
+  }
+  function seasonUnlocked(ids: string[], coins: number) {
+    setStates((s) => ({ ...s, ...Object.fromEntries(ids.map((id) => [id, "unlocked" as EpisodeState])) }));
+    setBalance((b) => Math.max(0, b - coins));
+    setSeason(null);
+    flash(`${ids.length} episódios desbloqueados!`);
   }
 
   // ---------- botões da direita ----------
@@ -359,46 +374,45 @@ export function ReelPlayer(p: Props) {
         {loadError && <p role="alert" className="absolute inset-x-4 top-1/3 rounded-xl bg-danger/20 px-4 py-3 text-center text-sm text-danger">{loadError}</p>}
         {p.withdrawnNotice && <p role="note" className="pointer-events-none absolute inset-x-4 top-16 z-10 rounded-xl bg-warn/20 px-3 py-2 text-center text-xs text-warn">{p.withdrawnNotice}</p>}
 
-        {/* Episódio bloqueado ou pendente */}
-        {!canWatch(state) && (
-          <div className="absolute inset-0 flex items-center justify-center overflow-y-auto bg-black/60 p-5 pb-36">
-            <div className="w-full max-w-sm rounded-3xl bg-surface/95 p-5 text-center shadow-2xl" data-noswipe>
-              {arrivedFromAd ? (
-                <>
-                  <p className="font-display text-2xl font-extrabold text-accent2">Gostaste?</p>
-                  <p className="mt-1 text-fg/90">Continua já por {p.priceCoins} moedas.</p>
-                </>
-              ) : hook ? (
-                <>
-                  <p className="font-display text-xl font-extrabold text-accent2">Queres saber o que acontece?</p>
-                  <p className="mt-1 text-sm text-fg/90">{hook}</p>
-                </>
-              ) : (
-                <p className="flex items-center justify-center gap-2 font-display text-xl font-extrabold"><IconLock size={20} className="text-accent" /> Episódio {ep.number}</p>
-              )}
-              <div className="mt-4 flex justify-center">
-                {state === "pending" ? (
-                  <p className="badge-pending text-sm"><IconClock size={14} /> Pagamento a aguardar confirmação</p>
-                ) : p.withdrawnNotice ? (
-                  <p className="text-sm text-muted">Esta série foi retirada. Já não é possível desbloquear episódios.</p>
-                ) : (
-                  <UnlockPanel
-                    episodeId={ep.id}
-                    priceCoins={p.priceCoins}
-                    balance={balance}
-                    points={points}
-                    pointsCost={p.pointsCost}
-                    loggedIn={p.loggedIn}
-                    adOffer={adOffer}
-                    onUnlocked={(via) => unlocked(ep.id, via)}
-                  />
-                )}
-              </div>
-              <button type="button" onClick={() => setSheet("episodes")} className="btn-ghost btn-sm mt-2 text-muted">Ver todos os episódios</button>
-              <p className="text-xs text-muted">Desliza para baixo para voltar ao episódio anterior.</p>
-            </div>
+        {/* Episódio bloqueado: painel de desbloqueio por cima do vídeo desfocado */}
+        {!canWatch(state) && (state === "pending" || p.withdrawnNotice) && (
+          <div className="absolute inset-x-4 bottom-24 z-20 rounded-2xl bg-surface/95 p-4 text-center text-sm" data-noswipe>
+            {state === "pending"
+              ? <p className="badge-pending"><IconClock size={14} /> Pagamento a aguardar confirmação</p>
+              : <p className="text-muted">Esta série foi retirada. Já não é possível desbloquear episódios.</p>}
           </div>
         )}
+        {!canWatch(state) && state !== "pending" && !p.withdrawnNotice && (lockClosed ? (
+          <button type="button" onClick={() => setLockClosed(false)} className="btn-primary absolute inset-x-6 bottom-24 z-20 text-lg" data-noswipe>
+            <IconLock size={20} /> Desbloquear episódio {ep.number}
+          </button>
+        ) : (
+          <UnlockSheet
+            key={ep.id}
+            episodeId={ep.id}
+            episodeNumber={ep.number}
+            seriesId={p.series.id}
+            priceCoins={p.priceCoins}
+            balance={balance}
+            points={points}
+            pointsCost={p.pointsCost}
+            loggedIn={p.loggedIn}
+            adOffer={adOffer}
+            season={season}
+            packs={p.packs}
+            welcome={p.welcome}
+            payLines={p.payLines}
+            payerPhone={p.payerPhone}
+            hook={hook}
+            arrivedFromAd={arrivedFromAd}
+            pendingPayment={p.pendingPayment}
+            onUnlocked={(via) => unlocked(ep.id, via)}
+            onSeasonUnlocked={seasonUnlocked}
+            onBalance={setBalance}
+            onClose={() => setLockClosed(true)}
+            onEpisodes={() => setSheet("episodes")}
+          />
+        ))}
 
         {finished && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 p-6 text-center" data-noswipe>

@@ -64,3 +64,12 @@ export async function sendGiftAction(artistId: string, giftCode: string): Promis
     return fail(e);
   }
 }
+
+/** Começa a contagem da oferta de boas-vindas (1.ª vez que aparece). Devolve quando acaba. */
+export async function startWelcomeOfferAction(): Promise<{ expiresAt: string | null }> {
+  const user = await getCurrentUser();
+  if (!user) return { expiresAt: null };
+  const { startWelcomeOffer } = await import("@/domain/coins/welcome");
+  const offer = await startWelcomeOffer(db, user.id);
+  return { expiresAt: offer?.expiresAt?.toISOString() ?? null };
+}

@@ -28,6 +28,12 @@ export default async function AdminCoins() {
         {activePacks[0] && <p className="mt-2 text-xs text-muted">No pacote mais pequeno, {price} moedas (Normal) ≈ {formatKz(Math.round((base.priceKz * 100 * price) / base.coins))}.</p>}
       </section>
 
+      <section className="card mt-4">
+        <h2 className="font-bold">Oferta de boas-vindas</h2>
+        <p className="text-sm text-muted">Só para quem nunca comprou moedas. Aparece com uma contagem real que começa na 1.ª vez que a pessoa a vê e nunca recomeça. As moedas extra contam no valor real (o lote vale o que a pessoa pagou).</p>
+        <SettingsGroupForm group="ofertas" />
+      </section>
+
       <h2 className="mt-8 text-lg font-bold">Pacotes da Loja</h2>
       <p className="text-sm text-muted">O bónus (+%) é calculado automaticamente em relação ao pacote mais barato ativo.</p>
       <ul className="mt-3 space-y-2">

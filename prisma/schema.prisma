@@ -36,6 +36,8 @@ model User {
   referredByArtistId String?
   /// Último dia (AAAA-MM-DD, Luanda) em que viu a sugestão ao abrir a app (máx. 1 por dia).
   suggestionSeenDay  String?
+  /// Quando a oferta de boas-vindas foi mostrada pela 1.ª vez (contagem de 24 h, nunca recomeça).
+  welcomeOfferStartedAt DateTime?
   /// Autenticação em 2 passos (app de autenticação, TOTP) — obrigatória para a admin.
   totpSecret         String?
   totpEnabled        Boolean  @default(false)
@@ -302,6 +304,8 @@ model PaymentRequest {
   /// Compra de moedas: pacote escolhido e moedas a creditar (cópia no momento do pedido).
   coinPackId      String?
   coins           Int?
+  /// Moedas extra da oferta de boas-vindas (já incluídas em "coins").
+  bonusCoins      Int            @default(0)
   amountCents     Int
   /// Comissão do prestador de pagamento (0 na fase manual).
   feeCents        Int            @default(0)

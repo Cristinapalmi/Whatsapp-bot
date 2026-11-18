@@ -335,3 +335,44 @@ describe("Relatório financeiro das moedas", () => {
     expect(r.outstanding.valueCents).toBe(r.outstanding.ledgerCents); // por gastar = livro-razão
   });
 });
+
+describe("Oferta de boas-vindas", () => {
+  it("só para quem nunca comprou; 24 h desde a 1.ª vez, sem recomeçar; bónus conta no valor real", async () => {
+    const { showWelcomeOffer, welcomeOffer } = await import("@/domain/coins/welcome");
+    const fan = await makeUser(db);
+    const u0 = await db.user.findUniqueOrThrow({ where: { id: fan.id } });
+    expect((await welcomeOffer(db, u0))?.expiresAt).toBeNull(); // ainda não começou
+    const t0 = new Date();
+    const shown = await showWelcomeOffer(db, u0, t0);
+    expect(shown).toMatchObject({ packId: "p1000", coins: 100, bonusCoins: 50 });
+    expect(shown!.expiresAt!.getTime() - t0.getTime()).toBe(24 * 3600_000);
+    // voltar a mostrar não recomeça
+    const again = await showWelcomeOffer(db, await db.user.findUniqueOrThrow({ where: { id: fan.id } }), new Date(t0.getTime() + 3600_000));
+    expect(again!.expiresAt!.getTime()).toBe(shown!.expiresAt!.getTime());
+    // outro pacote: sem bónus; o de 1.000 Kz: 150 moedas, que valem os 1.000 Kz pagos
+    const { payment } = await buyCoins(fan.id, "p1000");
+    const pr = await db.paymentRequest.findUniqueOrThrow({ where: { id: payment.id } });
+    expect(pr.coins).toBe(150);
+    expect(pr.bonusCoins).toBe(50);
+    const lot = await db.coinLot.findUniqueOrThrow({ where: { paymentRequestId: payment.id } });
+    expect(lot.coinsTotal).toBe(150);
+    expect(lot.valueCents).toBe(100000);
+    // já comprou → acabou a oferta
+    expect(await welcomeOffer(db, await db.user.findUniqueOrThrow({ where: { id: fan.id } }))).toBeNull();
+  });
+
+  it("depois das 24 h, a compra é normal (sem bónus)", async () => {
+    const { welcomeOffer } = await import("@/domain/coins/welcome");
+    const fan = await makeUser(db);
+    await db.user.update({ where: { id: fan.id }, data: { welcomeOfferStartedAt: new Date(Date.now() - 25 * 3600_000) } });
+    expect(await welcomeOffer(db, await db.user.findUniqueOrThrow({ where: { id: fan.id } }))).toBeNull();
+    const { payment } = await buyCoins(fan.id, "p1000");
+    expect((await db.paymentRequest.findUniqueOrThrow({ where: { id: payment.id } })).coins).toBe(100);
+  });
+
+  it("sem começar a contagem (nunca viu a oferta) não há bónus", async () => {
+    const fan = await makeUser(db);
+    const { payment } = await buyCoins(fan.id, "p1000");
+    expect((await db.paymentRequest.findUniqueOrThrow({ where: { id: payment.id } })).bonusCoins).toBe(0);
+  });
+});

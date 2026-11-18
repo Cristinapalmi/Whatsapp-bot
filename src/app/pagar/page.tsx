@@ -10,6 +10,7 @@ import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { CopyButton } from "@/components/CopyButton";
 import { IconCoin } from "@/components/icons";
 import { submitPaymentAction } from "./actions";
+import { welcomeOffer } from "@/domain/coins/welcome";
 
 export const metadata: Metadata = { title: "Comprar moedas" };
 export const dynamic = "force-dynamic";
@@ -27,6 +28,8 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
   const pack = await db.coinPack.findFirst({ where: { id: sp.pacote, active: true } });
   if (!pack) notFound();
   const amount = kzToCents(pack.priceKz);
+  const welcome = await welcomeOffer(db, user);
+  const bonus = welcome && welcome.expiresAt && welcome.packId === pack.id ? welcome.bonusCoins : 0;
   const alreadyPending = await db.paymentRequest.count({ where: { userId: user.id, status: "PENDING", kind: "COINS" } });
   const instructions = await manualProvider.initiate({ paymentRequestId: "", amountCents: amount, description: `${pack.coins} moedas` });
 
@@ -38,7 +41,8 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
       <div className="card mt-4 flex items-center justify-between">
         <div>
           <p className="text-sm text-muted">Vais receber</p>
-          <p className="flex items-center gap-2 font-display text-3xl font-extrabold text-accent2"><IconCoin size={26} /> {coinsLabel(pack.coins)}</p>
+          <p className="flex items-center gap-2 font-display text-3xl font-extrabold text-accent2"><IconCoin size={26} /> {coinsLabel(pack.coins + bonus)}</p>
+          {bonus > 0 && <p className="text-xs text-accent2">Oferta de boas-vindas: +{bonus} moedas incluídas</p>}
         </div>
         <div className="text-right">
           <p className="text-sm text-muted">Valor</p>

@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { coinsLabel, formatKz } from "@/lib/money";
 import { formatDateTime } from "@/lib/dates";
 import { coinBalance, defaultEpisodePriceCoins, packBonusPercent } from "@/domain/coins/service";
+import { showWelcomeOffer } from "@/domain/coins/welcome";
+import { WelcomeCountdown } from "@/components/WelcomeCountdown";
 import { IconChevronLeft, IconCoin, IconSparkle } from "@/components/icons";
 import { EmptyState } from "@/components/EmptyState";
 
@@ -29,6 +31,7 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
         })
       : [],
   ]);
+  const welcome = await showWelcomeOffer(db, user);
   const base = packs.reduce((a, p) => (p.priceKz < a.priceKz ? p : a), packs[0] ?? { priceKz: 1, coins: 1 });
   const back = voltar?.startsWith("/") && !voltar.startsWith("//") ? voltar : null;
   const history = [
@@ -66,12 +69,16 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
         <ul className="mt-3 grid grid-cols-2 gap-3">
           {packs.map((p) => {
             const bonus = packBonusPercent(p, base);
+            const isWelcome = welcome?.packId === p.id && !!welcome.expiresAt;
             const href = user ? `/pagar?pacote=${p.id}${back ? `&voltar=${encodeURIComponent(back)}` : ""}` : `/entrar?next=${encodeURIComponent("/loja")}`;
             return (
               <li key={p.id}>
                 <Link href={href} className="relative flex h-full flex-col rounded-2xl border border-white/10 bg-surface p-4 no-underline transition hover:border-accent">
-                  {bonus > 0 && <span className="absolute -top-2 right-3 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-[#1A0E05]">+{bonus}%</span>}
-                  <span className="flex items-center gap-1.5 font-display text-2xl font-extrabold text-fg"><IconCoin size={22} className="text-accent2" /> {p.coins.toLocaleString("pt-AO")}</span>
+                  {isWelcome ? (
+                    <span className="absolute -top-2 left-3 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-[#1A0E05]">Oferta de boas-vindas</span>
+                  ) : bonus > 0 && <span className="absolute -top-2 right-3 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-[#1A0E05]">+{bonus}%</span>}
+                  <span className="flex items-center gap-1.5 font-display text-2xl font-extrabold text-fg"><IconCoin size={22} className="text-accent2" /> {isWelcome ? `${p.coins}+${welcome!.bonusCoins}` : p.coins.toLocaleString("pt-AO")}</span>
+                  {isWelcome && <span className="text-xs text-accent2">Acaba em <WelcomeCountdown until={welcome!.expiresAt!.toISOString()} /></span>}
                   <span className="text-xs text-muted">moedas · ≈ {Math.floor(p.coins / price)} episódios</span>
                   <span className="mt-3 text-lg font-semibold text-accent">{formatKz(p.priceKz * 100)}</span>
                 </Link>
