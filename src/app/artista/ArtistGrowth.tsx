@@ -3,27 +3,27 @@ import { db } from "@/lib/db";
 import { formatKz, kzToCents } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { episodePriceCoins, paidUnlocks, tierUpgradeUnlocks, TIER_LABELS } from "@/domain/coins/service";
-import { artistShareFor, earnedTodayCents, founderUntil, milestoneConfig, topSpenders } from "@/domain/artists/growth";
+import { artistShareFor, founderUntil, seriesAudience, topEpisodes, topSpenders } from "@/domain/artists/growth";
 import { getInts } from "@/domain/settings";
 import { CopyButton } from "@/components/CopyButton";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { IconCrown, IconStar, IconTrophy } from "@/components/icons";
-import { saveArtistLinksAction } from "./actions";
+import { saveArtistLinksAction, setNotifyEachUnlockAction } from "./actions";
 
 type Artist = {
   id: string; slug: string; stageName: string; founderNumber: number | null; createdAt: Date; verifiedAt: Date | null;
-  tiktokUrl: string | null; instagramUrl: string | null; bio: string | null;
+  tiktokUrl: string | null; instagramUrl: string | null; bio: string | null; notifyEachUnlock: boolean;
 };
 
 /** Painel de crescimento do artista: hoje / mês / total, próximo objetivo, projeção, maiores fãs, convites. */
-export async function ArtistGrowth({ artist, wallet }: { artist: Artist; wallet: { earnedThisMonthCents: number; earnedTotalCents: number } }) {
-  const [today, fans, cfg, series, share, milestones, upgradeAt, invited, cheapest, followers] = await Promise.all([
-    earnedTodayCents(db, artist.id),
+export async function ArtistGrowth({ artist }: { artist: Artist }) {
+  const [topEps, audience, fans, cfg, series, share, upgradeAt, invited, cheapest, followers] = await Promise.all([
+    topEpisodes(db, artist.id, 5),
+    seriesAudience(db, artist.id),
     topSpenders(db, artist.id, 10),
     getInts(db, ["founderMonths", "tiktokViewsPerUnlock", "artistReferralBonusKz"]),
     db.series.findMany({ where: { artistId: artist.id, status: "PUBLISHED" }, include: { episodes: { where: { published: true }, select: { number: true } } } }),
     artistShareFor(db, artist),
-    milestoneConfig(db),
     tierUpgradeUnlocks(db),
     db.artistProfile.findMany({ where: { invitedByArtistId: artist.id }, select: { stageName: true, referralBonusPaidAt: true } }),
     db.coinPack.findFirst({ where: { active: true }, orderBy: { priceKz: "asc" } }),
@@ -42,15 +42,8 @@ export async function ArtistGrowth({ artist, wallet }: { artist: Artist; wallet:
     const paidEps = best.episodes.filter((e) => e.number > best.freeEpisodes).length;
     projection = Math.round(500 * paidEps * price * coinKz * (share / 100));
   }
-  // Próximo objetivo da série principal: subir de nível ou o próximo marco
-  const nextMilestone = milestones.find((m) => bestUnlocks < m.unlocks);
-  const goal = best
-    ? best.tier === "ENTRY"
-      ? { text: `Subir a Normal ⭐ (ganhas mais por episódio)`, now: bestUnlocks, target: upgradeAt }
-      : nextMilestone
-        ? { text: `Marco de ${nextMilestone.unlocks.toLocaleString("pt-AO")} desbloqueios${nextMilestone.bonusCents ? `: bónus de ${formatKz(nextMilestone.bonusCents)}` : ""}${nextMilestone.crown ? " + 👑" : ""}`, now: bestUnlocks, target: nextMilestone.unlocks }
-        : null
-    : null;
+  // Subida de nível da série principal (Entrada → Normal)
+  const goal = best && best.tier === "ENTRY" ? { text: "Subir a Normal ⭐ (ganhas mais por episódio)", now: bestUnlocks, target: upgradeAt } : null;
   const inviteLink = `${siteUrl()}/artista/registar?convite=${artist.slug}`;
   const fUntil = artist.founderNumber ? founderUntil(artist.createdAt, cfg.founderMonths) : null;
 
@@ -65,27 +58,55 @@ export async function ArtistGrowth({ artist, wallet }: { artist: Artist; wallet:
       </div>
       {fUntil && fUntil > new Date() && <p className="mt-1 text-xs text-accent2">Como Artista Fundador ganhas mais em cada episódio até {formatDate(fUntil)}.</p>}
 
-      {/* Hoje / mês / total */}
-      <section className="mt-4 grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-2xl bg-surface p-3"><p className="text-xs text-muted">Hoje</p><p className="font-display text-xl font-bold text-ok">{formatKz(today)}</p></div>
-        <div className="rounded-2xl bg-surface p-3"><p className="text-xs text-muted">Este mês</p><p className="font-display text-xl font-bold">{formatKz(wallet.earnedThisMonthCents)}</p></div>
-        <div className="rounded-2xl bg-surface p-3"><p className="text-xs text-muted">Total</p><p className="font-display text-xl font-bold">{formatKz(wallet.earnedTotalCents)}</p></div>
-      </section>
-
       {best && (
         <section className="card mt-3 space-y-3">
           <p className="text-sm">Série principal: <strong>{best.title}</strong> · nível <strong>{TIER_LABELS[best.tier]}</strong>{best.crownedAt ? " · 👑" : ""}</p>
           {goal && (
             <div>
-              <p className="text-xs text-muted">Próximo objetivo: {goal.text}</p>
+              <p className="text-xs text-muted">{goal.text}</p>
               <div className="mt-1 h-2 overflow-hidden rounded-full bg-surface2"><div className="h-full bg-accent" style={{ width: `${Math.min(100, Math.round((goal.now / goal.target) * 100))}%` }} /></div>
-              <p className="mt-0.5 text-right text-xs text-muted">{goal.now.toLocaleString("pt-AO")} / {goal.target.toLocaleString("pt-AO")}</p>
+              <p className="mt-0.5 text-right text-xs text-muted">{goal.now.toLocaleString("pt-AO")} / {goal.target.toLocaleString("pt-AO")} desbloqueios pagos</p>
             </div>
           )}
           {projection > 0 && <p className="rounded-xl bg-accent/10 px-3 py-2 text-sm">Se 500 fãs acabarem a tua série, ganhas <strong className="text-accent">{formatKz(kzToCents(projection))}</strong>.</p>}
           <p className="text-sm text-muted">Os teus {totalUnlocks.toLocaleString("pt-AO")} desbloqueios equivalem aproximadamente a <strong className="text-fg">{(totalUnlocks * cfg.tiktokViewsPerUnlock).toLocaleString("pt-AO")} visualizações</strong> no TikTok.</p>
         </section>
       )}
+
+      {/* Episódios mais rentáveis e público de cada série */}
+      <section className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="card">
+          <h2 className="font-bold">Episódios que mais renderam</h2>
+          {topEps.length === 0 ? (
+            <p className="mt-1 text-sm text-muted">Aparecem aqui quando os fãs desbloquearem episódios.</p>
+          ) : (
+            <ol className="mt-2 space-y-1.5 text-sm">
+              {topEps.map((t, i) => (
+                <li key={t.episode.id} className="flex justify-between gap-2">
+                  <span className="min-w-0 truncate">{i + 1}. {t.episode.series.title} — Ep. {t.episode.number}</span>
+                  <span className="shrink-0 font-semibold text-ok">{formatKz(t.cents)}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+          <p className="mt-2 text-xs text-muted">As temporadas desbloqueadas de uma vez contam na série, não num episódio.</p>
+        </div>
+        <div className="card">
+          <h2 className="font-bold">Pessoas a acompanhar</h2>
+          {audience.length === 0 ? (
+            <p className="mt-1 text-sm text-muted">Quando tiveres séries publicadas, vês aqui quantas pessoas as estão a ver.</p>
+          ) : (
+            <ul className="mt-2 space-y-1.5 text-sm">
+              {audience.map((a) => (
+                <li key={a.id} className="flex justify-between gap-2">
+                  <span className="min-w-0 truncate">{a.title}</span>
+                  <span className="shrink-0 text-muted"><strong className="text-fg">{a.viewers.toLocaleString("pt-AO")}</strong> a ver · {a.saved.toLocaleString("pt-AO")} na lista</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
 
       {/* 10 maiores fãs */}
       <section className="card mt-3">
@@ -115,6 +136,17 @@ export async function ArtistGrowth({ artist, wallet }: { artist: Artist; wallet:
             {invited.map((x) => <li key={x.stageName} className="flex justify-between"><span>{x.stageName}</span><span className={x.referralBonusPaidAt ? "text-ok" : "text-muted"}>{x.referralBonusPaidAt ? "bónus recebido" : "à espera da 1.ª venda"}</span></li>)}
           </ul>
         )}
+      </section>
+
+      {/* Definições de avisos */}
+      <section className="card mt-3">
+        <h2 className="font-bold">Avisos</h2>
+        <p className="text-sm text-muted">Recebes sempre: o primeiro fã, o resumo do dia, metas atingidas, bónus e subida de nível.</p>
+        <ActionForm action={setNotifyEachUnlockAction} className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <input type="hidden" name="on" value={artist.notifyEachUnlock ? "0" : "1"} />
+          <span className="text-sm">Avisar-me a cada desbloqueio: <strong>{artist.notifyEachUnlock ? "ligado" : "desligado"}</strong></span>
+          <SubmitButton className="btn-secondary btn-sm">{artist.notifyEachUnlock ? "Desligar" : "Ligar"}</SubmitButton>
+        </ActionForm>
       </section>
 
       {/* Perfil público */}

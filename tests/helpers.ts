@@ -76,6 +76,7 @@ export async function makeArtistWithSeries(db: PrismaClient, opts: { priceCents?
       freeEpisodes: opts.freeEpisodes ?? 2,
       status: "PUBLISHED",
       tier: opts.tier ?? "NORMAL",
+      publishedAt: new Date(),
       episodes: {
         create: Array.from({ length: opts.episodes ?? 4 }, (_, i) => i + 1).map((number) => ({ number, title: `Ep ${number}`, published: true, durationSec: 120 })),
       },

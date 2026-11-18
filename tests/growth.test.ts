@@ -80,7 +80,7 @@ describe("1.ª venda, convite e marcos", () => {
     // resumo diário: uma vez por dia
     expect(await sendDailySummaries(db)).toBeGreaterThan(0);
     expect(await sendDailySummaries(db)).toBe(0);
-    expect(await db.notification.count({ where: { userId: artist.userId, body: { startsWith: "Hoje ganhaste" } } })).toBe(1);
+    expect(await db.notification.count({ where: { userId: artist.userId, body: { startsWith: "Hoje a tua série gerou" } } })).toBe(1);
   });
 });
 
@@ -98,5 +98,35 @@ describe("Levantamentos", () => {
     const paidBefore = await totalPaidToArtists(db);
     await markPayoutPaid(db, { payoutId: p.id, adminId: admin.id });
     expect((await totalPaidToArtists(db)) - paidBefore).toBe(100000);
+  });
+});
+
+describe("Painel financeiro do artista (dados reais)", () => {
+  it("4 valores batem com o livro-razão; metas e aviso opcional a cada desbloqueio", async () => {
+    const { artistMoneySnapshot, earningsHistory, topEpisodes } = await import("@/domain/artists/growth");
+    for (const [k, v] of [["milestone1Unlocks", "500"], ["milestone2Unlocks", "1000"], ["milestone3Unlocks", "5000"]]) await setSetting(db, k, v);
+    const { artist, episodes } = await makeArtistWithSeries(db, { freeEpisodes: 1, episodes: 8 });
+    await db.artistProfile.update({ where: { id: artist.id }, data: { createdAt: new Date(Date.now() - 400 * 86400000) } });
+    const s0 = await artistMoneySnapshot(db, artist.id);
+    expect([s0.totalCents, s0.pendingCents, s0.availableCents, s0.withdrawnCents]).toEqual([0, 0, 0, 0]);
+    expect(s0.achievements).toEqual([]);
+    const { fan } = await richFan();
+    await unlockEpisodeWithCoins(db, { userId: fan.id, episodeId: episodes[1].id }); // 1.ª venda: 100 Kz
+    // aviso a cada desbloqueio: desligado por defeito
+    await unlockEpisodeWithCoins(db, { userId: fan.id, episodeId: episodes[2].id });
+    expect(await db.notification.count({ where: { userId: artist.userId, body: { contains: "acabou de gerar mais receita" } } })).toBe(0);
+    await db.artistProfile.update({ where: { id: artist.id }, data: { notifyEachUnlock: true } });
+    for (const e of episodes.slice(3)) await unlockEpisodeWithCoins(db, { userId: fan.id, episodeId: e.id });
+    expect(await db.notification.count({ where: { userId: artist.userId, body: { contains: "acabou de gerar mais receita" } } })).toBe(5);
+    const s1 = await artistMoneySnapshot(db, artist.id);
+    expect(s1.totalCents).toBe(70000); // 7 × 100 Kz
+    expect(s1.availableCents).toBe(70000);
+    expect(s1.todayCents).toBe(70000);
+    // meta de 1.000 Kz ainda não; próxima meta 1.000 Kz
+    expect(s1.goal?.targetCents).toBe(100000);
+    const hist = await earningsHistory(db, artist.id, "day");
+    expect(hist).toHaveLength(30);
+    expect(hist.at(-1)!.cents).toBe(70000);
+    expect((await topEpisodes(db, artist.id, 3))[0].cents).toBe(10000);
   });
 });

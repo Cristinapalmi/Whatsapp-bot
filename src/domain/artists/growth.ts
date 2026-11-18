@@ -89,7 +89,8 @@ export async function afterArtistSale(db: PrismaClient, { artistId, seriesId }: 
   if (first.count === 1) {
     await notify(db, artist.userId, "O teu primeiro fã 🎉", "🎉 O teu primeiro fã pagou para ver a tua série!", "/artista");
     // "Traz um kamba": bónus para quem convidou, uma única vez
-    if (artist.invitedByArtistId) {
+    const hasPublished = await db.series.count({ where: { artistId, publishedAt: { not: null } } });
+    if (artist.invitedByArtistId && hasPublished > 0) {
       const bonusKz = await getInt(db, "artistReferralBonusKz");
       const inviter = await db.artistProfile.findUnique({ where: { id: artist.invitedByArtistId } });
       if (inviter && bonusKz > 0) {
@@ -102,6 +103,13 @@ export async function afterArtistSale(db: PrismaClient, { artistId, seriesId }: 
       }
     }
   }
+
+  // Aviso a cada desbloqueio: só se o artista ligou nas definições (desligado por defeito)
+  if (artist.notifyEachUnlock && first.count === 0)
+    await notify(db, artist.userId, "Mais receita 🔥", "A tua série acabou de gerar mais receita! Os teus ganhos continuam a crescer.", "/artista");
+
+  // Metas de ganhos do artista (todas as séries) — só celebração, sem prémio em dinheiro
+  await checkArtistGoals(db, artist);
 
   // Marcos de desbloqueios pagos (bónus)
   const series = await db.series.findUnique({ where: { id: seriesId } });
@@ -130,6 +138,19 @@ export async function afterArtistSale(db: PrismaClient, { artistId, seriesId }: 
     if (earnedKz < kz) break;
     const created = await db.seriesMilestone.createMany({ data: [{ seriesId, kind: "EARNED", threshold: kz }], skipDuplicates: true });
     if (created.count === 1) await notify(db, artist.userId, "Marco de ganhos 🔥", `A tua série "${series.title}" passou os ${formatKz(kzToCents(kz))}!`, "/artista");
+  }
+}
+
+/** Metas de ganhos (Kz) do artista, somando todas as séries. */
+export const ARTIST_GOALS_KZ = [1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000];
+
+async function checkArtistGoals(db: PrismaClient, artist: { id: string; userId: string }) {
+  const { getArtistWallet } = await import("../money/ledger");
+  const totalKz = Math.floor((await getArtistWallet(db, artist.id)).earnedTotalCents / 100);
+  for (const kz of ARTIST_GOALS_KZ) {
+    if (totalKz < kz) break;
+    const r = await db.artistGoal.createMany({ data: [{ artistId: artist.id, thresholdKz: kz }], skipDuplicates: true });
+    if (r.count === 1) await notify(db, artist.userId, "Meta atingida 🏆", `Parabéns! As tuas séries já geraram ${formatKz(kzToCents(kz))} para ti.`, "/artista");
   }
 }
 
@@ -162,7 +183,7 @@ export async function sendDailySummaries(db: PrismaClient, now = new Date()) {
   for (const a of artists) {
     const x = per.get(a.id)!;
     if (x.cents <= 0) continue;
-    await notify(db, a.userId, "Resumo do dia 🔥", `Hoje ganhaste ${formatKz(x.cents)} com ${x.unlocks} ${x.unlocks === 1 ? "desbloqueio" : "desbloqueios"} 🔥`, "/artista");
+    await notify(db, a.userId, "Resumo do dia 🔥", `Hoje a tua série gerou ${formatKz(x.cents)}! (${x.unlocks} ${x.unlocks === 1 ? "desbloqueio" : "desbloqueios"}) 🔥`, "/artista");
   }
   return artists.length;
 }
@@ -233,3 +254,108 @@ export async function superfanOf(db: Tx, userId: string) {
   }
   return out;
 }
+
+
+/** Histórico de ganhos (Kz por dia, últimos 30 dias; ou por semana, últimas 12 semanas). Dados reais do livro-razão. */
+export async function earningsHistory(db: Tx, artistId: string, by: "day" | "week", now = new Date()) {
+  const { EARNING_KINDS } = await import("../money/accounts");
+  const n = by === "day" ? 30 : 12;
+  const unit = by === "day" ? MS_DAY : 7 * MS_DAY;
+  const end = luandaDayStart(now).getTime() + MS_DAY; // fim de hoje (Luanda)
+  const start = end - n * unit;
+  const lines = await db.ledgerLine.findMany({
+    where: { account: { code: artistAvailable(artistId).code }, createdAt: { gte: new Date(start) }, entry: { kind: { in: [...EARNING_KINDS] } } },
+    select: { amountCents: true, createdAt: true },
+  });
+  const buckets = Array.from({ length: n }, (_, i) => ({ start: new Date(start + i * unit), cents: 0 }));
+  for (const l of lines) {
+    const i = Math.floor((l.createdAt.getTime() - start) / unit);
+    if (i >= 0 && i < n) buckets[i].cents += -l.amountCents;
+  }
+  return buckets;
+}
+
+/** Episódios que mais renderam ao artista (desbloqueios individuais; as temporadas contam na série). */
+export async function topEpisodes(db: Tx, artistId: string, limit = 5) {
+  const rows = await db.coinSpend.groupBy({
+    by: ["episodeId"],
+    where: { artistId, kind: "EPISODE", reversedAt: null, episodeId: { not: null } },
+    _sum: { artistCents: true },
+    _count: true,
+    orderBy: { _sum: { artistCents: "desc" } },
+    take: limit,
+  });
+  const eps = await db.episode.findMany({ where: { id: { in: rows.map((r) => r.episodeId!) } }, select: { id: true, number: true, title: true, series: { select: { title: true } } } });
+  const byId = new Map(eps.map((e) => [e.id, e]));
+  return rows.map((r) => ({ episode: byId.get(r.episodeId!)!, cents: r._sum.artistCents ?? 0, unlocks: r._count })).filter((r) => r.episode);
+}
+
+/** Pessoas a acompanhar cada série (viram ou desbloquearam episódios) e quantas a guardaram na lista. */
+export async function seriesAudience(db: Tx, artistId: string) {
+  const series = await db.series.findMany({ where: { artistId, status: { in: ["PUBLISHED", "HIDDEN"] }, purgedAt: null }, select: { id: true, title: true, _count: { select: { favorites: true } } } });
+  return Promise.all(
+    series.map(async (s) => {
+      const [watched, unlocked] = await Promise.all([
+        db.watchProgress.findMany({ where: { episode: { seriesId: s.id } }, select: { userId: true }, distinct: ["userId"] }),
+        db.entitlement.findMany({ where: { episode: { seriesId: s.id } }, select: { userId: true }, distinct: ["userId"] }),
+      ]);
+      const viewers = new Set([...watched, ...unlocked].map((x) => x.userId)).size;
+      return { id: s.id, title: s.title, viewers, saved: s._count.favorites };
+    }),
+  );
+}
+
+/** Tudo o que o painel financeiro precisa — sempre a partir dos dados reais. */
+export async function artistMoneySnapshot(db: Tx, artistId: string, now = new Date()) {
+  const { getArtistWallet } = await import("../money/ledger");
+  const { payoutMinCents } = await import("../payouts/service");
+  const artist = await db.artistProfile.findUniqueOrThrow({ where: { id: artistId }, select: { achievementsSeenAt: true, createdAt: true } });
+  const [wallet, paid, today, minCents, goals, milestones, series] = await Promise.all([
+    getArtistWallet(db, artistId, now),
+    db.payoutRequest.aggregate({ where: { artistId, status: "PAID" }, _sum: { amountCents: true } }),
+    earnedTodayCents(db, artistId, now),
+    payoutMinCents(db, artistId),
+    db.artistGoal.findMany({ where: { artistId }, orderBy: { createdAt: "desc" } }),
+    milestoneConfig(db),
+    db.series.findMany({ where: { artistId, status: "PUBLISHED" }, select: { id: true, title: true } }),
+  ]);
+  const totalKz = Math.floor(wallet.earnedTotalCents / 100);
+  // Próxima meta de ganhos (sem prémio em dinheiro)
+  const nextGoalKz = ARTIST_GOALS_KZ.find((kz) => kz > totalKz) ?? null;
+  const prevGoalKz = [...ARTIST_GOALS_KZ].reverse().find((kz) => kz <= totalKz) ?? 0;
+  // Próxima conquista com prémio: o marco de desbloqueios mais perto, entre as séries publicadas
+  let nextReward: { seriesTitle: string; unlocks: number; target: number; bonusCents: number; crown: boolean } | null = null;
+  for (const s of series) {
+    const unlocks = await db.entitlement.count({ where: { source: "COINS", episode: { seriesId: s.id } } });
+    const m = milestones.find((x) => unlocks < x.unlocks);
+    if (!m) continue;
+    const left = m.unlocks - unlocks;
+    if (!nextReward || left < nextReward.target - nextReward.unlocks)
+      nextReward = { seriesTitle: s.title, unlocks, target: m.unlocks, bonusCents: m.bonusCents, crown: m.crown };
+  }
+  // Conquistas novas desde a última visita (para a animação), só reais
+  const since = artist.achievementsSeenAt ?? artist.createdAt;
+  const [newGoals, newMilestones] = await Promise.all([
+    db.artistGoal.findMany({ where: { artistId, createdAt: { gt: since } }, orderBy: { createdAt: "asc" } }),
+    db.seriesMilestone.findMany({ where: { kind: "UNLOCKS", series: { artistId }, createdAt: { gt: since } }, include: { series: { select: { title: true, crownedAt: true } } }, orderBy: { createdAt: "asc" } }),
+  ]);
+  const achievements = [
+    ...newGoals.map((g) => ({ id: `g-${g.id}`, at: g.createdAt.getTime(), title: `As tuas séries já geraram ${formatKz(kzToCents(g.thresholdKz))}!`, prizeCents: 0 })),
+    ...newMilestones.map((m) => ({ id: `m-${m.id}`, at: m.createdAt.getTime(), title: `"${m.series.title}" chegou a ${m.threshold.toLocaleString("pt-AO")} desbloqueios!`, prizeCents: m.bonusCents })),
+  ].sort((a, b) => a.at - b.at);
+  return {
+    totalCents: wallet.earnedTotalCents,
+    pendingCents: wallet.pendingCents,
+    availableCents: wallet.availableCents,
+    processingCents: wallet.processingCents,
+    withdrawnCents: paid._sum.amountCents ?? 0,
+    monthCents: wallet.earnedThisMonthCents,
+    todayCents: today,
+    minPayoutCents: minCents,
+    goal: nextGoalKz ? { targetCents: kzToCents(nextGoalKz), fromCents: kzToCents(prevGoalKz) } : null,
+    goalsReached: goals.length,
+    nextReward,
+    achievements,
+  };
+}
+export type ArtistMoneySnapshot = Awaited<ReturnType<typeof artistMoneySnapshot>>;

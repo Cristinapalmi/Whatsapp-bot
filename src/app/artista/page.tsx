@@ -11,8 +11,9 @@ import { getObjectUrl } from "@/domain/storage";
 import { trailerCaption } from "@/domain/trailer";
 import { monthlyRanking, sortByRevenue, sortByViews } from "@/domain/ranking";
 import { ArtistGrowth } from "./ArtistGrowth";
-import { artistShareFor } from "@/domain/artists/growth";
-import { LiveWallet } from "@/components/LiveWallet";
+import { artistMoneySnapshot, artistShareFor, earningsHistory } from "@/domain/artists/growth";
+import { ArtistMoneyPanel } from "@/components/ArtistMoneyPanel";
+import { EarningsChart } from "@/components/EarningsChart";
 import { CopyButton } from "@/components/CopyButton";
 import { EmptyState } from "@/components/EmptyState";
 import { PayoutStatusBadge } from "@/components/StatusBadge";
@@ -76,21 +77,24 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
   );
   const hasPublished = series.some((s) => s.status === "PUBLISHED");
   const share = await artistShareFor(db, artist);
+  const [money, days, weeks] = await Promise.all([
+    artistMoneySnapshot(db, artist.id),
+    earningsHistory(db, artist.id, "day"),
+    earningsHistory(db, artist.id, "week"),
+  ]);
+  const history = {
+    days: days.map((d) => ({ start: d.start.toISOString(), cents: d.cents })),
+    weeks: weeks.map((d) => ({ start: d.start.toISOString(), cents: d.cents })),
+  };
 
   return (
     <div className="container-app max-w-3xl">
       {sp.apagada && <p role="status" className="mb-3 rounded-xl bg-ok/15 px-4 py-3 text-sm text-ok">Série apagada.</p>}
       <h1 className="text-2xl font-bold">Olá, {artist.stageName}</h1>
       <p className="text-sm text-muted">Quanto mais assistirem às tuas séries, mais ganhas.</p>
-      <ArtistGrowth artist={artist} wallet={wallet} />
-
-      {/* Carteira */}
-      <section className="mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-accent/25 via-surface to-surface p-5">
-        <p className="flex items-center gap-2 text-sm text-muted"><IconWallet size={18} /> Saldo disponível</p>
-        <LiveWallet initialCents={wallet.availableCents} />
-        {wallet.processingCents > 0 && <p className="mt-2 text-sm text-muted">A levantar: <strong className="text-fg">{formatKz(wallet.processingCents)}</strong></p>}
-        <Link href="/artista/carteira" className="btn-primary mt-4 w-full no-underline sm:w-auto">Carteira e levantamentos</Link>
-      </section>
+      <ArtistMoneyPanel initial={money} />
+      <div className="mt-3"><EarningsChart days={history.days} weeks={history.weeks} /></div>
+      <ArtistGrowth artist={artist} />
 
       {/* Números */}
       <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">

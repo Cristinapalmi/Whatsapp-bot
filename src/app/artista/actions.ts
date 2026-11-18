@@ -25,3 +25,14 @@ export async function saveArtistLinksAction(_: ActionResult, fd: FormData): Prom
     return { ok: "Perfil guardado." };
   } catch (e) { return toActionError(e); }
 }
+
+/** Definições: "Avisar-me a cada desbloqueio" (desligado por defeito). */
+export async function setNotifyEachUnlockAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const { artist } = await requireArtist({ approved: true });
+    const on = fd.get("on") === "1";
+    await db.artistProfile.update({ where: { id: artist.id }, data: { notifyEachUnlock: on } });
+    revalidatePath("/artista");
+    return { ok: on ? "Vais receber um aviso a cada desbloqueio." : "Avisos a cada desbloqueio desligados. Continuas a receber o resumo diário." };
+  } catch (e) { return toActionError(e); }
+}

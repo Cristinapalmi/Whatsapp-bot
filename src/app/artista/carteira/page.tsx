@@ -66,7 +66,7 @@ export default async function WalletPage() {
         <p className="mt-3 text-xs text-muted">Disponível = dinheiro já recebido pela plataforma, que podes levantar. Pendente = só na fase de pagamentos automáticos, enquanto o prestador não liquida.</p>
       </section>
 
-      <section className="mt-6">
+      <section className="mt-6 scroll-mt-20" id="levantar">
         <h2 className="text-lg font-bold">Levantar</h2>
         {!acc ? (
           <p className="mt-2 text-sm text-muted">Primeiro liga a conta onde queres receber (em baixo).</p>

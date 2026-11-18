@@ -162,9 +162,14 @@ model ArtistProfile {
   firstSaleAt     DateTime?
   tiktokUrl       String?
   instagramUrl    String?
+  /// Definições: avisar a cada desbloqueio (desligado por defeito).
+  notifyEachUnlock Boolean     @default(false)
+  /// Até quando o artista já viu as conquistas (para mostrar a animação das novas uma vez).
+  achievementsSeenAt DateTime?
   createdAt       DateTime     @default(now())
 
   followers          Follow[]
+  goals              ArtistGoal[]
   series             Series[]
   payoutAccount      PayoutAccount?
   payoutRequests     PayoutRequest[]
@@ -850,4 +855,15 @@ model FanInvite {
 
   @@index([inviterId, status])
   @@index([status, createdAt])
+}
+
+/// Metas de ganhos do artista (todas as séries): "Já geraste 50.000 Kz!". Registadas uma vez.
+model ArtistGoal {
+  id        String        @id @default(cuid())
+  artistId  String
+  artist    ArtistProfile @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  thresholdKz Int
+  createdAt DateTime      @default(now())
+
+  @@unique([artistId, thresholdKz])
 }
