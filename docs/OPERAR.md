@@ -94,3 +94,18 @@ Cada artista tem um **extrato mensal** (Carteira → "Extrato mensal") que pode 
 5. O preço em moedas e o número de episódios grátis são da plataforma (Admin → Moedas / Admin → Séries).
 6. **Primeiro levantamento:** em Admin → Levantamentos aparece "verifica o artista": confirma o BI e que a conta está em nome dele, e só depois podes marcar como pago.
 7. A admin continua a poder suspender artistas, editar ou retirar séries, escolher o destaque e a sugestão ao abrir a app.
+
+## Novidades (Etapas 1–6)
+
+**O admin só revê.** Em Séries → (série) vês capa, dados e episódios com leitor. Botões: Aprovar e publicar, Recusar (motivo obrigatório), Retirar do catálogo, Destaque na página inicial, Sugerir ao abrir a app, Marcar como Premium. Quem cria e edita é o artista.
+
+**Regras que podes mudar sem programador:**
+- Admin → Moedas: preços por nível (Entrada 10 / Normal 20 / Premium 30), desbloqueios para subir a Normal (100), desconto da temporada (20%), oferta de boas-vindas (pacote de 1.000 Kz, +50 moedas, 24 h).
+- Admin → Artistas → "Regras dos artistas": vagas de Fundador (20), meses e parte do Fundador, marcos e bónus, mínimos de levantamento (1.º 1.000 Kz, seguintes 5.000 Kz), bónus "Traz um kamba" (2.000 Kz), comparação com o TikTok.
+- Admin → Convites → "Regras dos fãs": pontos dos convites, horas de espera, limite por mês, Embaixador, pontos de presença.
+
+**Pagamentos:** os suspeitos aparecem primeiro, com "🚩 Suspeito" e os motivos (valor lido, n.º de operação, data, edição da imagem, conta nova). A app nunca confirma nem recusa sozinha: **confirma sempre no Multicaixa Express/banco** (valor, hora e n.º de operação). "Rejeitar e bloquear" põe a pessoa na lista negra (não pode enviar mais comprovativos); "Desbloquear" desfaz.
+
+**Convites suspeitos (Admin → Convites):** convites de fãs com sinais de batota (mesmo aparelho, muitas contas da mesma ligação). "Anular pontos" retira os pontos; "Bloquear" impede a pessoa de ganhar pontos de convites e de presença.
+
+**Tarefa diária automática** (Vercel, 22:40 de Luanda, precisa de `CRON_SECRET`): resumo do dia para os artistas, validação dos convites e limpeza de séries retiradas há mais de 30 dias.

@@ -24,7 +24,7 @@ const artistSchema = z.object({
   slug: z.string().trim().toLowerCase().regex(/^[a-z0-9-]{3,30}$/, "O link só pode ter letras, números e hífen (3 a 30)."),
   c1: checkbox("Tens de autorizar a plataforma a mostrar as tuas séries (caixa 1)."),
   c2: checkbox("Tens de aceitar os episódios grátis (caixa 2)."),
-  c3: checkbox("Tens de aceitar a divisão 50/50 (caixa 3)."),
+  c3: checkbox("Tens de aceitar a forma como ganhas (caixa 3)."),
   c4: checkbox("Tens de confirmar as regras do conteúdo (caixa 4)."),
   c5: checkbox("Tens de aceitar as regras de levantamento (caixa 5)."),
   terms: checkbox("Tens de aceitar os Termos e a Política de Privacidade."),

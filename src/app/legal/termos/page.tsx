@@ -2,11 +2,20 @@ import type { Metadata } from "next";
 import { brand } from "@config/brand";
 import { business } from "@config/business";
 import { LegalPage, v } from "../LegalPage";
+import { db } from "@/lib/db";
+import { tierPrices } from "@/domain/coins/service";
+import { getInts } from "@/domain/settings";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Termos de Utilização" };
 
-export default function Terms() {
+export default async function Terms() {
   const n = brand.name;
+  const [prices, c] = await Promise.all([
+    tierPrices(db),
+    getInts(db, ["seasonDiscountPercent", "welcomePackKz", "welcomeBonusCoins", "welcomeOfferHours", "inviteWatchPoints", "invitePurchasePoints", "invitePendingHours", "inviteMonthlyLimit", "ambassadorInvites", "dailyPresencePoints", "streakDays", "streakBonusPoints"]),
+  ]);
   return (
     <LegalPage title="Termos de Utilização do Público" version={v.terms}>
       <h2>1. O que é a {n}</h2>
@@ -22,9 +31,11 @@ export default function Terms() {
 
       <h2>3. Episódios grátis e moedas</h2>
       <ul>
-        <li>Os primeiros episódios de cada série são grátis (normalmente 3). O número aparece na página da série.</li>
-        <li>Os episódios seguintes desbloqueiam-se com <strong>moedas</strong>. O preço em moedas aparece antes de desbloqueares.</li>
-        <li>Um episódio desbloqueado fica teu para sempre, enquanto a série estiver publicada na plataforma.</li>
+        <li>Os <strong>3 primeiros episódios</strong> de cada série são sempre grátis.</li>
+        <li>Os episódios seguintes desbloqueiam-se com <strong>moedas</strong>. Cada série tem um nível de preço: <strong>Entrada</strong> ({prices.ENTRY} moedas por episódio), <strong>Normal</strong> ({prices.NORMAL}) ou <strong>Premium</strong> ({prices.PREMIUM}). O preço aparece sempre antes de desbloqueares.</li>
+        <li><strong>Temporada:</strong> podes desbloquear de uma vez todos os episódios que te faltam numa série, com {c.seasonDiscountPercent}% de desconto. É uma só cobrança e nunca pagas duas vezes o mesmo episódio.</li>
+        <li>Um episódio desbloqueado fica desbloqueado, mesmo que a série mude de nível de preço.</li>
+        <li>Se o artista retirar uma série, ela sai logo do catálogo, mas continuas a poder ver os episódios que desbloqueaste durante 30 dias. Depois disso, a série deixa de estar disponível.</li>
         <li>Também podes oferecer <strong>presentes</strong> aos artistas, pagos com moedas.</li>
       </ul>
 
@@ -35,6 +46,7 @@ export default function Terms() {
         <li><strong>As moedas não são reembolsáveis, não se transferem para outras pessoas e nunca se convertem em dinheiro.</strong></li>
         <li>Por agora, as moedas não têm prazo de validade. Se isso mudar, avisamos com antecedência.</li>
         <li>Quando usas moedas numa série, uma parte do valor vai para o artista que a criou.</li>
+        <li><strong>Oferta de boas-vindas:</strong> se nunca compraste moedas, o pacote de {c.welcomePackKz.toLocaleString("pt-AO")} Kz dá-te {c.welcomeBonusCoins} moedas extra. A oferta dura {c.welcomeOfferHours} horas a contar da primeira vez que a vês (a contagem é real e não recomeça) e só pode ser usada uma vez.</li>
       </ul>
 
       <h2>5. Como pagar as moedas (fase atual)</h2>
@@ -44,7 +56,8 @@ export default function Terms() {
         <li>O pedido fica "A aguardar confirmação". Depois de verificarmos a entrada do dinheiro, as moedas entram na tua carteira e recebes uma notificação.</li>
         <li>Se o pagamento não puder ser confirmado (valor errado, comprovativo ilegível ou repetido), o pedido é rejeitado e explicamos o motivo.</li>
       </ol>
-      <p>É proibido enviar comprovativos falsos, alterados ou já usados. Se descobrirmos um pagamento falso depois de o confirmarmos, retiramos as moedas dessa compra e voltamos a bloquear os episódios desbloqueados com elas. A conta pode ser suspensa, sem prejuízo de outras medidas legais.</p>
+      <p>Para proteger toda a gente, verificamos os comprovativos (por exemplo, o valor, o número da operação e a data). Um comprovativo pode ficar marcado para uma verificação mais cuidadosa; a decisão final é sempre tomada por uma pessoa da nossa equipa.</p>
+      <p>É proibido enviar comprovativos falsos, alterados ou já usados. Quem o fizer pode ficar impedido de enviar novos comprovativos. Se descobrirmos um pagamento falso depois de o confirmarmos, retiramos as moedas dessa compra e voltamos a bloquear os episódios desbloqueados com elas. A conta pode ser suspensa, sem prejuízo de outras medidas legais.</p>
       <p>Se pagares e as moedas não entrarem por erro nosso, ou se pagares em duplicado, contacta o apoio: analisamos cada caso e corrigimos.</p>
 
       <h2>6. Oferta única: 1 episódio grátis com anúncio</h2>
@@ -56,8 +69,15 @@ export default function Terms() {
         <li>Os anúncios são de patrocinadores. Se tocares em "Saber mais", abres o site do patrocinador, que tem as suas próprias regras.</li>
       </ul>
 
-      <h2>7. Pontos de fã e prémios</h2>
-      <p>Podes ganhar pontos por veres episódios até ao fim e trocá-los por episódios. Os pontos são diferentes das moedas: <strong>não têm valor em dinheiro</strong>, não podem ser trocados por dinheiro nem transferidos. A {n} não organiza apostas, sorteios pagos nem promete ganhar dinheiro a ver vídeos.</p>
+      <h2>7. Pontos de fã, convites e prémios</h2>
+      <p>Os pontos são diferentes das moedas: <strong>não têm valor em dinheiro</strong>, não podem ser trocados por dinheiro nem transferidos. 100 pontos = 1 episódio. Um episódio desbloqueado com pontos não gera pagamento ao artista. A {n} não organiza apostas, sorteios pagos nem promete ganhar dinheiro a ver vídeos.</p>
+      <ul>
+        <li><strong>Ver episódios até ao fim</strong> dá pontos (uma vez por episódio).</li>
+        <li><strong>Presença:</strong> {c.dailyPresencePoints} pontos por dia em que abres a app com a tua conta, e {c.streakBonusPoints} pontos extra a cada {c.streakDays} dias seguidos.</li>
+        <li><strong>Convidar amigos:</strong> quando um amigo cria conta pelo teu link, vê um episódio até ao fim e <strong>volta noutro dia</strong> para ver outro episódio até ao fim, ganham os dois {c.inviteWatchPoints} pontos (ficam em espera {c.invitePendingHours} horas). Quando esse amigo fizer a primeira compra de moedas confirmada, ganhas mais {c.invitePurchasePoints} pontos.</li>
+        <li>Os convites só contam para pessoas reais: uma conta por número de telefone, sem várias contas no mesmo aparelho ou ligação. Há um máximo de {c.inviteMonthlyLimit} convites com prémio por mês. Contas que nunca voltam não dão pontos. Convites suspeitos podem ser analisados, os pontos anulados e a conta impedida de ganhar pontos.</li>
+        <li>Com {c.ambassadorInvites} convites válidos ganhas o selo <strong>Embaixador</strong>. Os 10 fãs que mais apoiam um artista ganham o selo <strong>Superfã</strong>. Os selos são só reconhecimento, sem valor em dinheiro.</li>
+      </ul>
 
       <h2>8. Planos de membro</h2>
       <p>Os planos de membro (semanal, mensal e anual) ainda não estão disponíveis. Quando estiverem, as condições e os preços serão mostrados antes de qualquer pagamento.</p>

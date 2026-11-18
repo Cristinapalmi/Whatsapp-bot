@@ -62,8 +62,8 @@ export const business = {
   },
   /** Versões dos documentos legais. Mudar a versão obriga a nova aceitação. */
   legalVersions: {
-    terms: "2026-11-v3",
+    terms: "2026-11-v4",
     privacy: "2026-11-v1",
-    artistPolicy: "2026-11-v4",
+    artistPolicy: "2026-11-v5",
   },
 } as const;
