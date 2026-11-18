@@ -19,3 +19,26 @@ describe("Endereço do site", () => {
     expect(resolveDomain({})).toBe("localhost:3000");
   });
 });
+
+describe("Banner: duração do MP4 lida no servidor", () => {
+  it("lê a duração de um MP4 real e recusa ficheiros que não são MP4", async () => {
+    const { mp4DurationSec } = await import("@/domain/banner");
+    const fs = await import("node:fs");
+    const path = "public/samples/demo-360.mp4";
+    if (fs.existsSync(path)) {
+      const d = mp4DurationSec(fs.readFileSync(path));
+      expect(d).toBeGreaterThan(1);
+      expect(d).toBeLessThan(600);
+    }
+    expect(mp4DurationSec(Buffer.from("isto não é um vídeo"))).toBeNull();
+  });
+  it("o botão do banner só leva a destinos internos", async () => {
+    const { ctaHref } = await import("@/domain/banner");
+    expect(ctaHref({ ctaKind: "SERIES", ctaTarget: "a-serie" })).toBe("/serie/a-serie");
+    expect(ctaHref({ ctaKind: "CREATORS", ctaTarget: null })).toBe("/criadores");
+    expect(ctaHref({ ctaKind: "STORE", ctaTarget: null })).toBe("/loja");
+    expect(ctaHref({ ctaKind: "LINK", ctaTarget: "/ranking" })).toBe("/ranking");
+    expect(ctaHref({ ctaKind: "LINK", ctaTarget: "//mau.com" })).toBeNull();
+    expect(ctaHref({ ctaKind: "LINK", ctaTarget: "https://mau.com" })).toBeNull();
+  });
+});

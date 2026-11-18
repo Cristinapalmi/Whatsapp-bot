@@ -261,6 +261,8 @@ model Episode {
   /// Rascunho → Em revisão → Publicado / Recusado
   status          EpisodeStatus @default(DRAFT)
   rejectionReason String?
+  /// Quando ficou visível ao público (para "Novos episódios").
+  publishedAt     DateTime?
   submittedAt     DateTime?
   createdAt       DateTime      @default(now())
 
@@ -872,4 +874,26 @@ model ArtistGoal {
   createdAt DateTime      @default(now())
 
   @@unique([artistId, thresholdKz])
+}
+
+/// Slides do banner da página inicial (Admin → Banner). Texto por cima da imagem/vídeo.
+model BannerSlide {
+  id         String    @id @default(cuid())
+  title      String
+  subtitle   String?
+  ctaText    String?
+  /// "SERIES" (uma série) | "CREATORS" (página de criadores) | "STORE" (Loja) | "LINK" (link interno) | "NONE"
+  ctaKind    String    @default("NONE")
+  ctaTarget  String?
+  imageKey   String?
+  videoKey   String?
+  videoSec   Int?
+  sortOrder  Int       @default(0)
+  active     Boolean   @default(true)
+  startsAt   DateTime?
+  endsAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([active, sortOrder])
 }

@@ -40,3 +40,5 @@ export const IconHeart = (p: P) => <svg {...base(p)}><path d="M12 20s-7.5-4.6-7.
 export const IconBookmark = (p: P) => <svg {...base(p)}><path d="M6.5 4.5h11v16l-5.5-4-5.5 4v-16z" /></svg>;
 export const IconCrown = (p: P) => <svg {...base(p)}><path d="M4 8l4 4 4-6 4 6 4-4-1.5 10h-13L4 8z" /></svg>;
 export const IconSparkle = (p: P) => <svg {...base(p)}><path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2-5.2-1.8 5.2-1.8L12 3.5z" /></svg>;
+export const IconFire = (p: P) => <svg {...base(p)}><path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.4 2.4-5.6 4-7.6.6 1.6 1.6 2.6 2.7 3 .2-2.8 1.3-5.3 3.3-7.2.2 2.7 1.5 4.3 2.7 5.8 1 1.3 1.8 2.6 1.8 4.6 0 4.2-3.2 7.6-8 7.6z" /></svg>;
+export const IconCalendar = (p: P) => <svg {...base(p)}><rect x="4" y="5.5" width="16" height="15" rx="2" /><path d="M8 3.5v4M16 3.5v4M4 10h16" /></svg>;

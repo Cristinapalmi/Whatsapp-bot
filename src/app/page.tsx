@@ -5,7 +5,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { CATEGORY_LABELS, HOME_ROWS } from "@/lib/categories";
 import { SeriesCard, SeriesRow, type SeriesCardData } from "@/components/SeriesCard";
-import { IconPlay, IconTrophy } from "@/components/icons";
+import { IconCalendar, IconChevronRight, IconFire, IconPlay, IconStar, IconTrophy } from "@/components/icons";
+import { BannerCarousel, BrandBackdrop, type BannerSlideView } from "@/components/BannerCarousel";
+import { activeSlides, ctaHref } from "@/domain/banner";
+import { featuredCreators, hotSeries, recentEpisodes } from "@/domain/catalog";
 import { RankingList } from "@/components/RankingList";
 import { EmptyState } from "@/components/EmptyState";
 import { monthlyRanking, sortByViews } from "@/domain/ranking";
@@ -52,8 +55,6 @@ export default async function Home() {
     });
   }
   const card = (id: string) => cards.get(id)!;
-  const featured = series.find((s) => s.featured) ?? series[0];
-  const hot = [...series].sort((a, b) => (hotScore.get(b.id) ?? 0) - (hotScore.get(a.id) ?? 0) || (views.get(b.id) ?? 0) - (views.get(a.id) ?? 0)).slice(0, 10);
   const topRanking = sortByViews(ranking).filter((r) => r.views > 0).slice(0, 5);
 
   // "Continuar a ver": últimas séries que a pessoa estava a ver
@@ -83,37 +84,56 @@ export default async function Home() {
     }
   }
 
-  if (series.length === 0)
-    return (
-      <div className="container-app max-w-xl py-10">
-        <h1 className="text-3xl font-bold">{brand.name}</h1>
-        <EmptyState title="As primeiras séries estão a chegar" text={`${brand.slogan}. Volta em breve — ou, se fazes séries, publica aqui as tuas.`} action={{ href: "/artista/registar", label: "Quero publicar as minhas séries" }} />
-      </div>
-    );
-
-  const featuredCover = featured ? card(featured.id).coverUrl : null;
+  // ---------- dados das secções novas (sempre reais) ----------
+  const [slidesRaw, hotList, newEps, creators, creatorsImgSetting, isArtist] = await Promise.all([
+    activeSlides(db),
+    hotSeries(db, 10),
+    recentEpisodes(db, 10),
+    featuredCreators(db, 12),
+    db.setting.findUnique({ where: { key: "creatorsImageKey" } }),
+    user ? db.artistProfile.findUnique({ where: { userId: user.id }, select: { id: true } }).then(Boolean) : false,
+  ]);
+  const slides: BannerSlideView[] = slidesRaw.length
+    ? await Promise.all(slidesRaw.map(async (x) => ({ id: x.id, title: x.title, subtitle: x.subtitle, ctaText: x.ctaText, href: ctaHref(x), imageUrl: await mediaUrl(x.imageKey), videoUrl: await mediaUrl(x.videoKey) })))
+    : [{
+        id: "padrao",
+        title: "MINISSÉRIES ANGOLANAS",
+        subtitle: "As histórias que vais querer ver até ao fim. Descobre minisséries angolanas, acompanha os teus criadores favoritos e não percas nenhum episódio.",
+        ctaText: "Descobrir séries",
+        href: "/explorar?ver=em-alta",
+        imageUrl: null,
+        videoUrl: null,
+      }];
+  const newEpCovers = await Promise.all(newEps.map((e) => mediaUrl(e.series.coverKey)));
+  const creatorPhotos = await Promise.all(creators.map((c) => mediaUrl(c.photoKey)));
+  const creatorsImg = await mediaUrl(creatorsImgSetting?.value);
+  const ago = (d: Date | null) => {
+    if (!d) return "";
+    const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+    return days <= 0 ? "hoje" : days === 1 ? "ontem" : `há ${days} dias`;
+  };
 
   return (
     <div>
-      {featured && (
-        <section className="container-app">
-          <div className="relative overflow-hidden rounded-3xl bg-surface">
-            {featuredCover && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={featuredCover} alt="" className="absolute inset-x-0 top-0 h-3/5 w-full object-cover object-top opacity-60 [mask-image:linear-gradient(to_bottom,black_40%,transparent)]" />
-            )}
-            <div className="relative bg-gradient-to-t from-surface from-50% to-transparent p-5 pt-40 sm:p-8 sm:pt-56">
-              <span className="badge-price">{CATEGORY_LABELS[featured.category]}</span>
-              <h1 className="mt-2 text-3xl font-extrabold sm:text-5xl">{featured.title}</h1>
-              <p className="mt-1 text-sm text-muted">de {featured.artist.stageName} · {featured.freeEpisodes} episódios grátis</p>
-              <p className="mt-2 line-clamp-2 max-w-xl text-fg/90">{featured.synopsis}</p>
-              <Link href={`/serie/${featured.slug}`} className="btn-primary mt-4">
-                <IconPlay size={20} /> Ver grátis
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
+      {/* 1. Banner */}
+      <BannerCarousel slides={slides} />
+
+      {/* 2. Escolhe a tua entrada */}
+      <section className="container-app mt-6">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Escolhe a tua entrada</h2>
+        <div className="mt-2 grid grid-cols-2 gap-3">
+          <Link href="/explorar?ver=em-alta" className="rounded-2xl border border-white/10 bg-surface p-4 no-underline transition hover:border-accent">
+            <IconPlay size={22} className="text-accent" />
+            <p className="mt-2 font-display text-base font-extrabold leading-tight text-fg">Quero assistir</p>
+            <p className="mt-1 text-xs text-muted">Descobre minisséries angolanas</p>
+          </Link>
+          <Link href={isArtist ? "/artista" : "/criadores"} className="rounded-2xl border border-accent2/40 bg-gradient-to-br from-accent2/15 to-surface p-4 no-underline transition hover:border-accent2">
+            <IconTrophy size={22} className="text-accent2" />
+            <p className="mt-2 font-display text-base font-extrabold leading-tight text-fg">{isArtist ? "Ir para o meu painel" : "Quero ganhar com as minhas séries"}</p>
+            <p className="mt-1 text-xs text-muted">{isArtist ? "Os teus ganhos, séries e fãs" : "Publica, conquista e monetiza"}</p>
+          </Link>
+        </div>
+      </section>
 
       {continueWatching.length > 0 && (
         <section className="mt-8">
@@ -136,8 +156,89 @@ export default async function Home() {
         </section>
       )}
 
-      <SeriesRow title="Em alta" items={hot.map((s) => card(s.id))} />
-      <SeriesRow title="Novas" items={series.slice(0, 10).map((s) => card(s.id))} />
+      {/* 3. Em alta */}
+      <SectionHead icon={<IconFire size={20} className="text-accent" />} title="Em alta" href="/explorar?ver=em-alta" link="Ver todas" />
+      {hotList.length ? (
+        <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto px-4 pb-2 md:mx-auto md:max-w-5xl">
+          {hotList.map((s) => <SeriesCard key={s.id} s={card(s.id)} />)}
+        </div>
+      ) : (
+        <EmptyCard text="As primeiras séries estão a chegar. Fica atento à KONTA!" />
+      )}
+
+      {/* 4. Novos episódios */}
+      <SectionHead icon={<IconCalendar size={20} className="text-accent2" />} title="Novos episódios" href="/explorar?ver=novos" link="Ver todas" />
+      {newEps.length ? (
+        <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto px-4 pb-2 md:mx-auto md:max-w-5xl">
+          {newEps.map((e, k) => (
+            <Link key={e.id} href={`/ver/${e.id}`} className="flex w-60 shrink-0 gap-3 rounded-2xl bg-surface p-2 no-underline hover:bg-surface2">
+              <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-surface2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {newEpCovers[k] && <img src={newEpCovers[k]!} alt="" loading="lazy" className="h-full w-full object-cover" />}
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col justify-center">
+                <p className="truncate font-semibold text-fg">{e.series.title}</p>
+                <p className="text-xs text-accent2">Episódio {e.number}{e.number <= e.series.freeEpisodes ? " · grátis" : ""}</p>
+                <p className="text-[11px] text-muted">{e.series.artist.stageName} · {ago(e.publishedAt)}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <EmptyCard text="Ainda não existem episódios publicados. Volta em breve para descobrires as novidades!" />
+      )}
+
+      {/* 5. Criadores em destaque */}
+      <SectionHead icon={<IconStar size={20} className="text-accent2" />} title="Criadores em destaque" href="/explorar?ver=criadores" link="Ver todos" />
+      {creators.length ? (
+        <div className="no-scrollbar mt-3 flex gap-4 overflow-x-auto px-4 pb-2 md:mx-auto md:max-w-5xl">
+          {creators.map((c, k) => (
+            <Link key={c.id} href={`/${c.slug}`} className="flex w-24 shrink-0 flex-col items-center text-center no-underline">
+              <div className="h-20 w-20 overflow-hidden rounded-full bg-surface2 ring-2 ring-accent/60">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {creatorPhotos[k] ? <img src={creatorPhotos[k]!} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center font-display text-2xl font-bold text-accent">{c.stageName[0]}</span>}
+              </div>
+              <p className="mt-1 line-clamp-1 text-sm font-semibold text-fg">{c.stageName}</p>
+              {c.founderNumber && <span className="text-[10px] font-semibold text-accent2">⭐ Fundador</span>}
+              <span className="text-[11px] text-muted">{c._count.series} {c._count.series === 1 ? "série" : "séries"}</span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="container-app mt-3">
+          <div className="flex gap-4">{[0, 1, 2, 3].map((k) => <div key={k} className="h-16 w-16 rounded-full border-2 border-dashed border-white/15" />)}</div>
+          <p className="mt-2 text-sm text-muted">Os primeiros criadores KONTA serão apresentados aqui.</p>
+        </div>
+      )}
+
+      {/* 6. Área dos criadores (não aparece a quem já é artista) */}
+      {!isArtist && (
+        <section className="container-app mt-8">
+          <div className="relative grid overflow-hidden rounded-3xl border border-accent2/30 bg-gradient-to-br from-surface via-surface to-accent/20 sm:grid-cols-[1fr_260px]">
+            <div className="relative z-10 p-5 sm:p-7">
+              <span className="rounded-full bg-accent2/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-accent2">Área dos criadores</span>
+              <h2 className="mt-3 font-display text-2xl font-extrabold leading-tight text-fg sm:text-3xl">A tua história pode valer muito mais.</h2>
+              <p className="mt-2 text-sm text-fg/85">Transforma as tuas minisséries numa fonte de rendimento.</p>
+              <Link href="/criadores" className="btn-primary mt-4 no-underline">Quero ser criador KONTA</Link>
+              <p className="mt-3 text-xs font-semibold text-accent2">Publica. Conquista. Monetiza.</p>
+            </div>
+            <div className="relative h-56 sm:h-auto">
+              {creatorsImg ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={creatorsImg} alt="Criador KONTA" className="absolute inset-0 h-full w-full object-cover object-top" loading="lazy" />
+              ) : (
+                <BrandBackdrop />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-surface/70 to-transparent sm:bg-gradient-to-r sm:from-surface sm:via-transparent" />
+              {/* decoração: moedas Kz e seta de crescimento */}
+              <span className="absolute left-4 top-6 flex h-10 w-10 items-center justify-center rounded-full bg-accent2 font-bold text-[#1A0E05] shadow-lg" aria-hidden>Kz</span>
+              <span className="absolute bottom-8 left-10 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-bold text-[#1A0E05] shadow-lg" aria-hidden>Kz</span>
+              <svg className="absolute right-4 top-4 h-14 w-14 text-ok drop-shadow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" /></svg>
+            </div>
+          </div>
+        </section>
+      )}
+
       {HOME_ROWS.map((cat) => (
         <SeriesRow key={cat} title={CATEGORY_LABELS[cat]} items={series.filter((s) => s.category === cat).map((s) => card(s.id))} />
       ))}
@@ -152,23 +253,31 @@ export default async function Home() {
         </section>
       )}
 
-      <section className="container-app mt-8">
+      {series.length > 0 && <section className="container-app mt-8">
         <h2 className="text-xl font-bold">Todas as séries</h2>
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {series.map((s, i) => <SeriesCard key={s.id} s={card(s.id)} grid priority={i < 2} />)}
         </div>
-      </section>
+      </section>}
 
-      <section className="container-app mt-12">
-        <div className="card flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-bold">Fazes séries no TikTok ou no Instagram?</h2>
-            <p className="text-sm text-muted">Publica aqui e ganha 50% de tudo o que o público pagar pelas tuas séries.</p>
-          </div>
-          <Link href="/artista/registar" className="btn-secondary">Quero ser artista</Link>
-        </div>
-      </section>
       <Footer />
+    </div>
+  );
+}
+
+function SectionHead({ icon, title, href, link }: { icon: React.ReactNode; title: string; href: string; link: string }) {
+  return (
+    <div className="container-app mt-8 flex items-center justify-between">
+      <h2 className="flex items-center gap-2 text-xl font-bold">{icon} {title}</h2>
+      <Link href={href} className="flex items-center text-sm font-semibold text-accent2 no-underline">{link} <IconChevronRight size={16} /></Link>
+    </div>
+  );
+}
+
+function EmptyCard({ text }: { text: string }) {
+  return (
+    <div className="container-app mt-3">
+      <p className="rounded-2xl border border-dashed border-white/15 bg-surface p-5 text-center text-sm text-muted">{text}</p>
     </div>
   );
 }

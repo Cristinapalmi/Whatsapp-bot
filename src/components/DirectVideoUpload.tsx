@@ -19,7 +19,7 @@ function readDuration(file: File): Promise<number> {
 }
 
 /** Envio de vídeo direto para o armazenamento, com barra de progresso e limite bem explicado. */
-export function DirectVideoUpload({ start, finish, hasVideo, label }: { start: Start; finish: Finish; hasVideo: boolean; label: string }) {
+export function DirectVideoUpload({ start, finish, hasVideo, label, maxMb, maxSec }: { start: Start; finish: Finish; hasVideo: boolean; label: string; maxMb?: number; maxSec?: number }) {
   const router = useRouter();
   const [progress, setProgress] = useState<number | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -27,9 +27,12 @@ export function DirectVideoUpload({ start, finish, hasVideo, label }: { start: S
   async function onFile(file: File) {
     setMsg(null);
     if (!["video/mp4", "video/webm"].includes(file.type)) return setMsg({ ok: false, text: "Escolhe um vídeo MP4." });
+    if (maxMb && file.size > maxMb * 1048576)
+      return setMsg({ ok: false, text: `Este vídeo tem ${(file.size / 1048576).toFixed(1)} MB e o máximo é ${maxMb} MB.` });
     if (file.size > MAX)
       return setMsg({ ok: false, text: `Este vídeo tem ${(file.size / 1048576).toFixed(1)} MB e o máximo é 50 MB. Grava ou exporta em 360p/480p (no CapCut: Exportar → 480p) e tenta outra vez.` });
     const duration = await readDuration(file);
+    if (maxSec && duration > maxSec + 0.5) return setMsg({ ok: false, text: `Este vídeo tem ${Math.round(duration)} s e o máximo é ${maxSec} s.` });
     const s = await start(file.type, file.size);
     if (!s.ok) return setMsg({ ok: false, text: s.error });
     try {

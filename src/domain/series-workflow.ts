@@ -202,7 +202,7 @@ export async function approveReview(db: PrismaClient, adminId: string, seriesId:
   const willBeVisible = s.episodes.some((e) => e.status === "PUBLISHED") || inReview.some((e) => e.videoKey);
   if (!willBeVisible) throw new UserFacingError("Nenhum episódio com vídeo para publicar.");
   await db.$transaction([
-    db.episode.updateMany({ where: { id: { in: inReview.filter((e) => e.videoKey).map((e) => e.id) } }, data: { status: "PUBLISHED", published: true, rejectionReason: null } }),
+    db.episode.updateMany({ where: { id: { in: inReview.filter((e) => e.videoKey).map((e) => e.id) } }, data: { status: "PUBLISHED", published: true, rejectionReason: null, publishedAt: new Date() } }),
     ...(s.status === "IN_REVIEW"
       ? [db.series.update({ where: { id: s.id }, data: { status: "PUBLISHED", rejectionReason: null, publishedAt: s.publishedAt ?? new Date() } })]
       : []),

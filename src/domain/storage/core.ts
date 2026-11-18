@@ -197,3 +197,23 @@ export async function inspectObject(b: Bucket, key: string, headBytes = 32): Pro
     return null;
   }
 }
+
+/** Lê um ficheiro inteiro já guardado (até maxBytes). Usado para verificar vídeos curtos no servidor. */
+export async function readObject(b: Bucket, key: string, maxBytes: number): Promise<Buffer | null> {
+  if (key.startsWith("/")) return null;
+  try {
+    if (driver() === "local") {
+      const data = await fs.readFile(localPath(b, key));
+      return data.length > maxBytes ? null : data;
+    }
+    const url = await getObjectUrl(b, key, 120);
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const len = Number(res.headers.get("content-length") ?? 0);
+    if (len > maxBytes) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    return buf.length > maxBytes ? null : buf;
+  } catch {
+    return null;
+  }
+}

@@ -22,6 +22,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ["/admin/levantamentos", "Levantamentos", payouts],
     ["/admin/financeiro", "Financeiro", 0],
     ["/admin/moedas", "Moedas", 0],
+    ["/admin/banner", "Banner", 0],
     ["/admin/anuncios", "Anúncios", 0],
     ["/admin/artistas", "Artistas", artists],
     ["/admin/series", "Séries", 0],

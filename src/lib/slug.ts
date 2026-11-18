@@ -13,4 +13,5 @@ export const RESERVED_SLUGS = new Set([
   "admin", "api", "artista", "conta", "entrar", "registar", "sair", "serie", "ver",
   "pagar", "legal", "manifest", "sw", "icons", "samples", "covers", "_next", "offline",
   "passe", "ranking", "notificacoes", "denunciar", "sobre", "ajuda",
+  "criadores", "explorar", "convidar", "seguir", "loja", "lista", "membro", "extrato", "seguranca",
 ]);
