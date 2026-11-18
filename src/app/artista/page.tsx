@@ -12,6 +12,7 @@ import { topFans } from "@/domain/points";
 import { getObjectUrl } from "@/domain/storage";
 import { trailerCaption } from "@/domain/trailer";
 import { brand } from "@config/brand";
+import { business } from "@config/business";
 import { monthlyRanking, sortByRevenue, sortByViews } from "@/domain/ranking";
 
 export const metadata: Metadata = { title: "Painel do artista" };
@@ -109,7 +110,7 @@ export default async function ArtistDashboard() {
         <div className="card">
           <p className="flex items-center gap-2 text-sm text-muted"><IconGift size={18} /> Presentes recebidos</p>
           <p className="mt-1 font-display text-2xl font-bold">{stats.gifts}</p>
-          <p className="text-sm text-muted">no valor de {formatKz(stats.giftsCents)} (recebes metade)</p>
+          <p className="text-sm text-muted">no valor de {formatKz(stats.giftsCents)} (ganhas {business.artistSharePercent}%)</p>
           {fans.length > 0 && (
             <p className="mt-2 text-sm">Fã n.º 1: <strong className="text-accent2">{fans[0].displayName}</strong> ({fans[0].points} pontos)</p>
           )}

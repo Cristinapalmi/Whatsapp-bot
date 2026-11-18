@@ -18,3 +18,6 @@ export const formatKz = (cents: number): string => {
     }).format(kz) + " Kz"
   );
 };
+
+/** Valor inteiro em Kz com espaço nos milhares: 5000 → "5 000 Kz". */
+export const kzLabel = (kz: number) => `${String(Math.round(kz)).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} Kz`;

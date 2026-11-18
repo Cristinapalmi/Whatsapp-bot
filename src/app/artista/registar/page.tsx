@@ -5,6 +5,7 @@ import { business } from "@config/business";
 import { getCurrentUser } from "@/lib/auth";
 import { ALL_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { kzLabel } from "@/lib/money";
 import { registerArtistAction } from "./actions";
 
 export const metadata: Metadata = { title: "Registo de artista" };
@@ -16,7 +17,7 @@ export default async function ArtistRegisterPage() {
   return (
     <div className="container-app max-w-xl py-4">
       <h1 className="text-3xl font-bold">Regista-te como artista</h1>
-      <p className="mt-1 text-muted">Publica as tuas minisséries e ganha {pct}% de tudo o que o público paga por elas. A tua conta fica ativa depois de aprovada pela nossa equipa.</p>
+      <p className="mt-1 text-muted">Publica as tuas minisséries e ganha {pct}% de tudo o que o público pagar. Quanto mais assistirem, mais ganhas. A tua conta fica ativa depois de aprovada.</p>
 
       <ActionForm action={registerArtistAction} className="mt-6 space-y-4">
         <Field id="stageName" label="Nome artístico" required />
@@ -54,13 +55,13 @@ export default async function ArtistRegisterPage() {
         {user && <p className="text-sm text-muted">Vais usar a conta com que entraste ({user.name}).</p>}
 
         <fieldset className="card space-y-4">
-          <legend className="px-1 text-sm font-semibold">Política do Artista — todas as caixas são obrigatórias</legend>
-          <Check name="c1">1. Autorizo a plataforma {brand.name} a mostrar as minhas séries.</Check>
-          <Check name="c2">2. Aceito que os primeiros episódios de cada série sejam grátis (número acordado comigo).</Check>
-          <Check name="c3">3. Aceito {pct}% para mim e {100 - pct}% para a plataforma sobre o que o público paga (calculado depois de eventuais comissões de pagamento), e as regras do passe semanal e dos presentes.</Check>
-          <Check name="c4">4. O conteúdo é meu e não tem conteúdo sexual, ataques ou acusações a pessoas reais, ódio, nem conteúdo roubado.</Check>
-          <Check name="c5">5. Aceito as regras de levantamento (saldo pendente/disponível, mínimo de {business.minWithdrawalKz.toLocaleString("pt-AO")} Kz, prazos).</Check>
-          <p className="text-xs text-muted">Lê a <Link href="/legal/politica-artista" target="_blank" className="text-accent2 underline">Política do Artista</Link> completa e o <Link href="/legal/acordo-artista" target="_blank" className="text-accent2 underline">Acordo do Artista</Link>.</p>
+          <legend className="px-1 text-sm font-semibold">Para começar, confirma (obrigatório)</legend>
+          <Check name="c1">1. Autorizo a {brand.name} a mostrar as minhas séries.</Check>
+          <Check name="c2">2. Aceito que os primeiros episódios sejam grátis, para atrair público.</Check>
+          <Check name="c3">3. Ganho {pct}% de tudo o que o público pagar pelas minhas séries.</Check>
+          <Check name="c4">4. O conteúdo é meu e respeita as regras da comunidade.</Check>
+          <Check name="c5">5. Aceito as regras de levantamento (mínimo {kzLabel(business.minWithdrawalKz)}).</Check>
+          <p className="text-xs text-muted">Todos os detalhes estão na <Link href="/legal/politica-artista" target="_blank" className="text-accent2 underline">Política do Artista</Link> e no <Link href="/legal/acordo-artista" target="_blank" className="text-accent2 underline">Acordo do Artista</Link> completos.</p>
         </fieldset>
         <Check name="terms">Li e aceito os <Link href="/legal/termos" target="_blank" className="text-accent2 underline">Termos</Link> e a <Link href="/legal/privacidade" target="_blank" className="text-accent2 underline">Política de Privacidade</Link>.</Check>
 
