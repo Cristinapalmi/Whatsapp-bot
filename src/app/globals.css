@@ -17,6 +17,27 @@ a { @apply underline-offset-4; }
   .btn-danger { @apply btn bg-danger/15 text-danger hover:bg-danger/25; }
   .btn-sm { @apply min-h-tap px-3 py-2 text-sm; }
   .card { @apply rounded-2xl bg-surface p-4; }
+  /* Página inicial: brilho e calor (só CSS, leve para dados móveis) */
+  .btn-glow {
+    @apply btn relative overflow-hidden text-[#1A0E05];
+    background-image: linear-gradient(100deg, rgb(var(--c-accent)), rgb(var(--c-accent2)));
+    box-shadow: 0 0 0 1px rgb(var(--c-accent2) / 0.35), 0 8px 28px -6px rgb(var(--c-accent) / 0.65);
+  }
+  .btn-glow::after {
+    content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+    background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.45) 50%, transparent 70%);
+    animation: shimmer 3.2s ease-in-out infinite;
+  }
+  .btn-glow:hover { filter: brightness(1.06); }
+  .card-warm {
+    @apply rounded-2xl border border-accent/20;
+    background-image: radial-gradient(120% 90% at 0% 0%, rgb(var(--c-accent) / 0.28), transparent 55%),
+      radial-gradient(90% 80% at 100% 100%, rgb(var(--c-accent2) / 0.18), transparent 60%),
+      linear-gradient(160deg, #24160c, #160e08);
+  }
+  .glow-accent { box-shadow: 0 10px 34px -10px rgb(var(--c-accent) / 0.7); }
+  .glow-gold { box-shadow: 0 10px 34px -10px rgb(var(--c-accent2) / 0.7); }
+  .ring-warm { background-image: conic-gradient(from 210deg, rgb(var(--c-accent)), rgb(var(--c-accent2)), rgb(var(--c-accent))); }
   .label { @apply mb-1 block text-sm font-medium text-fg; }
   .hint { @apply mt-1 text-xs text-muted; }
   .input { @apply block w-full min-h-tap rounded-xl border border-white/10 bg-surface2 px-4 py-3 text-base text-fg placeholder:text-muted/70 focus:border-accent focus:outline-none; }
@@ -47,4 +68,14 @@ a { @apply underline-offset-4; }
 }
 @media (prefers-reduced-motion: reduce) {
   @keyframes giftpop { 0%, 100% { opacity: 1; } }
+}
+
+/* Brilho a passar nos botões principais e moedas a flutuar (Área dos criadores) */
+@keyframes shimmer { 0%, 55% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
+@keyframes floaty { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-10px) rotate(6deg); } }
+.animate-floaty { animation: floaty 5s ease-in-out infinite; }
+.animate-floaty-slow { animation: floaty 7s ease-in-out infinite; animation-delay: -2s; }
+@media (prefers-reduced-motion: reduce) {
+  .btn-glow::after, .animate-floaty, .animate-floaty-slow { animation: none !important; }
+  .btn-glow::after { display: none; }
 }

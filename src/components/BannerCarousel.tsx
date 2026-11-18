@@ -2,7 +2,14 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-export type BannerSlideView = { id: string; title: string; subtitle: string | null; ctaText: string | null; href: string | null; imageUrl: string | null; videoUrl: string | null };
+export type BannerSlideView = { id: string; title: string; subtitle: string | null; ctaText: string | null; href: string | null; imageUrl: string | null; videoUrl: string | null; highlight?: string };
+
+/** Título com uma palavra em dourado (ex.: "MINISSÉRIES ANGOLANAS"). */
+function Title({ text, highlight }: { text: string; highlight?: string }) {
+  if (!highlight || !text.includes(highlight)) return <>{text}</>;
+  const [a, b] = text.split(highlight);
+  return <>{a}<span className="bg-gradient-to-r from-accent2 to-[#FFE08A] bg-clip-text text-transparent">{highlight}</span>{b}</>;
+}
 
 const INTERVAL = 6000;
 
@@ -52,7 +59,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
   return (
     <section className="container-app" aria-roledescription="carrossel" aria-label="Destaques">
       <div
-        className="relative h-[min(58vh,460px)] overflow-hidden rounded-3xl bg-surface"
+        className="glow-accent relative h-[min(58vh,460px)] overflow-hidden rounded-3xl border border-accent/25 bg-surface"
         onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
         onTouchEnd={(e) => {
           if (touch.current === null) return;
@@ -72,11 +79,13 @@ export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
             {video && s.videoUrl && k === i && (
               <video src={s.videoUrl} poster={s.imageUrl ?? undefined} muted loop playsInline autoPlay preload="none" className="absolute inset-0 h-full w-full object-cover" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+            {/* Gradiente forte por trás do texto (escuro em baixo + brilho laranja) */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0d0805] via-[#0d0805]/60 to-transparent" />
+            <div className="absolute inset-0 bg-[radial-gradient(80%_60%_at_15%_85%,rgb(var(--c-accent)/0.35),transparent_70%)]" />
             <div className="absolute inset-x-0 bottom-0 p-5 pb-10 sm:p-8 sm:pb-12">
-              <h2 className="max-w-lg font-display text-3xl font-extrabold leading-tight text-white sm:text-4xl">{s.title}</h2>
+              <h2 className={`max-w-xl font-display font-extrabold leading-[1.05] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] ${s.highlight ? "text-4xl sm:text-6xl" : "text-3xl sm:text-4xl"}`}><Title text={s.title} highlight={s.highlight} /></h2>
               {s.subtitle && <p className="mt-2 max-w-lg text-sm text-white/90 sm:text-base">{s.subtitle}</p>}
-              {s.ctaText && s.href && <Link href={s.href} className="btn-primary mt-4 no-underline" tabIndex={k === i ? 0 : -1}>{s.ctaText}</Link>}
+              {s.ctaText && s.href && <Link href={s.href} className="btn-glow mt-4 no-underline" tabIndex={k === i ? 0 : -1}>{s.ctaText}</Link>}
             </div>
           </div>
         ))}
@@ -88,7 +97,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
           </div>
         )}
       </div>
-      <p className="mt-3 text-center text-sm font-semibold text-accent2">Histórias angolanas. Criadores locais. Entretenimento de qualidade.</p>
+      <p className="mt-3 text-center text-sm font-semibold text-accent2">Histórias angolanas. <span className="text-accent">Criadores locais.</span> Entretenimento de qualidade.</p>
     </section>
   );
 }

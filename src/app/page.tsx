@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { CATEGORY_LABELS, HOME_ROWS } from "@/lib/categories";
 import { SeriesCard, SeriesRow, type SeriesCardData } from "@/components/SeriesCard";
-import { IconCalendar, IconChevronRight, IconFire, IconPlay, IconStar, IconTrophy } from "@/components/icons";
+import { IconCalendar, IconChevronRight, IconFire, IconPlay, IconStar, IconTrophy, IconUser } from "@/components/icons";
 import { BannerCarousel, BrandBackdrop, type BannerSlideView } from "@/components/BannerCarousel";
 import { activeSlides, ctaHref } from "@/domain/banner";
 import { featuredCreators, hotSeries, recentEpisodes } from "@/domain/catalog";
@@ -102,6 +102,7 @@ export default async function Home() {
         href: "/explorar?ver=em-alta",
         imageUrl: null,
         videoUrl: null,
+        highlight: "ANGOLANAS",
       }];
   const newEpCovers = await Promise.all(newEps.map((e) => mediaUrl(e.series.coverKey)));
   const creatorPhotos = await Promise.all(creators.map((c) => mediaUrl(c.photoKey)));
@@ -119,17 +120,21 @@ export default async function Home() {
 
       {/* 2. Escolhe a tua entrada */}
       <section className="container-app mt-6">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Escolhe a tua entrada</h2>
-        <div className="mt-2 grid grid-cols-2 gap-3">
-          <Link href="/explorar?ver=em-alta" className="rounded-2xl border border-white/10 bg-surface p-4 no-underline transition hover:border-accent">
-            <IconPlay size={22} className="text-accent" />
-            <p className="mt-2 font-display text-base font-extrabold leading-tight text-fg">Quero assistir</p>
-            <p className="mt-1 text-xs text-muted">Descobre minisséries angolanas</p>
+        <h2 className="text-sm font-extrabold uppercase tracking-wider text-accent2">Escolhe a tua entrada</h2>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Link href="/explorar?ver=em-alta" className="glow-accent group relative flex min-h-[150px] flex-col overflow-hidden rounded-3xl bg-gradient-to-br from-[#FF8A3D] via-accent to-[#C9461A] p-4 no-underline">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1A0E05]/85 text-accent shadow-lg"><IconPlay size={24} /></span>
+            <p className="mt-3 font-display text-lg font-extrabold leading-tight text-[#1A0E05]">Quero assistir</p>
+            <p className="mt-0.5 text-xs font-semibold text-[#2A1508]">Descobre minisséries angolanas</p>
+            <IconChevronRight size={22} className="absolute bottom-3 right-3 text-[#1A0E05] transition group-hover:translate-x-1" />
           </Link>
-          <Link href={isArtist ? "/artista" : "/criadores"} className="rounded-2xl border border-accent2/40 bg-gradient-to-br from-accent2/15 to-surface p-4 no-underline transition hover:border-accent2">
-            <IconTrophy size={22} className="text-accent2" />
-            <p className="mt-2 font-display text-base font-extrabold leading-tight text-fg">{isArtist ? "Ir para o meu painel" : "Quero ganhar com as minhas séries"}</p>
-            <p className="mt-1 text-xs text-muted">{isArtist ? "Os teus ganhos, séries e fãs" : "Publica, conquista e monetiza"}</p>
+          <Link href={isArtist ? "/artista" : "/criadores"} className="glow-gold group relative flex min-h-[150px] flex-col overflow-hidden rounded-3xl bg-gradient-to-br from-[#FFE08A] via-accent2 to-[#D98A1E] p-4 no-underline">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1A0E05]/85 text-accent2 shadow-lg">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" /></svg>
+            </span>
+            <p className="mt-3 font-display text-lg font-extrabold leading-tight text-[#1A0E05]">{isArtist ? "Ir para o meu painel" : "Quero ganhar com as minhas séries"}</p>
+            <p className="mt-0.5 text-xs font-semibold text-[#2A1508]">{isArtist ? "Os teus ganhos, séries e fãs" : "Publica, conquista e monetiza"}</p>
+            <IconChevronRight size={22} className="absolute bottom-3 right-3 text-[#1A0E05] transition group-hover:translate-x-1" />
           </Link>
         </div>
       </section>
@@ -156,48 +161,50 @@ export default async function Home() {
       )}
 
       {/* 3. Em alta */}
-      <SectionHead icon={<IconFire size={20} className="text-accent" />} title="Em alta" href="/explorar?ver=em-alta" link="Ver todas" />
+      <SectionHead icon={<IconFire size={22} />} tone="accent" title="Em alta" href="/explorar?ver=em-alta" link="Ver todas" />
       {hotList.length ? (
         <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto px-4 pb-2 md:mx-auto md:max-w-5xl">
           {hotList.map((s) => <SeriesCard key={s.id} s={card(s.id)} />)}
         </div>
       ) : (
-        <EmptyCard text="As primeiras séries estão a chegar. Fica atento à KONTA!" />
+        <EmptyCard art="clapper" title="As primeiras séries estão a chegar." sub="Fica atento à KONTA!" />
       )}
 
       {/* 4. Novos episódios */}
-      <SectionHead icon={<IconCalendar size={20} className="text-accent2" />} title="Novos episódios" href="/explorar?ver=novos" link="Ver todas" />
+      <SectionHead icon={<IconCalendar size={22} />} tone="gold" title="Novos episódios" href="/explorar?ver=novos" link="Ver todas" />
       {newEps.length ? (
         <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto px-4 pb-2 md:mx-auto md:max-w-5xl">
           {newEps.map((e, k) => (
-            <Link key={e.id} href={`/ver/${e.id}`} className="flex w-60 shrink-0 gap-3 rounded-2xl bg-surface p-2 no-underline hover:bg-surface2">
+            <Link key={e.id} href={`/ver/${e.id}`} className="card-warm flex w-60 shrink-0 gap-3 p-2 no-underline">
               <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-surface2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {newEpCovers[k] && <img src={newEpCovers[k]!} alt="" loading="lazy" className="h-full w-full object-cover" />}
               </div>
               <div className="flex min-w-0 flex-1 flex-col justify-center">
                 <p className="truncate font-semibold text-fg">{e.series.title}</p>
-                <p className="text-xs text-accent2">Episódio {e.number}{e.number <= e.series.freeEpisodes ? " · grátis" : ""}</p>
+                <p className="text-xs font-semibold text-accent2">Episódio {e.number}{e.number <= e.series.freeEpisodes ? " · grátis" : ""}</p>
                 <p className="text-[11px] text-muted">{e.series.artist.stageName} · {ago(e.publishedAt)}</p>
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <EmptyCard text="Ainda não existem episódios publicados. Volta em breve para descobrires as novidades!" />
+        <EmptyCard art="play" title="Ainda não existem episódios publicados." sub="Volta em breve para descobrires as novidades!" />
       )}
 
       {/* 5. Criadores em destaque */}
-      <SectionHead icon={<IconStar size={20} className="text-accent2" />} title="Criadores em destaque" href="/explorar?ver=criadores" link="Ver todos" />
+      <SectionHead icon={<IconStar size={22} />} tone="gold" title="Criadores em destaque" href="/explorar?ver=criadores" link="Ver todos" />
       {creators.length ? (
         <div className="no-scrollbar mt-3 flex gap-4 overflow-x-auto px-4 pb-2 md:mx-auto md:max-w-5xl">
           {creators.map((c, k) => (
             <Link key={c.id} href={`/${c.slug}`} className="flex w-24 shrink-0 flex-col items-center text-center no-underline">
-              <div className="h-20 w-20 overflow-hidden rounded-full bg-surface2 ring-2 ring-accent/60">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {creatorPhotos[k] ? <img src={creatorPhotos[k]!} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center font-display text-2xl font-bold text-accent">{c.stageName[0]}</span>}
+              <div className="ring-warm glow-accent h-20 w-20 rounded-full p-[3px]">
+                <div className="h-full w-full overflow-hidden rounded-full bg-[#1b120b]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {creatorPhotos[k] ? <img src={creatorPhotos[k]!} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center font-display text-2xl font-bold text-accent2">{c.stageName[0]}</span>}
+                </div>
               </div>
-              <p className="mt-1 line-clamp-1 text-sm font-semibold text-fg">{king?.artistId === c.id ? "👑 " : ""}{c.stageName}</p>
+              <p className="mt-1.5 line-clamp-1 text-sm font-semibold text-fg">{king?.artistId === c.id ? "👑 " : ""}{c.stageName}</p>
               {c.founderNumber && <span className="text-[10px] font-semibold text-accent2">⭐ Fundador</span>}
               <span className="text-[11px] text-muted">{c._count.series} {c._count.series === 1 ? "série" : "séries"}</span>
             </Link>
@@ -205,34 +212,44 @@ export default async function Home() {
         </div>
       ) : (
         <div className="container-app mt-3">
-          <div className="flex gap-4">{[0, 1, 2, 3].map((k) => <div key={k} className="h-16 w-16 rounded-full border-2 border-dashed border-white/15" />)}</div>
-          <p className="mt-2 text-sm text-muted">Os primeiros criadores KONTA serão apresentados aqui.</p>
+          <div className="card-warm p-4">
+            <div className="flex justify-between gap-2 sm:justify-start sm:gap-5">
+              {[0, 1, 2, 3].map((k) => (
+                <div key={k} className="ring-warm h-16 w-16 rounded-full p-[3px] opacity-90">
+                  <div className="flex h-full w-full items-end justify-center overflow-hidden rounded-full bg-[#1b120b]"><IconUser size={44} className="-mb-1.5 text-accent/50" /></div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-sm font-semibold text-fg">Os primeiros criadores KONTA <span className="text-accent">serão apresentados aqui.</span></p>
+          </div>
         </div>
       )}
 
-      {/* 6. Área dos criadores (não aparece a quem já é artista) */}
+      {/* 6. Área dos criadores (não aparece a quem já é artista) — texto 58% à esquerda, foto 42% à direita, sempre na mesma linha */}
       {!isArtist && (
         <section className="container-app mt-8">
-          <div className="relative grid overflow-hidden rounded-3xl border border-accent2/30 bg-gradient-to-br from-surface via-surface to-accent/20 sm:grid-cols-[1fr_260px]">
-            <div className="relative z-10 p-5 sm:p-7">
-              <span className="rounded-full bg-accent2/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-accent2">Área dos criadores</span>
-              <h2 className="mt-3 font-display text-2xl font-extrabold leading-tight text-fg sm:text-3xl">A tua história pode valer muito mais.</h2>
-              <p className="mt-2 text-sm text-fg/85">Transforma as tuas minisséries numa fonte de rendimento.</p>
-              <Link href="/criadores" className="btn-primary mt-4 no-underline">Quero ser criador KONTA</Link>
-              <p className="mt-3 text-xs font-semibold text-accent2">Publica. Conquista. Monetiza.</p>
+          <div className="glow-gold relative grid min-h-[250px] grid-cols-[58%_42%] overflow-hidden rounded-3xl border border-accent2/30 bg-[radial-gradient(90%_120%_at_100%_100%,rgb(var(--c-accent)/0.45),transparent_60%),radial-gradient(80%_90%_at_0%_0%,rgb(var(--c-accent2)/0.20),transparent_55%),linear-gradient(150deg,#26170c,#120b06)] sm:min-h-[300px]">
+            <div className="relative z-10 flex flex-col justify-center p-4 sm:p-7">
+              <span className="self-start rounded-full bg-accent2/20 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-accent2 max-[339px]:text-[9px]">Área dos criadores</span>
+              <h2 className="mt-3 font-display text-[1.35rem] font-extrabold leading-tight text-fg max-[339px]:text-lg sm:text-3xl">A tua história pode valer <span className="text-accent2">muito mais.</span></h2>
+              <p className="mt-2 text-[13px] text-fg/85 max-[339px]:text-xs sm:text-sm">Transforma as tuas minisséries numa fonte de rendimento.</p>
+              <Link href="/criadores" className="btn-glow mt-4 self-start px-4 py-2.5 text-sm no-underline max-[339px]:px-3 max-[339px]:text-xs">Quero ser criador KONTA</Link>
+              <p className="mt-3 text-[11px] font-bold text-accent max-[339px]:text-[10px]">Publica. Conquista. Monetiza.</p>
             </div>
-            <div className="relative h-56 sm:h-auto">
+            <div className="relative">
+              {/* brilho por trás da foto (mistura o fundo preto da foto com o cartão) */}
+              <div className="absolute inset-0 bg-[radial-gradient(75%_70%_at_62%_68%,rgb(var(--c-accent)/0.55),transparent_72%)]" aria-hidden />
+              <div className="absolute inset-0 bg-[radial-gradient(55%_60%_at_68%_78%,#000_45%,transparent_75%)]" aria-hidden />
               {creatorsImg ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={creatorsImg} alt="Criador KONTA" className="absolute inset-0 h-full w-full object-cover object-top" loading="lazy" />
+                <img src={creatorsImg} alt="Criador KONTA" loading="lazy" className="absolute bottom-0 right-0 h-auto max-h-full w-auto max-w-full" style={PHOTO_FADE} />
               ) : (
-                <BrandBackdrop />
+                <div className="absolute inset-0 flex items-end justify-center" aria-hidden><IconUser size={150} className="-mb-6 text-accent/25" /></div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-surface/70 to-transparent sm:bg-gradient-to-r sm:from-surface sm:via-transparent" />
-              {/* decoração: moedas Kz e seta de crescimento */}
-              <span className="absolute left-4 top-6 flex h-10 w-10 items-center justify-center rounded-full bg-accent2 font-bold text-[#1A0E05] shadow-lg" aria-hidden>Kz</span>
-              <span className="absolute bottom-8 left-10 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-bold text-[#1A0E05] shadow-lg" aria-hidden>Kz</span>
-              <svg className="absolute right-4 top-4 h-14 w-14 text-ok drop-shadow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" /></svg>
+              {/* decoração: moedas Kz a flutuar e seta de crescimento */}
+              <span className="animate-floaty absolute left-1 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#FFE08A] to-accent2 text-xs font-extrabold text-[#1A0E05] shadow-[0_0_18px_rgb(var(--c-accent2)/0.7)]" aria-hidden>Kz</span>
+              <span className="animate-floaty-slow absolute bottom-10 left-0 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-accent2 to-accent text-[10px] font-extrabold text-[#1A0E05] shadow-[0_0_14px_rgb(var(--c-accent)/0.7)]" aria-hidden>Kz</span>
+              <svg className="absolute right-2 top-3 h-11 w-11 text-ok drop-shadow-[0_0_10px_rgba(80,220,120,0.6)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" /></svg>
             </div>
           </div>
         </section>
@@ -275,19 +292,43 @@ export default async function Home() {
   );
 }
 
-function SectionHead({ icon, title, href, link }: { icon: React.ReactNode; title: string; href: string; link: string }) {
+/** Esbate as margens de cima e da esquerda da foto, para o fundo preto se misturar com o cartão. */
+const PHOTO_FADE: React.CSSProperties = {
+  WebkitMaskImage: "linear-gradient(to top, #000 78%, transparent 100%), linear-gradient(to right, transparent 0%, #000 22%)",
+  maskImage: "linear-gradient(to top, #000 78%, transparent 100%), linear-gradient(to right, transparent 0%, #000 22%)",
+  WebkitMaskComposite: "source-in",
+  maskComposite: "intersect",
+};
+
+function SectionHead({ icon, title, href, link, tone }: { icon: React.ReactNode; title: string; href: string; link: string; tone: "accent" | "gold" }) {
   return (
     <div className="container-app mt-8 flex items-center justify-between">
-      <h2 className="flex items-center gap-2 text-xl font-bold">{icon} {title}</h2>
+      <h2 className="flex items-center gap-2.5 text-xl font-extrabold">
+        <span className={`flex h-9 w-9 items-center justify-center rounded-full ${tone === "accent" ? "bg-accent/20 text-accent shadow-[0_0_16px_rgb(var(--c-accent)/0.45)]" : "bg-accent2/20 text-accent2 shadow-[0_0_16px_rgb(var(--c-accent2)/0.45)]"}`}>{icon}</span>
+        {title}
+      </h2>
       <Link href={href} className="flex items-center text-sm font-semibold text-accent2 no-underline">{link} <IconChevronRight size={16} /></Link>
     </div>
   );
 }
 
-function EmptyCard({ text }: { text: string }) {
+/** Cartão vazio ilustrado (só CSS/SVG): fundo quente, ícone grande, título branco e frase em laranja. */
+function EmptyCard({ art, title, sub }: { art: "clapper" | "play"; title: string; sub: string }) {
   return (
     <div className="container-app mt-3">
-      <p className="rounded-2xl border border-dashed border-white/15 bg-surface p-5 text-center text-sm text-muted">{text}</p>
+      <div className="card-warm flex items-center gap-4 p-5">
+        <span className="glow-accent flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent2 text-[#1A0E05]">
+          {art === "clapper" ? (
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d="M3.5 10h17v9a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19v-9z" fill="currentColor" fillOpacity=".15" /><path d="M3.2 9.8l16.6-4.3-.9-3-16.5 4.3.8 3z" fill="currentColor" /><path d="M7 4.6l2.4 3.2M11.6 3.4l2.4 3.2M16.2 2.2l2.3 3.1" stroke="#FFB547" /></svg>
+          ) : (
+            <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="10" fill="currentColor" fillOpacity=".15" stroke="currentColor" strokeWidth="2" /><path d="M10 8l6 4-6 4V8z" fill="currentColor" /></svg>
+          )}
+        </span>
+        <div>
+          <p className="font-display text-lg font-extrabold leading-snug text-white">{title}</p>
+          <p className="mt-0.5 text-sm font-semibold text-accent">{sub}</p>
+        </div>
+      </div>
     </div>
   );
 }
