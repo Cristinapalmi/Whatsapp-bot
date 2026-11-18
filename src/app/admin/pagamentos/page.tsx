@@ -75,8 +75,8 @@ export default async function AdminPayments({ searchParams }: { searchParams: Pr
                 </div>
                 <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                   <dt className="text-muted">Fã</dt><dd>{p.user.name} · {formatPhone(p.user.phone)}</dd>
-                  <dt className="text-muted">Compra</dt><dd>{p.kind === "EPISODE" && p.episode ? `${p.episode.series.title} — Ep. ${p.episode.number}` : p.kind === "WEEKLY_PASS" ? "Passe semanal" : `Presente: ${business.gifts.find((g) => g.id === p.giftType)?.label ?? p.giftType}`}</dd>
-                  <dt className="text-muted">Artista</dt><dd>{p.artist?.stageName ?? (p.kind === "WEEKLY_PASS" ? "Fundo do passe (dividido no fecho semanal)" : "—")}</dd>
+                  <dt className="text-muted">Compra</dt><dd>{p.kind === "COINS" ? <strong className="text-accent2">{p.coins} moedas</strong> : p.kind === "EPISODE" && p.episode ? `${p.episode.series.title} — Ep. ${p.episode.number} (Kz, antigo)` : p.kind === "WEEKLY_PASS" ? "Passe semanal" : `Presente: ${business.gifts.find((g) => g.id === p.giftType)?.label ?? p.giftType} (Kz, antigo)`}</dd>
+                  <dt className="text-muted">Artista</dt><dd>{p.artist?.stageName ?? (p.kind === "WEEKLY_PASS" ? "Fundo do passe (dividido no fecho semanal)" : p.kind === "COINS" ? "— (os artistas ganham quando o fã gastar as moedas)" : "—")}</dd>
                   <dt className="text-muted">Método</dt><dd>{p.method === "MULTICAIXA_EXPRESS" ? "Multicaixa Express" : "Transferência bancária"}</dd>
                   <dt className="text-muted">Pagou de</dt><dd>{p.payerPhone ? formatPhone(p.payerPhone) : "—"}</dd>
                   <dt className="text-muted">N.º operação</dt><dd className="font-mono">{p.transactionRef}</dd>

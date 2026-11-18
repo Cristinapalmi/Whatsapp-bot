@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { business } from "@config/business";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
-import { formatKz } from "@/lib/money";
 import { canWatch, episodeStates } from "@/domain/access";
 import { pointsBalance } from "@/domain/points";
-import { business } from "@config/business";
-import { kzToCents } from "@/lib/money";
-import { IconChevronLeft, IconClock, IconLock } from "@/components/icons";
+import { coinBalance, episodePriceCoins } from "@/domain/coins/service";
+import { IconChevronLeft, IconClock } from "@/components/icons";
+import { UnlockPanel } from "@/components/UnlockPanel";
 import { Player } from "./Player";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
     include: {
       series: {
         include: {
-          artist: { select: { stageName: true, slug: true } },
+          artist: { select: { id: true, stageName: true, slug: true } },
           episodes: { where: { published: true }, orderBy: { number: "asc" }, select: { id: true, number: true, title: true } },
         },
       },
@@ -35,9 +35,13 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
   const state = states[episode.id];
   const next = series.episodes.find((e) => e.number === episode.number + 1) ?? null;
   const nextState = next ? states[next.id] : null;
-  const cover = await mediaUrl(series.coverKey);
-  const points = user ? await pointsBalance(db, user.id) : 0;
-  const passPrice = formatKz(kzToCents(business.weeklyPassPriceKz));
+  const [cover, points, balance, priceCoins, gifts] = await Promise.all([
+    mediaUrl(series.coverKey),
+    user ? pointsBalance(db, user.id) : 0,
+    user ? coinBalance(db, user.id) : 0,
+    episodePriceCoins(db, series),
+    db.giftType.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { priceCoins: "asc" }] }),
+  ]);
 
   return (
     <div className="container-app max-w-3xl">
@@ -53,11 +57,12 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
           isLastFree={episode.number === series.freeEpisodes}
           endsWithHook={episode.endsWithHook}
           hookText={episode.hookText}
-          next={next ? { id: next.id, number: next.number, state: nextState!, price: formatKz(series.priceCents) } : null}
+          next={next ? { id: next.id, number: next.number, state: nextState! } : null}
           hasSubtitles={!!episode.subtitlesKey}
-          artist={{ slug: series.artist.slug, name: series.artist.stageName }}
-          passPrice={passPrice}
-          gifts={business.gifts.map((g) => ({ id: g.id, label: g.label, price: formatKz(kzToCents(g.priceKz)) }))}
+          artist={{ id: series.artist.id, slug: series.artist.slug, name: series.artist.stageName }}
+          gifts={gifts.map((g) => ({ code: g.code, label: g.label, emoji: g.emoji, priceCoins: g.priceCoins }))}
+          priceCoins={priceCoins}
+          balance={balance}
           points={points}
           pointsCost={business.points.costPerEpisode}
         />
@@ -75,17 +80,8 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
               </>
             ) : (
               <>
-                <IconLock size={36} className="text-accent" />
-                <p className="text-lg font-bold">Este episódio custa {formatKz(series.priceCents)}</p>
-                <Link href={user ? `/pagar?episodio=${episode.id}` : `/entrar?next=${encodeURIComponent(`/pagar?episodio=${episode.id}`)}`} className="btn-primary">
-                  Desbloquear por {formatKz(series.priceCents)}
-                </Link>
-                <Link href={user ? "/pagar?passe=1" : `/entrar?next=${encodeURIComponent("/pagar?passe=1")}`} className="btn-secondary">
-                  Ativa o passe semanal · {passPrice}
-                </Link>
-                {points >= business.points.costPerEpisode && (
-                  <Link href={`/pagar?episodio=${episode.id}`} className="text-sm font-semibold text-accent2 underline">Usar {business.points.costPerEpisode} dos teus {points} pontos</Link>
-                )}
+                <p className="font-display text-xl font-extrabold text-accent2">Episódio {episode.number}</p>
+                <UnlockPanel episodeId={episode.id} priceCoins={priceCoins} balance={balance} points={points} pointsCost={business.points.costPerEpisode} loggedIn={!!user} />
               </>
             )}
           </div>

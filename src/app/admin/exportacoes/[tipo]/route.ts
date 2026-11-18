@@ -16,7 +16,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
   switch (tipo) {
     case "pagamentos": {
       const rows = await paymentsInMonth(db, mes);
-      const kind = { EPISODE: "Episódio", WEEKLY_PASS: "Passe semanal", GIFT: "Presente" } as const;
+      const kind = { EPISODE: "Episódio (Kz)", WEEKLY_PASS: "Passe semanal", GIFT: "Presente (Kz)", COINS: "Moedas" } as const;
       const status = { PENDING: "A aguardar", CONFIRMED: "Confirmado", REJECTED: "Rejeitado", REVERSED: "Anulado" } as const;
       return csvResponse(
         toCsv(

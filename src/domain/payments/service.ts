@@ -8,6 +8,7 @@ import { weekKey } from "../money/weeks";
 import { notify, audit } from "../notify";
 import { UserFacingError } from "../errors";
 import { formatKz, kzToCents } from "@/lib/money";
+import { creditCoinLot, reverseCoinPurchase } from "../coins/service";
 
 /**
  * SERVIÇO DE PAGAMENTOS — regras centrais.
@@ -36,6 +37,7 @@ type ProofInput = {
 export type CreateEpisodePaymentInput = ProofInput & { episodeId: string };
 export type CreateGiftPaymentInput = ProofInput & { artistId: string; giftId: string };
 export type CreatePassPaymentInput = ProofInput;
+export type CreateCoinPaymentInput = ProofInput & { packId: string };
 
 /** Verificações comuns: limite de pendentes e comprovativo repetido. */
 async function checkProof(db: PrismaClient, input: ProofInput) {
@@ -119,6 +121,20 @@ export async function createPassPaymentRequest(db: PrismaClient, input: CreatePa
   return createRequest(db, input, ref, { kind: "WEEKLY_PASS", amountCents: kzToCents(business.weeklyPassPriceKz) });
 }
 
+/** Pedido de compra de um pacote de moedas (as moedas só entram depois de o admin confirmar). */
+export async function createCoinPaymentRequest(db: PrismaClient, input: CreateCoinPaymentInput) {
+  const pack = await db.coinPack.findUnique({ where: { id: input.packId } });
+  if (!pack || !pack.active) throw new UserFacingError("Este pacote de moedas não está disponível.");
+  const { ref, pending } = await checkProof(db, input);
+  checkPendingLimit(pending);
+  return createRequest(db, input, ref, {
+    kind: "COINS",
+    coinPackId: pack.id,
+    coins: pack.coins,
+    amountCents: kzToCents(pack.priceKz),
+  });
+}
+
 export function findGift(giftId: string) {
   const gift = business.gifts.find((g) => g.id === giftId);
   if (!gift) throw new UserFacingError("Presente inválido.");
@@ -166,6 +182,17 @@ export async function confirmPayment(
       where: { id: paymentId },
       include: { episode: { include: { series: true } }, artist: true },
     });
+
+    // Compra de moedas: o dinheiro fica em "Moedas por gastar" (ainda não é receita de ninguém).
+    if (p.kind === "COINS") {
+      if (!p.coins || p.coins <= 0) throw new Error("Compra de moedas sem quantidade");
+      const netCents = p.amountCents - p.feeCents;
+      if (netCents < 0) throw new UserFacingError("A comissão não pode ser maior que o valor pago.");
+      await creditCoinLot(tx, { id: p.id, userId: p.userId, coins: p.coins, netCents, adminId });
+      await audit(tx, adminId, "PAYMENT_CONFIRMED", "PaymentRequest", p.id, { kind: "COINS", coins: p.coins, netCents });
+      return { payment: p, artistCents: 0, platformCents: 0 };
+    }
+
     const { netCents, artistCents, platformCents } = splitRevenue(p.amountCents, p.feeCents, business.artistSharePercent);
 
     let shareAccount: AccountSpec;
@@ -268,6 +295,13 @@ export async function reversePayment(
       data: { status: "REVERSED", rejectionReason: r, reviewedById: adminId, reviewedAt: now },
     });
     if (updated.count !== 1) throw new UserFacingError("Só é possível anular pagamentos confirmados.");
+
+    const payment = await tx.paymentRequest.findUniqueOrThrow({ where: { id: paymentId } });
+    if (payment.kind === "COINS") {
+      // Anula primeiro os gastos feitos com estas moedas (episódios voltam a bloquear,
+      // o artista perde a parte correspondente) e retira as moedas da carteira.
+      await reverseCoinPurchase(tx, paymentId, adminId, r);
+    }
 
     const original = await tx.journalEntry.findUniqueOrThrow({
       where: { idempotencyKey: `payment:${paymentId}:confirm` },

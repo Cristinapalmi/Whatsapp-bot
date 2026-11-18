@@ -1,0 +1,242 @@
+import type { Prisma, PrismaClient } from "@prisma/client";
+import { business } from "@config/business";
+import { UserFacingError } from "../errors";
+import { COINS_OUTSTANDING, PLATFORM_REVENUE, artistAvailable } from "../money/accounts";
+import { postEntry, type Tx } from "../money/ledger";
+import { splitRevenue } from "../money/split";
+import { notify } from "../notify";
+import { formatKz } from "@/lib/money";
+
+/**
+ * MOEDAS — regras:
+ *  - O fã compra um pacote (ex.: 1.000 Kz = 100 moedas). As moedas só entram depois de o
+ *    admin confirmar o comprovativo. Cada compra é um "lote" que guarda o VALOR REAL pago.
+ *  - Moedas compradas e não gastas NÃO são receita: ficam na conta "Moedas por gastar".
+ *  - Ao gastar moedas (episódio ou presente), usam-se primeiro as mais antigas. O artista
+ *    ganha a sua percentagem do valor real dessas moedas; o resto é da plataforma.
+ *  - As moedas não têm prazo, não se transferem e nunca se convertem em dinheiro.
+ */
+
+export const DEFAULT_EPISODE_PRICE_COINS = 20;
+
+export async function getSettingInt(db: Tx, key: string, fallback: number) {
+  const row = await db.setting.findUnique({ where: { key } });
+  const n = row ? Number.parseInt(row.value, 10) : Number.NaN;
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+export async function setSetting(db: Tx, key: string, value: string) {
+  await db.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
+}
+
+export const defaultEpisodePriceCoins = (db: Tx) => getSettingInt(db, "episodePriceCoins", DEFAULT_EPISODE_PRICE_COINS);
+
+/** Preço de um episódio em moedas: exceção da série, ou o preço por defeito. */
+export async function episodePriceCoins(db: Tx, series: { priceCoins: number | null }) {
+  return series.priceCoins && series.priceCoins > 0 ? series.priceCoins : defaultEpisodePriceCoins(db);
+}
+
+export async function coinBalance(db: Tx, userId: string) {
+  const agg = await db.coinLot.aggregate({ where: { userId, revokedAt: null }, _sum: { coinsRemaining: true } });
+  return agg._sum.coinsRemaining ?? 0;
+}
+
+/** Bónus de um pacote face ao pacote base (ex.: 220 moedas por 2.000 Kz = +10%). */
+export function packBonusPercent(pack: { priceKz: number; coins: number }, base: { priceKz: number; coins: number }) {
+  const baseRate = base.coins / base.priceKz;
+  const expected = pack.priceKz * baseRate;
+  return Math.max(0, Math.round(((pack.coins - expected) / expected) * 100));
+}
+
+const lockUser = (tx: Prisma.TransactionClient, userId: string) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"coins:" + userId}))`;
+
+/** Lote criado quando o admin confirma uma compra de moedas (chamado dentro da transação de confirmação). */
+export async function creditCoinLot(
+  tx: Prisma.TransactionClient,
+  p: { id: string; userId: string; coins: number; netCents: number; adminId: string | null },
+) {
+  const lot = await tx.coinLot.create({
+    data: { userId: p.userId, paymentRequestId: p.id, coinsTotal: p.coins, coinsRemaining: p.coins, valueCents: p.netCents, valueRemainingCents: p.netCents },
+  });
+  await postEntry(tx, {
+    kind: "COINS_PURCHASED",
+    description: `Compra de ${p.coins} moedas`,
+    idempotencyKey: `payment:${p.id}:confirm`,
+    paymentRequestId: p.id,
+    createdById: p.adminId ?? undefined,
+    lines: [
+      { account: { code: "platform:cash", name: "Caixa da plataforma", type: "ASSET" }, amountCents: p.netCents },
+      { account: COINS_OUTSTANDING, amountCents: -p.netCents },
+    ],
+  });
+  await notify(tx, p.userId, "Moedas na tua carteira", `+${p.coins} moedas. Bom proveito!`, "/loja");
+  return lot;
+}
+
+type SpendInput = {
+  userId: string;
+  coins: number;
+  kind: "EPISODE" | "GIFT";
+  artistId: string;
+  episodeId?: string;
+  giftCode?: string;
+  description: string;
+};
+
+/** Gasta moedas (primeiro as mais antigas) e regista o ganho do artista. Usar dentro de uma transação com o utilizador bloqueado. */
+async function spendCoins(tx: Prisma.TransactionClient, input: SpendInput) {
+  if (!Number.isInteger(input.coins) || input.coins <= 0) throw new UserFacingError("Preço inválido.");
+  const lots = await tx.coinLot.findMany({
+    where: { userId: input.userId, revokedAt: null, coinsRemaining: { gt: 0 } },
+    orderBy: { createdAt: "asc" },
+  });
+  const balance = lots.reduce((a, l) => a + l.coinsRemaining, 0);
+  if (balance < input.coins)
+    throw new UserFacingError(`Precisas de ${input.coins} moedas. Tens ${balance}.`, "INSUFFICIENT_COINS");
+
+  let need = input.coins;
+  let value = 0;
+  const allocations: { lotId: string; coins: number; valueCents: number }[] = [];
+  for (const lot of lots) {
+    if (need === 0) break;
+    const take = Math.min(need, lot.coinsRemaining);
+    // Valor exato: as últimas moedas do lote levam o resto, para não se perder nenhum cêntimo.
+    const v = take === lot.coinsRemaining ? lot.valueRemainingCents : Math.floor((lot.valueRemainingCents * take) / lot.coinsRemaining);
+    await tx.coinLot.update({
+      where: { id: lot.id },
+      data: { coinsRemaining: { decrement: take }, valueRemainingCents: { decrement: v } },
+    });
+    allocations.push({ lotId: lot.id, coins: take, valueCents: v });
+    value += v;
+    need -= take;
+  }
+  const { artistCents, platformCents } = splitRevenue(value, 0, business.artistSharePercent);
+  const spend = await tx.coinSpend.create({
+    data: {
+      userId: input.userId,
+      kind: input.kind,
+      episodeId: input.episodeId,
+      giftCode: input.giftCode,
+      artistId: input.artistId,
+      coins: input.coins,
+      valueCents: value,
+      artistCents,
+      allocations: { create: allocations },
+    },
+  });
+  if (value > 0) {
+    await postEntry(tx, {
+      kind: input.kind === "EPISODE" ? "COIN_SPEND_EPISODE" : "COIN_SPEND_GIFT",
+      description: input.description,
+      idempotencyKey: `coin-spend:${spend.id}`,
+      lines: [
+        { account: COINS_OUTSTANDING, amountCents: value },
+        { account: artistAvailable(input.artistId), amountCents: -artistCents },
+        { account: PLATFORM_REVENUE, amountCents: -platformCents },
+      ],
+    });
+  }
+  return spend;
+}
+
+/** Desbloqueia um episódio com moedas (fica desbloqueado para sempre). */
+export async function unlockEpisodeWithCoins(db: PrismaClient, { userId, episodeId }: { userId: string; episodeId: string }) {
+  const result = await db.$transaction(async (tx) => {
+    await lockUser(tx, userId);
+    const episode = await tx.episode.findUnique({ where: { id: episodeId }, include: { series: { include: { artist: true } } } });
+    if (!episode || !episode.published || episode.series.status !== "PUBLISHED") throw new UserFacingError("Episódio não encontrado.");
+    if (episode.number <= episode.series.freeEpisodes) throw new UserFacingError("Este episódio é grátis.");
+    // Proteção contra cliques repetidos / dois separadores: se já está desbloqueado, não cobra outra vez.
+    if (await tx.entitlement.findUnique({ where: { userId_episodeId: { userId, episodeId } } }))
+      throw new UserFacingError("Já desbloqueaste este episódio.", "ALREADY_UNLOCKED");
+    const price = await episodePriceCoins(tx, episode.series);
+    const spend = await spendCoins(tx, {
+      userId,
+      coins: price,
+      kind: "EPISODE",
+      artistId: episode.series.artistId,
+      episodeId,
+      description: `Episódio ${episode.number} de "${episode.series.title}" (${price} moedas)`,
+    });
+    await tx.entitlement.create({ data: { userId, episodeId, source: "COINS" } });
+    return { spend, artistUserId: episode.series.artist.userId };
+  });
+  if (result.spend.artistCents > 0)
+    await notify(db, result.artistUserId, "Ganhaste dinheiro", `+${formatKz(result.spend.artistCents)} na tua carteira.`, "/artista/carteira");
+  return result.spend;
+}
+
+/** Oferece um presente a um artista, pago com moedas. */
+export async function sendGiftWithCoins(db: PrismaClient, { userId, artistId, giftCode }: { userId: string; artistId: string; giftCode: string }) {
+  const result = await db.$transaction(async (tx) => {
+    await lockUser(tx, userId);
+    const gift = await tx.giftType.findUnique({ where: { code: giftCode } });
+    if (!gift || !gift.active) throw new UserFacingError("Presente inválido.");
+    const artist = await tx.artistProfile.findUnique({ where: { id: artistId } });
+    if (!artist || artist.status !== "APPROVED") throw new UserFacingError("Artista não encontrado.");
+    if (artist.userId === userId) throw new UserFacingError("Não podes oferecer presentes a ti próprio.");
+    const spend = await spendCoins(tx, {
+      userId,
+      coins: gift.priceCoins,
+      kind: "GIFT",
+      artistId,
+      giftCode: gift.code,
+      description: `Presente ${gift.emoji} ${gift.label} para ${artist.stageName}`,
+    });
+    return { spend, gift, artist };
+  });
+  await notify(db, result.artist.userId, "Recebeste um presente", `${result.gift.emoji} ${result.gift.label}: +${formatKz(result.spend.artistCents)} na tua carteira.`, "/artista/carteira");
+  return result.spend;
+}
+
+/**
+ * Anula um gasto: devolve as moedas aos lotes de onde saíram, retira o desbloqueio
+ * (se for episódio) e faz o lançamento inverso (retira ao artista a parte dele).
+ */
+export async function reverseCoinSpend(tx: Prisma.TransactionClient, spendId: string, adminId: string | null, reason: string) {
+  const spend = await tx.coinSpend.findUniqueOrThrow({ where: { id: spendId }, include: { allocations: true } });
+  if (spend.reversedAt) return spend;
+  for (const a of spend.allocations) {
+    await tx.coinLot.update({
+      where: { id: a.lotId },
+      data: { coinsRemaining: { increment: a.coins }, valueRemainingCents: { increment: a.valueCents } },
+    });
+  }
+  if (spend.valueCents > 0) {
+    const platformCents = spend.valueCents - spend.artistCents;
+    await postEntry(tx, {
+      kind: "COIN_SPEND_REVERSED",
+      description: `Anulação de gasto de moedas — ${reason}`,
+      idempotencyKey: `coin-spend:${spend.id}:reverse`,
+      createdById: adminId ?? undefined,
+      lines: [
+        { account: COINS_OUTSTANDING, amountCents: -spend.valueCents },
+        { account: artistAvailable(spend.artistId), amountCents: spend.artistCents },
+        { account: PLATFORM_REVENUE, amountCents: platformCents },
+      ],
+    });
+  }
+  if (spend.kind === "EPISODE" && spend.episodeId) {
+    await tx.entitlement.deleteMany({ where: { userId: spend.userId, episodeId: spend.episodeId, source: "COINS" } });
+  }
+  return tx.coinSpend.update({ where: { id: spend.id }, data: { reversedAt: new Date() } });
+}
+
+/**
+ * Anula uma COMPRA de moedas (ex.: comprovativo falso descoberto depois):
+ *  1. todos os gastos que usaram moedas desta compra são anulados (episódios voltam a bloquear,
+ *     o artista perde a parte correspondente; moedas de outras compras voltam ao fã);
+ *  2. as moedas desta compra são retiradas e o lançamento da compra é invertido.
+ * Chamado dentro da transação de reversePayment().
+ */
+export async function reverseCoinPurchase(tx: Prisma.TransactionClient, paymentId: string, adminId: string, reason: string) {
+  const lot = await tx.coinLot.findUniqueOrThrow({ where: { paymentRequestId: paymentId } });
+  await lockUser(tx, lot.userId);
+  const spends = await tx.coinSpend.findMany({
+    where: { reversedAt: null, allocations: { some: { lotId: lot.id } } },
+    select: { id: true },
+  });
+  for (const s of spends) await reverseCoinSpend(tx, s.id, adminId, reason);
+  await tx.coinLot.update({ where: { id: lot.id }, data: { coinsRemaining: 0, valueRemainingCents: 0, revokedAt: new Date() } });
+  return { reversedSpends: spends.length, coins: lot.coinsTotal };
+}

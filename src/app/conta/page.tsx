@@ -50,7 +50,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           ) : (
             <>
               <p className="mt-1 font-semibold">Sem passe ativo</p>
-              <Link href="/pagar?passe=1" className="btn-primary btn-sm mt-3">Ativar por {formatKz(business.weeklyPassPriceKz * 100)}</Link>
+              <Link href="/loja" className="btn-primary btn-sm mt-3">Comprar moedas</Link>
             </>
           )}
         </div>

@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
-import { formatKz } from "@/lib/money";
+import { coinsLabel } from "@/lib/money";
+import { episodePriceCoins } from "@/domain/coins/service";
 import { CATEGORY_LABELS } from "@/lib/categories";
 import { episodeStates, type EpisodeState } from "@/domain/access";
 import { IconCheck, IconClock, IconLock, IconPlay, IconTrophy } from "@/components/icons";
@@ -35,6 +36,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
   const states = await episodeStates(db, user?.id ?? null, series, series.episodes);
   const cover = await mediaUrl(series.coverKey);
   const [fan1] = await topFans(db, series.artistId, 1);
+  const priceCoins = await episodePriceCoins(db, series);
   const firstWatchable = series.episodes.find((e) => states[e.id] === "free" || states[e.id] === "unlocked");
 
   return (
@@ -52,7 +54,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
           <p className="mt-1 text-muted">de <Link href={`/${series.artist.slug}`} className="font-semibold text-fg underline">{series.artist.stageName}</Link></p>
           <p className="mt-3 leading-relaxed text-fg/90">{series.synopsis}</p>
           <p className="mt-3 text-sm text-muted">
-            {series.freeEpisodes} {series.freeEpisodes === 1 ? "episódio grátis" : "episódios grátis"} · depois {formatKz(series.priceCents)} por episódio
+            {series.freeEpisodes} {series.freeEpisodes === 1 ? "episódio grátis" : "episódios grátis"} · depois {coinsLabel(priceCoins)} por episódio
           </p>
           {fan1 && (
             <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent2/15 px-3 py-1.5 text-sm text-accent2">
@@ -78,7 +80,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
                 <span className="block truncate font-semibold text-fg">{e.title}</span>
                 <span className="text-xs text-muted">{Math.max(1, Math.round(e.durationSec / 60))} min{e.endsWithHook ? " · termina em suspense" : ""}</span>
               </span>
-              <StateBadge state={states[e.id]} price={series.priceCents} />
+              <StateBadge state={states[e.id]} price={priceCoins} />
             </Link>
           </li>
         ))}
@@ -96,6 +98,6 @@ function StateBadge({ state, price }: { state: EpisodeState; price: number }) {
     case "free": return <span className="badge-free"><IconPlay size={12} />Grátis</span>;
     case "unlocked": return <span className="badge-unlocked"><IconCheck size={12} />Desbloqueado</span>;
     case "pending": return <span className="badge-pending"><IconClock size={12} />Pendente</span>;
-    default: return <span className="badge-price"><IconLock size={12} />{formatKz(price)}</span>;
+    default: return <span className="badge-price"><IconLock size={12} />{coinsLabel(price)}</span>;
   }
 }

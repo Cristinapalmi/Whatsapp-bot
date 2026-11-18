@@ -35,6 +35,16 @@ export const business = {
     accountHolder: env("PAYMENT_ACCOUNT_HOLDER", "Nome do titular da conta"),
     bankName: env("PAYMENT_BANK_NAME", "Banco"),
   },
+  /**
+   * Interruptores de venda. Desligados = o código e os dados ficam, mas não se vende.
+   *  - weeklyPassSales: passe semanal (desligado até definirmos como pagar os criadores em acesso ilimitado)
+   *  - kzEpisodeSales / kzGiftSales: compra de episódios e presentes diretamente em Kz (substituída pelas moedas)
+   */
+  features: {
+    weeklyPassSales: false,
+    kzEpisodeSales: false,
+    kzGiftSales: false,
+  },
   /** Duração do passe semanal (dias). */
   weeklyPassDays: 7,
   /** Presentes para os artistas (valor em Kz). 50% vai para o artista. */

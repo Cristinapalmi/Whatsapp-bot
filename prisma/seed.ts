@@ -38,7 +38,7 @@ type Demo = {
 const DEMOS: Demo[] = [
   {
     artist: { stageName: "Mana Zinha", fullName: "Teresa Domingos Zinha", slug: "manazinha", phone: "+244900000002", category: "TERROR", social: "https://www.tiktok.com/@manazinha.demo", bi: "001234567LA041" },
-    series: { title: "A Kianda do Mussulo", slug: "a-kianda-do-mussulo", category: "TERROR", priceKz: 100, free: 2, featured: true,
+    series: { title: "A Kianda do Mussulo", slug: "a-kianda-do-mussulo", category: "TERROR", priceKz: 100, free: 3, featured: true,
       synopsis: "Um grupo de amigos aluga uma casa no Mussulo para o fim de semana. À meia-noite, alguém começa a cantar dentro da água…" },
     episodes: ["A casa na ponta", "Cantos na maré", "Quem abriu a porta?", "O pescador sem sombra", "A oferenda"],
     hook: "A voz chamou o nome da Joana. Mas a Joana estava ao lado deles…",
@@ -52,28 +52,28 @@ const DEMOS: Demo[] = [
   },
   {
     artist: { stageName: "Kota Bento", fullName: "Bento Manuel Kota", slug: "kotabento", phone: "+244900000013", category: "TERROR", social: "https://www.tiktok.com/@kotabento.demo", bi: "003456789LA043" },
-    series: { title: "O Candongueiro Assombrado", slug: "o-candongueiro-assombrado", category: "TERROR", priceKz: 100, free: 2,
+    series: { title: "O Candongueiro Assombrado", slug: "o-candongueiro-assombrado", category: "TERROR", priceKz: 100, free: 3,
       synopsis: "O Zé arranja trabalho num azul e branco barato. Só há um problema: depois das 22h, entra sempre um passageiro que ninguém vê." },
     episodes: ["Última volta", "O passageiro do banco de trás", "Paragem do cemitério", "O cobrador desaparecido", "Fim da linha"],
     hook: "O Zé olhou pelo retrovisor. O banco de trás estava vazio — mas alguém disse: «Pára aqui, motorista».",
   },
   {
     artist: { stageName: "Nayara K.", fullName: "Nayara Kiala Kissanga", slug: "nayarak", phone: "+244900000014", category: "DRAMA", social: "https://www.instagram.com/nayarak.demo", bi: "004567890LA044" },
-    series: { title: "Traição no Kilamba", slug: "traicao-no-kilamba", category: "DRAMA", priceKz: 150, free: 2,
+    series: { title: "Traição no Kilamba", slug: "traicao-no-kilamba", category: "DRAMA", priceKz: 150, free: 3,
       synopsis: "Um casal perfeito, um apartamento novo no Kilamba e uma mensagem que não devia ter chegado. Nada é o que parece." },
     episodes: ["A mensagem", "O jantar de família", "A melhor amiga", "O vídeo", "A escolha"],
     hook: "No telemóvel dele, a última mensagem dizia: «Ela ainda não sabe de nada.»",
   },
   {
     artist: { stageName: "DJ Malamba", fullName: "Mário Lázaro Malamba", slug: "djmalamba", phone: "+244900000015", category: "COMEDIA", social: "https://www.tiktok.com/@djmalamba.demo", bi: "005678901LA045" },
-    series: { title: "O Kudurista Falido", slug: "o-kudurista-falido", category: "COMEDIA", priceKz: 75, free: 2,
+    series: { title: "O Kudurista Falido", slug: "o-kudurista-falido", category: "COMEDIA", priceKz: 75, free: 3,
       synopsis: "Já foi rei das festas, hoje não tem saldo nem para o táxi. Agora quer voltar ao topo — custe o que custar." },
     episodes: ["Sem saldo", "O show na rua", "O produtor de Viana", "Viral por engano", "O grande regresso"],
     hook: "O vídeo explodiu na internet… mas pelas piores razões.",
   },
   {
     artist: { stageName: "Mamã Rosa", fullName: "Rosa Bernardo Kitoko", slug: "mamarosa", phone: "+244900000016", category: "MAKAS_FAMILIA", social: "https://www.instagram.com/mamarosa.demo", bi: "006789012LA046" },
-    series: { title: "A Herança do Avô Kitoko", slug: "a-heranca-do-avo-kitoko", category: "MAKAS_FAMILIA", priceKz: 100, free: 2,
+    series: { title: "A Herança do Avô Kitoko", slug: "a-heranca-do-avo-kitoko", category: "MAKAS_FAMILIA", priceKz: 100, free: 3,
       synopsis: "O avô Kitoko deixou uma casa, um terreno e um testamento escondido. Os netos já começaram a guerra." },
     episodes: ["O óbito", "O testamento", "O primo de Benguela", "O terreno no Zango", "A verdade do avô"],
     hook: "O notário leu a última linha: «E a casa fica para o filho que vocês não conhecem.»",

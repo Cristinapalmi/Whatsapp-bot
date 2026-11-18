@@ -8,7 +8,8 @@ export const kzToCents = (kz: number): number => {
 export const centsToKz = (cents: number): number => cents / 100;
 
 /** Formata para mostrar ao utilizador, ex.: 12500 → "125 Kz", 3750 → "37,50 Kz". */
-export const formatKz = (cents: number): string => {
+export const formatKz = (value: number): string => {
+  const cents = value === 0 ? 0 : value; // evita "-0 Kz"
   const kz = cents / 100;
   const hasDecimals = Math.round(cents) % 100 !== 0;
   return (
@@ -21,3 +22,6 @@ export const formatKz = (cents: number): string => {
 
 /** Valor inteiro em Kz com espaço nos milhares: 5000 → "5 000 Kz". */
 export const kzLabel = (kz: number) => `${String(Math.round(kz)).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} Kz`;
+
+/** "20 moedas", "1 moeda", "1 200 moedas" */
+export const coinsLabel = (n: number) => `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} ${n === 1 ? "moeda" : "moedas"}`;

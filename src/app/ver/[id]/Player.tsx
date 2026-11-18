@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconGauge, IconLock, IconNext, IconPause, IconPlay, IconSubtitles, IconExpand, IconClock, IconGift, IconStar } from "@/components/icons";
+import { IconGauge, IconNext, IconPause, IconPlay, IconSubtitles, IconExpand, IconClock, IconGift, IconStar } from "@/components/icons";
+import { UnlockPanel } from "@/components/UnlockPanel";
+import { sendGiftAction } from "./actions";
 import type { EpisodeState } from "@/domain/access";
 
 type Props = {
@@ -11,11 +13,12 @@ type Props = {
   isLastFree: boolean;
   endsWithHook: boolean;
   hookText: string | null;
-  next: { id: string; number: number; state: EpisodeState; price: string } | null;
+  next: { id: string; number: number; state: EpisodeState } | null;
   hasSubtitles: boolean;
-  artist: { slug: string; name: string };
-  passPrice: string;
-  gifts: { id: string; label: string; price: string }[];
+  artist: { id: string; slug: string; name: string };
+  gifts: { code: string; label: string; emoji: string; priceCoins: number }[];
+  priceCoins: number;
+  balance: number;
   points: number;
   pointsCost: number;
 };
@@ -41,6 +44,22 @@ export function Player(p: Props) {
   const [subs, setSubs] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
   const [showGifts, setShowGifts] = useState(false);
+  const [giftPending, setGiftPending] = useState(false);
+  const [giftMsg, setGiftMsg] = useState<{ ok: boolean; text: string; buy?: boolean } | null>(null);
+
+  async function sendGift(code: string) {
+    if (!p.loggedIn) {
+      window.location.href = `/entrar?next=${encodeURIComponent(`/ver/${p.episodeId}`)}`;
+      return;
+    }
+    const g = p.gifts.find((x) => x.code === code);
+    if (!g || !window.confirm(`Oferecer ${g.emoji} ${g.label} a ${p.artist.name} por ${g.priceCoins} moedas?`)) return;
+    setGiftPending(true);
+    setGiftMsg(null);
+    const r = await sendGiftAction(p.artist.id, code);
+    setGiftPending(false);
+    setGiftMsg(r.ok ? { ok: true, text: r.message ?? "Presente entregue!" } : { ok: false, text: r.error, buy: r.code === "INSUFFICIENT_COINS" });
+  }
   const lastSent = useRef(0);
   const watchedSinceLastPing = useRef(0);
   const lastTick = useRef<number | null>(null);
@@ -187,19 +206,7 @@ export function Player(p: Props) {
             {p.next.state === "pending" ? (
               <p className="badge-pending text-sm"><IconClock size={14} /> O teu pagamento do episódio {p.next.number} está a ser confirmado</p>
             ) : (
-              <>
-                <Link href={p.loggedIn ? `/pagar?episodio=${p.next.id}` : `/entrar?next=${encodeURIComponent(`/pagar?episodio=${p.next.id}`)}`} className="btn-primary text-lg">
-                  <IconLock size={20} /> Desbloqueia por {p.next.price}
-                </Link>
-                <Link href={p.loggedIn ? "/pagar?passe=1" : `/entrar?next=${encodeURIComponent("/pagar?passe=1")}`} className="btn-secondary">
-                  Ativa o passe semanal · {p.passPrice}
-                </Link>
-                {p.points >= p.pointsCost && (
-                  <Link href={`/pagar?episodio=${p.next.id}`} className="text-sm font-semibold text-accent2 underline">
-                    Ou usa {p.pointsCost} dos teus {p.points} pontos
-                  </Link>
-                )}
-              </>
+              <UnlockPanel episodeId={p.next.id} priceCoins={p.priceCoins} balance={p.balance} points={p.points} pointsCost={p.pointsCost} loggedIn={p.loggedIn} />
             )}
           </div>
         )}
@@ -254,19 +261,27 @@ export function Player(p: Props) {
       </div>
       {showGifts && (
         <div className="card mt-3">
-          <p className="text-sm text-muted">Apoia {p.artist.name} com um presente. Metade vai para o artista.</p>
+          <p className="text-sm text-muted">Apoia {p.artist.name} com um presente pago com moedas. {p.artist.name} ganha 50% do valor.</p>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {p.gifts.map((g) => (
-              <Link
-                key={g.id}
-                href={p.loggedIn ? `/pagar?presente=${g.id}&artista=${p.artist.slug}` : `/entrar?next=${encodeURIComponent(`/pagar?presente=${g.id}&artista=${p.artist.slug}`)}`}
-                className="flex min-h-[64px] flex-col items-center justify-center rounded-xl bg-surface2 p-2 text-center no-underline hover:ring-2 hover:ring-accent"
+              <button
+                key={g.code}
+                type="button"
+                disabled={giftPending}
+                onClick={() => sendGift(g.code)}
+                className="flex min-h-[72px] flex-col items-center justify-center rounded-xl bg-surface2 p-2 text-center hover:ring-2 hover:ring-accent disabled:opacity-50"
               >
+                <span className="text-2xl" aria-hidden>{g.emoji}</span>
                 <span className="font-semibold text-fg">{g.label}</span>
-                <span className="text-sm text-accent">{g.price}</span>
-              </Link>
+                <span className="text-sm text-accent">{g.priceCoins} moedas</span>
+              </button>
             ))}
           </div>
+          {giftMsg && (
+            <p className={`mt-3 rounded-xl px-3 py-2 text-sm ${giftMsg.ok ? "bg-ok/15 text-ok" : "bg-danger/15 text-danger"}`}>
+              {giftMsg.text} {!giftMsg.ok && giftMsg.buy && <Link href={`/loja?voltar=${encodeURIComponent(`/ver/${p.episodeId}`)}`} className="font-semibold underline">Comprar moedas</Link>}
+            </p>
+          )}
         </div>
       )}
       {toast && (
