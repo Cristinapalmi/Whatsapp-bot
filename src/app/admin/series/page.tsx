@@ -28,7 +28,7 @@ export default async function AdminSeries() {
             <Link href={`/admin/series/${s.id}`} className="card flex items-center justify-between gap-3 no-underline hover:bg-surface2">
               <div className="min-w-0">
                 <p className="truncate font-semibold text-fg">{s.title}</p>
-                <p className="text-xs text-muted">{s.artist.stageName} · {CATEGORY_LABELS[s.category]} · {s._count.episodes}/{s.plannedEpisodes} ep. · {s.freeEpisodes} grátis · {s.priceCoins ? `${s.priceCoins} moedas` : "preço por defeito"}</p>
+                <p className="text-xs text-muted">{s.artist.stageName} · {CATEGORY_LABELS[s.category]} · {s._count.episodes} ep. · {s.status}</p>
               </div>
               <div className="flex items-center gap-2">
                 {s.id === suggested && <span className="badge-unlocked">Sugerida</span>}

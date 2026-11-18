@@ -35,7 +35,7 @@ export default async function ReviewSeriesPage({ params }: { params: Promise<{ i
           <h1 className="text-2xl font-bold">{s.title}</h1>
           <p className="text-sm text-muted">{s.artist.stageName} ({s.artist.fullName} · {s.artist.user.phone}) · {CATEGORY_LABELS[s.category]} · {s.status === "IN_REVIEW" ? "série nova" : "episódios novos numa série publicada"}</p>
           <p className="mt-3 whitespace-pre-line">{s.synopsis || <span className="text-muted">Sem sinopse.</span>}</p>
-          <p className="mt-2 text-xs text-muted">{s.freeEpisodes} episódios grátis · {s.episodes.length}/{s.plannedEpisodes} episódios criados · <Link href={`/admin/series/${s.id}`} className="underline">editar como admin</Link></p>
+          <p className="mt-2 text-xs text-muted">{s.freeEpisodes} episódios grátis · {s.episodes.length} episódios · <Link href={`/admin/series/${s.id}`} className="underline">ver série completa</Link></p>
         </div>
       </div>
 

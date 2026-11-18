@@ -18,6 +18,8 @@ type Props = {
   episodes: ReelEpisode[];
   initialIndex: number;
   priceCoins: number;
+  /** Série retirada: aviso no topo e sem desbloqueios. */
+  withdrawnNotice?: string | null;
   balance: number;
   points: number;
   pointsCost: number;
@@ -355,6 +357,7 @@ export function ReelPlayer(p: Props) {
           </button>
         )}
         {loadError && <p role="alert" className="absolute inset-x-4 top-1/3 rounded-xl bg-danger/20 px-4 py-3 text-center text-sm text-danger">{loadError}</p>}
+        {p.withdrawnNotice && <p role="note" className="pointer-events-none absolute inset-x-4 top-16 z-10 rounded-xl bg-warn/20 px-3 py-2 text-center text-xs text-warn">{p.withdrawnNotice}</p>}
 
         {/* Episódio bloqueado ou pendente */}
         {!canWatch(state) && (
@@ -376,6 +379,8 @@ export function ReelPlayer(p: Props) {
               <div className="mt-4 flex justify-center">
                 {state === "pending" ? (
                   <p className="badge-pending text-sm"><IconClock size={14} /> Pagamento a aguardar confirmação</p>
+                ) : p.withdrawnNotice ? (
+                  <p className="text-sm text-muted">Esta série foi retirada. Já não é possível desbloquear episódios.</p>
                 ) : (
                   <UnlockPanel
                     episodeId={ep.id}

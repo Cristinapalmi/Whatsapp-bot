@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@prisma/client";
 import { makeUser, resetTestDb } from "./helpers";
 import {
-  addEpisode, approveReview, createSeriesDraft, deleteEpisode, moveEpisode, rejectReview, reviewCount, submitForReview, updateEpisode, updateSeriesDetails,
+  addEpisode, approveReview, createSeriesDraft, deleteEpisode, deleteSeries, moveEpisode, purgeWithdrawnSeries, rejectReview, reviewChecklist, reviewCount, submitForReview,
+  updateEpisode, updateSeriesDetails, withdrawSeries,
 } from "@/domain/series-workflow";
 import { sniff } from "@/lib/filetype";
 
@@ -21,7 +22,19 @@ async function newArtist() {
   });
   return { user: u, artist: a };
 }
-const details = { title: "Minha Série", synopsis: "Uma história", category: "DRAMA" as const, plannedEpisodes: 5 };
+const details = { title: "Minha Série", synopsis: "Uma história de família em Luanda, cheia de segredos.", category: "DRAMA" as const, plannedEpisodes: 5 };
+
+/** Série pronta a enviar: capa, sinopse, 3 episódios com vídeo e gancho no 3.º */
+async function readySeries(artistId: string) {
+  const s = await createSeriesDraft(db, artistId, { ...details, coverKey: "covers/c.jpg" });
+  const eps = [];
+  for (let i = 1; i <= 3; i++) {
+    const e = await addEpisode(db, artistId, s.id, `Ep ${i}`);
+    await db.episode.update({ where: { id: e.id }, data: { videoKey: `videos/${s.id}/${i}.mp4`, ...(i === 3 ? { endsWithHook: true, hookText: "E agora?" } : {}) } });
+    eps.push(e);
+  }
+  return { s, eps };
+}
 
 describe("O artista faz tudo, a admin só verifica e publica", () => {
   it("artista novo fica logo ativo", async () => {
@@ -29,57 +42,79 @@ describe("O artista faz tudo, a admin só verifica e publica", () => {
     expect(artist.status).toBe("APPROVED");
   });
 
-  it("rascunho → enviada → publicada; só aparece depois de aprovada", async () => {
+  it("lista de verificação: capa, sinopse, 3 episódios com vídeo e gancho no 3.º", async () => {
+    const { artist } = await newArtist();
+    const s = await createSeriesDraft(db, artist.id, { ...details, synopsis: "curta" });
+    const e1 = await addEpisode(db, artist.id, s.id, "Início");
+    expect([e1.number]).toEqual([1]);
+    const ck = reviewChecklist(s, [e1]);
+    expect(ck.filter((c) => !c.ok)).toHaveLength(4);
+    await expect(submitForReview(db, artist.id, s.id)).rejects.toThrow(/capa carregada; sinopse escrita/);
+  });
+
+  it("rascunho → enviada → publicada; só aparece depois de aprovada; episódios novos também são revistos", async () => {
     const admin = await makeUser(db, "ADMIN");
     const { artist, user } = await newArtist();
-    const s = await createSeriesDraft(db, artist.id, details);
-    expect(s.status).toBe("DRAFT");
-    const e1 = await addEpisode(db, artist.id, s.id, "Início");
-    const e2 = await addEpisode(db, artist.id, s.id, "Meio");
-    expect([e1.number, e2.number]).toEqual([1, 2]);
-    await expect(submitForReview(db, artist.id, s.id)).rejects.toThrow(/capa/);
-    await db.series.update({ where: { id: s.id }, data: { coverKey: "covers/x.jpg" } });
-    await expect(submitForReview(db, artist.id, s.id)).rejects.toThrow(/vídeo/);
-    await db.episode.update({ where: { id: e1.id }, data: { videoKey: "videos/x.mp4" } });
+    const { s } = await readySeries(artist.id);
+    const extra = await addEpisode(db, artist.id, s.id, "Sem vídeo ainda");
     const r = await submitForReview(db, artist.id, s.id);
-    expect(r).toEqual({ episodes: 1, missingVideo: 1 });
+    expect(r).toEqual({ episodes: 3, missingVideo: 1 });
     expect((await db.series.findUniqueOrThrow({ where: { id: s.id } })).status).toBe("IN_REVIEW");
     expect(await reviewCount(db)).toBe(1);
-    // enquanto está em revisão, não se edita
     await expect(updateSeriesDetails(db, artist.id, s.id, details)).rejects.toThrow(/enviada ou publicada/);
 
     await approveReview(db, admin.id, s.id);
     const after = await db.series.findUniqueOrThrow({ where: { id: s.id }, include: { episodes: { orderBy: { number: "asc" } } } });
     expect(after.status).toBe("PUBLISHED");
-    expect(after.episodes[0]).toMatchObject({ status: "PUBLISHED", published: true });
-    expect(after.episodes[1]).toMatchObject({ status: "DRAFT", published: false });
+    expect(after.episodes.slice(0, 3).every((e) => e.published)).toBe(true);
+    expect(after.episodes[3]).toMatchObject({ status: "DRAFT", published: false });
     expect(await db.notification.count({ where: { userId: user.id, title: "A tua série foi publicada!" } })).toBe(1);
 
-    // episódio novo numa série publicada também passa por revisão
-    await db.episode.update({ where: { id: e2.id }, data: { videoKey: "videos/y.mp4" } });
+    await db.episode.update({ where: { id: extra.id }, data: { videoKey: "videos/y.mp4" } });
     await submitForReview(db, artist.id, s.id);
-    expect((await db.episode.findUniqueOrThrow({ where: { id: e2.id } })).status).toBe("IN_REVIEW");
-    expect((await db.episode.findUniqueOrThrow({ where: { id: e2.id } })).published).toBe(false);
+    expect((await db.episode.findUniqueOrThrow({ where: { id: extra.id } })).status).toBe("IN_REVIEW");
     await approveReview(db, admin.id, s.id);
-    expect((await db.episode.findUniqueOrThrow({ where: { id: e2.id } })).published).toBe(true);
+    expect((await db.episode.findUniqueOrThrow({ where: { id: extra.id } })).published).toBe(true);
   });
 
   it("recusar exige motivo, o artista é avisado e pode corrigir e reenviar", async () => {
     const admin = await makeUser(db, "ADMIN");
     const { artist, user } = await newArtist();
-    const s = await createSeriesDraft(db, artist.id, { ...details, coverKey: "covers/c.jpg" });
-    const e = await addEpisode(db, artist.id, s.id, "Ep");
-    await db.episode.update({ where: { id: e.id }, data: { videoKey: "videos/z.mp4" } });
+    const { s, eps } = await readySeries(artist.id);
     await submitForReview(db, artist.id, s.id);
     await expect(rejectReview(db, admin.id, s.id, "")).rejects.toThrow(/motivo/);
     await rejectReview(db, admin.id, s.id, "O som está muito baixo");
-    const rej = await db.series.findUniqueOrThrow({ where: { id: s.id } });
-    expect(rej).toMatchObject({ status: "REJECTED", rejectionReason: "O som está muito baixo" });
+    expect(await db.series.findUniqueOrThrow({ where: { id: s.id } })).toMatchObject({ status: "REJECTED", rejectionReason: "O som está muito baixo" });
     expect(await db.notification.count({ where: { userId: user.id, title: "Revisão: precisa de correções" } })).toBe(1);
-    await updateEpisode(db, artist.id, e.id, { title: "Ep corrigido", endsWithHook: false, hookText: null });
-    expect((await db.episode.findUniqueOrThrow({ where: { id: e.id } })).status).toBe("DRAFT");
+    await updateEpisode(db, artist.id, eps[0].id, { title: "Ep corrigido", endsWithHook: false, hookText: null });
+    expect((await db.episode.findUniqueOrThrow({ where: { id: eps[0].id } })).status).toBe("DRAFT");
     await submitForReview(db, artist.id, s.id);
     expect((await db.series.findUniqueOrThrow({ where: { id: s.id } })).status).toBe("IN_REVIEW");
+  });
+
+  it("apagar só séries em rascunho/recusadas; retirar séries publicadas e limpar os ficheiros depois de 30 dias", async () => {
+    const admin = await makeUser(db, "ADMIN");
+    const { artist } = await newArtist();
+    const draft = await readySeries(artist.id);
+    const del = await deleteSeries(db, artist.id, draft.s.id);
+    expect(del.keys).toContain("covers/c.jpg");
+    expect(await db.series.findUnique({ where: { id: draft.s.id } })).toBeNull();
+
+    const pub = await readySeries(artist.id);
+    await submitForReview(db, artist.id, pub.s.id);
+    await approveReview(db, admin.id, pub.s.id);
+    await expect(deleteSeries(db, artist.id, pub.s.id)).rejects.toThrow(/retirada/);
+    await withdrawSeries(db, artist.id, pub.s.id, "Vou refazer");
+    const w = await db.series.findUniqueOrThrow({ where: { id: pub.s.id } });
+    expect(w.status).toBe("HIDDEN");
+    expect(w.withdrawnAt).not.toBeNull();
+    const deleted: string[] = [];
+    expect(await purgeWithdrawnSeries(db, new Date(), async (k) => deleted.push(k))).toBe(0); // ainda dentro dos 30 dias
+    expect(await purgeWithdrawnSeries(db, new Date(Date.now() + 31 * 86400000), async (k) => deleted.push(k))).toBe(1);
+    expect(deleted).toContain("covers/c.jpg");
+    const purged = await db.series.findUniqueOrThrow({ where: { id: pub.s.id }, include: { episodes: true } });
+    expect(purged.coverKey).toBeNull();
+    expect(purged.episodes.every((e) => !e.videoKey)).toBe(true);
   });
 
   it("reordenar e apagar só episódios por publicar; renumera", async () => {

@@ -8,8 +8,9 @@ import { toActionError } from "@/lib/actions";
 import { MAX_VIDEO_BYTES, readValidatedFile, sniff } from "@/lib/filetype";
 import { deleteObject, getUploadUrl, inspectObject, newKey, putObject } from "@/domain/storage";
 import { UserFacingError } from "@/domain/errors";
+import { SERIES_TAGS } from "@/lib/categories";
 import {
-  addEpisode, createSeriesDraft, deleteEpisode, getOwnedEpisode, getOwnedSeries, isEpisodeEditable, moveEpisode, submitForReview, updateEpisode, updateSeriesDetails,
+  addEpisode, createSeriesDraft, deleteEpisode, deleteSeries, withdrawSeries, getOwnedEpisode, getOwnedSeries, isEpisodeEditable, moveEpisode, submitForReview, updateEpisode, updateSeriesDetails,
 } from "@/domain/series-workflow";
 import type { ActionResult } from "@/components/ActionForm";
 
@@ -18,8 +19,12 @@ const detailsSchema = z.object({
   title: z.string().trim().min(2, "Indica o título.").max(80),
   synopsis: z.string().trim().max(600).default(""),
   category: z.enum(CATEGORIES),
-  plannedEpisodes: z.coerce.number().int().min(1, "Mínimo 1 episódio.").max(200),
+  ageRating: z.enum(["ALL", "AGE13", "AGE16", "AGE18"]).default("ALL"),
+  language: z.enum(["PT", "PT_NATIONAL"]).default("PT"),
 });
+
+/** Etiquetas escolhidas (só as da lista). */
+const readTags = (fd: FormData) => [...new Set(fd.getAll("tags").map(String))].filter((t) => (SERIES_TAGS as readonly string[]).includes(t)).slice(0, 6);
 
 async function storeCover(fd: FormData) {
   const file = fd.get("cover");
@@ -38,7 +43,7 @@ export async function createSeriesAction(_: ActionResult, fd: FormData): Promise
     const { artist } = await requireArtist({ approved: true });
     const d = detailsSchema.parse(Object.fromEntries(fd));
     const coverKey = await storeCover(fd);
-    id = (await createSeriesDraft(db, artist.id, { ...d, coverKey })).id;
+    id = (await createSeriesDraft(db, artist.id, { ...d, tags: readTags(fd), coverKey })).id;
   } catch (e) {
     return toActionError(e);
   }
@@ -52,7 +57,7 @@ export async function saveSeriesDetailsAction(_: ActionResult, fd: FormData): Pr
     const d = detailsSchema.parse(Object.fromEntries(fd));
     await getOwnedSeries(db, artist.id, seriesId);
     const coverKey = await storeCover(fd);
-    await updateSeriesDetails(db, artist.id, seriesId, { ...d, coverKey });
+    await updateSeriesDetails(db, artist.id, seriesId, { ...d, tags: readTags(fd), coverKey });
     revalidatePath(`/artista/series/${seriesId}`);
     return { ok: "Guardado." };
   } catch (e) {
@@ -137,6 +142,30 @@ export async function submitForReviewAction(_: ActionResult, fd: FormData): Prom
     return toActionError(e);
   }
   redirect(`/artista/series/${seriesId}?${qs}`);
+}
+
+export async function deleteSeriesAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const { artist } = await requireArtist({ approved: true });
+    if (fd.get("confirm") !== "on") return { error: "Confirma que queres apagar a série (marca a caixa)." };
+    const { keys } = await deleteSeries(db, artist.id, String(fd.get("seriesId") ?? ""));
+    for (const k of keys) await deleteObject("media", k).catch(() => {});
+  } catch (e) {
+    return toActionError(e);
+  }
+  redirect("/artista?apagada=1");
+}
+
+export async function withdrawSeriesAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  const seriesId = String(fd.get("seriesId") ?? "");
+  try {
+    const { artist } = await requireArtist({ approved: true });
+    if (fd.get("confirm") !== "on") return { error: "Confirma que queres retirar a série (marca a caixa)." };
+    await withdrawSeries(db, artist.id, seriesId, String(fd.get("reason") ?? "").slice(0, 300));
+  } catch (e) {
+    return toActionError(e);
+  }
+  redirect(`/artista/series/${seriesId}?retirada=1`);
 }
 
 // ---------- Envio direto de vídeos (episódio ou trailer) ----------

@@ -101,45 +101,6 @@ export async function reviewArtistAction(_: ActionResult, fd: FormData): Promise
 }
 
 // ---------- Séries ----------
-const seriesSchema = z.object({
-  id: z.string(),
-  title: z.string().trim().min(2).max(80),
-  synopsis: z.string().trim().max(1000),
-  category: z.enum(["TERROR", "COMEDIA", "DRAMA", "MAKAS_FAMILIA", "ROMANCE", "ACAO", "OUTRO"]),
-  /** Preço em moedas só para esta série (vazio = preço por defeito). */
-  priceCoins: z.union([z.literal(""), z.coerce.number().int().min(1, "Preço mínimo 1 moeda").max(10000, "Preço demasiado alto")]).optional(),
-  freeEpisodes: z.coerce.number().int().min(0).max(50),
-  plannedEpisodes: z.coerce.number().int().min(1).max(200),
-  featured: z.literal("on").optional(),
-});
-
-export async function saveSeriesAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
-  try {
-    const admin = await requireAdmin();
-    const d = seriesSchema.parse(Object.fromEntries(fd));
-    let coverKey: string | undefined;
-    const cover = fd.get("cover");
-    if (cover instanceof File && cover.size > 0) {
-      const f = await readValidatedFile(cover, ["jpeg", "png", "webp"], 3 * 1024 * 1024, "Capa").catch((e: Error) => ({ error: e.message }));
-      if ("error" in f) return { error: `${f.error} Usa JPG, PNG ou WEBP (600×900).` };
-      coverKey = newKey("covers", f.type === "jpeg" ? "jpg" : f.type!);
-      await putObject("media", coverKey, f.bytes, `image/${f.type}`);
-    }
-    if (d.featured) await db.series.updateMany({ where: { featured: true, NOT: { id: d.id } }, data: { featured: false } });
-    await db.series.update({
-      where: { id: d.id },
-      data: {
-        title: d.title, synopsis: d.synopsis, category: d.category, priceCoins: d.priceCoins === "" || d.priceCoins === undefined ? null : d.priceCoins,
-        freeEpisodes: d.freeEpisodes, plannedEpisodes: d.plannedEpisodes, featured: !!d.featured,
-        ...(coverKey ? { coverKey } : {}),
-      },
-    });
-    await audit(db, admin.id, "SERIES_UPDATED", "Series", d.id, { priceCoins: d.priceCoins ?? null, freeEpisodes: d.freeEpisodes });
-    revalidatePath(`/admin/series/${d.id}`);
-    return { ok: "Série guardada." };
-  } catch (e) { return toActionError(e); }
-}
-
 export async function setSeriesStatusAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
     const admin = await requireAdmin();
@@ -171,51 +132,6 @@ export async function setSeriesStatusAction(_: ActionResult, fd: FormData): Prom
   } catch (e) { return toActionError(e); }
 }
 
-const episodeSchema = z.object({
-  seriesId: z.string(),
-  id: z.string().optional(),
-  number: z.coerce.number().int().min(1).max(500),
-  title: z.string().trim().min(1).max(100),
-  synopsis: z.string().trim().max(500).optional(),
-  durationSec: z.coerce.number().int().min(0).max(3600),
-  endsWithHook: z.literal("on").optional(),
-  hookText: z.string().trim().max(200).optional(),
-  published: z.literal("on").optional(),
-});
-
-export async function saveEpisodeAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
-  try {
-    const admin = await requireAdmin();
-    const d = episodeSchema.parse(Object.fromEntries(fd));
-    const values = {
-      number: d.number, title: d.title, synopsis: d.synopsis || null, durationSec: d.durationSec,
-      endsWithHook: !!d.endsWithHook, hookText: d.hookText || null, published: !!d.published,
-    };
-    let subtitlesKey: string | undefined;
-    const subs = fd.get("subtitles");
-    if (subs instanceof File && subs.size > 0) {
-      const f = await readValidatedFile(subs, ["vtt"], 512 * 1024, "Legendas").catch((e: Error) => ({ error: e.message }));
-      if ("error" in f) return { error: `${f.error} Usa um ficheiro .vtt.` };
-      subtitlesKey = newKey("subtitles", "vtt");
-      await putObject("media", subtitlesKey, f.bytes, "text/vtt");
-    }
-    if (d.id) {
-      const ep = await db.episode.findUniqueOrThrow({ where: { id: d.id } });
-      if (values.published && !ep.videoKey) return { error: "Carrega o vídeo antes de publicar o episódio." };
-      const status = values.published ? "PUBLISHED" : ep.status === "PUBLISHED" ? "DRAFT" : ep.status;
-      await db.episode.update({ where: { id: d.id }, data: { ...values, status, ...(subtitlesKey ? { subtitlesKey } : {}) } });
-    } else {
-      if (await db.episode.findUnique({ where: { seriesId_number: { seriesId: d.seriesId, number: d.number } } }))
-        return { error: `Já existe o episódio ${d.number}.` };
-      await db.episode.create({ data: { seriesId: d.seriesId, ...values, published: false, ...(subtitlesKey ? { subtitlesKey } : {}) } });
-    }
-    await audit(db, admin.id, "EPISODE_SAVED", "Series", d.seriesId, { number: d.number });
-    revalidatePath(`/admin/series/${d.seriesId}`);
-    return { ok: "Episódio guardado." };
-  } catch (e) { return toActionError(e); }
-}
-
-/** Gera um link para o navegador enviar o vídeo diretamente para o armazenamento. */
 export async function createVideoUploadAction(targetId: string, quality: "low" | "medium" | "trailer" | "ad", contentType: string) {
   await requireAdmin();
   if (!["video/mp4", "video/webm"].includes(contentType)) throw new Error("O vídeo tem de ser MP4.");
@@ -346,6 +262,41 @@ export async function saveGiftTypeAction(_: ActionResult, fd: FormData): Promise
     await audit(db, admin.id, "GIFT_TYPE_SAVED", "GiftType", d.code, data);
     revalidatePath("/admin/moedas");
     return { ok: "Presente guardado." };
+  } catch (e) { return toActionError(e); }
+}
+
+// ---------- Destaque e Premium (o admin não edita a série; só decide onde aparece) ----------
+export async function setFeaturedAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const id = str(fd, "id");
+    const on = str(fd, "on") === "1";
+    const s = await db.series.findUniqueOrThrow({ where: { id } });
+    if (on && s.status !== "PUBLISHED") return { error: "Só uma série publicada pode ficar em destaque." };
+    await db.$transaction([
+      ...(on ? [db.series.updateMany({ where: { featured: true, NOT: { id } }, data: { featured: false } })] : []),
+      db.series.update({ where: { id }, data: { featured: on } }),
+    ]);
+    await audit(db, admin.id, on ? "SERIES_FEATURED" : "SERIES_UNFEATURED", "Series", id, {});
+    revalidatePath(`/admin/series/${id}`);
+    revalidatePath("/");
+    return { ok: on ? "Em destaque na página inicial." : "Já não está em destaque." };
+  } catch (e) { return toActionError(e); }
+}
+
+export async function setPremiumAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const id = str(fd, "id");
+    const on = str(fd, "on") === "1";
+    const s = await db.series.findUniqueOrThrow({ where: { id }, include: { artist: true } });
+    await db.series.update({ where: { id }, data: { tier: on ? "PREMIUM" : "NORMAL" } });
+    if (on && s.tier !== "PREMIUM") {
+      await notify(db, s.artist.userId, "Série Premium 💎", `A tua série "${s.title}" passou a Premium 💎! Agora ganhas mais por episódio.`, `/artista/series/${id}`);
+    }
+    await audit(db, admin.id, on ? "SERIES_PREMIUM_ON" : "SERIES_PREMIUM_OFF", "Series", id, { from: s.tier });
+    revalidatePath(`/admin/series/${id}`);
+    return { ok: on ? "Série marcada como Premium." : "Série voltou ao nível Normal." };
   } catch (e) { return toActionError(e); }
 }
 

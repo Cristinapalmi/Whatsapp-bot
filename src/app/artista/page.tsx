@@ -30,7 +30,8 @@ const SERIES_STATUS: Record<string, [string, string]> = {
   HIDDEN: ["Retirada", "badge-muted"],
 };
 
-export default async function ArtistDashboard() {
+export default async function ArtistDashboard({ searchParams }: { searchParams: Promise<{ apagada?: string }> }) {
+  const sp = await searchParams;
   const { artist } = await requireArtist();
 
   if (artist.status !== "APPROVED") {
@@ -60,7 +61,7 @@ export default async function ArtistDashboard() {
   const [wallet, stats, series, fans, ranking, payouts] = await Promise.all([
     getArtistWallet(db, artist.id),
     artistStats(artist.id),
-    db.series.findMany({ where: { artistId: artist.id }, orderBy: { createdAt: "desc" } }),
+    db.series.findMany({ where: { artistId: artist.id }, orderBy: { createdAt: "desc" }, include: { _count: { select: { episodes: true } } } }),
     topFans(db, artist.id, 3),
     monthlyRanking(db),
     db.payoutRequest.findMany({ where: { artistId: artist.id }, orderBy: { requestedAt: "desc" }, take: 3 }),
@@ -75,6 +76,7 @@ export default async function ArtistDashboard() {
 
   return (
     <div className="container-app max-w-3xl">
+      {sp.apagada && <p role="status" className="mb-3 rounded-xl bg-ok/15 px-4 py-3 text-sm text-ok">Série apagada.</p>}
       <h1 className="text-2xl font-bold">Olá, {artist.stageName}</h1>
       <p className="text-sm text-muted">Quanto mais assistirem às tuas séries, mais ganhas.</p>
 
@@ -194,7 +196,7 @@ export default async function ArtistDashboard() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold">{s.title}</p>
-                    <p className="text-xs text-muted">{s.plannedEpisodes} episódios · {s.freeEpisodes} grátis</p>
+                    <p className="text-xs text-muted">{s._count.episodes} {s._count.episodes === 1 ? "episódio" : "episódios"} · {s.freeEpisodes} grátis</p>
                   </div>
                   <div className="flex items-center gap-2">
                       <span className={SERIES_STATUS[s.status][1]}>{SERIES_STATUS[s.status][0]}</span>

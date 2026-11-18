@@ -186,6 +186,17 @@ model Series {
   /// Trailer vertical (~30 s) para o artista publicar no TikTok/Instagram.
   trailerKey       String?
   trailerUpdatedAt DateTime?
+  /// Classificação etária, idioma e etiquetas (escolhidos pelo artista)
+  ageRating        AgeRating     @default(ALL)
+  /// "PT" = Português; "PT_NATIONAL" = Português + línguas nacionais
+  language         String        @default("PT")
+  tags             String[]      @default([])
+  /// Nível de preço por episódio (Entrada / Normal / Premium)
+  tier             PriceTier     @default(ENTRY)
+  /// Série retirada pelo artista: sai logo do catálogo; quem desbloqueou vê 30 dias; depois os ficheiros são apagados
+  withdrawnAt      DateTime?
+  withdrawReason   String?
+  purgedAt         DateTime?
 
   episodes  Episode[]
   reports   Report[]
@@ -233,6 +244,19 @@ model Episode {
 }
 
 // ---------- Pagamentos ----------
+
+enum AgeRating {
+  ALL
+  AGE13
+  AGE16
+  AGE18
+}
+
+enum PriceTier {
+  ENTRY
+  NORMAL
+  PREMIUM
+}
 
 enum EpisodeStatus {
   DRAFT

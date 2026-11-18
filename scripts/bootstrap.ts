@@ -69,6 +69,22 @@ async function main() {
   }
 }
 
+// Séries retiradas há mais de 30 dias: apagar vídeos e capa (também corre todos os dias pelo cron).
+async function purge() {
+  const db3 = new PrismaClient();
+  try {
+    const { purgeWithdrawnSeries } = await import("../src/domain/series-workflow");
+    const { deleteObject } = await import("../src/domain/storage/core");
+    const n = await purgeWithdrawnSeries(db3, new Date(), (k) => deleteObject("media", k));
+    if (n) console.log(`[séries] Ficheiros de ${n} série(s) retirada(s) apagados.`);
+  } catch (e) {
+    console.warn("[séries] Aviso: limpeza de séries retiradas não correu:", e instanceof Error ? e.message : e);
+  } finally {
+    await db3.$disconnect().catch(() => {});
+  }
+}
+
 main()
+  .then(purge)
   .catch((e) => console.warn("[bootstrap] Aviso:", e))
   .finally(() => process.exit(0));

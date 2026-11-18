@@ -1,4 +1,4 @@
-import type { Category, PrismaClient } from "@prisma/client";
+import type { AgeRating, Category, Episode, PrismaClient, Series } from "@prisma/client";
 import { UserFacingError } from "./errors";
 import { audit, notify } from "./notify";
 import { slugify } from "@/lib/slug";
@@ -30,11 +30,18 @@ export async function getOwnedEpisode(db: PrismaClient, artistId: string, episod
 export const isEpisodeEditable = (status: string) => (EDITABLE_EPISODE as readonly string[]).includes(status);
 export const isSeriesEditable = (status: string) => (EDITABLE_SERIES as readonly string[]).includes(status);
 
-export async function createSeriesDraft(
-  db: PrismaClient,
-  artistId: string,
-  data: { title: string; synopsis: string; category: Category; plannedEpisodes: number; coverKey?: string | null },
-) {
+export type SeriesDetails = {
+  title: string;
+  synopsis: string;
+  category: Category;
+  plannedEpisodes?: number;
+  ageRating?: AgeRating;
+  language?: string;
+  tags?: string[];
+  coverKey?: string | null;
+};
+
+export async function createSeriesDraft(db: PrismaClient, artistId: string, data: SeriesDetails) {
   const base = slugify(data.title) || "serie";
   let slug = base;
   for (let i = 2; await db.series.findUnique({ where: { slug } }); i++) slug = `${base}-${i}`;
@@ -45,19 +52,17 @@ export async function createSeriesDraft(
       slug,
       synopsis: data.synopsis,
       category: data.category,
-      plannedEpisodes: data.plannedEpisodes,
+      plannedEpisodes: data.plannedEpisodes ?? 10,
+      ageRating: data.ageRating ?? "ALL",
+      language: data.language ?? "PT",
+      tags: data.tags ?? [],
       coverKey: data.coverKey ?? null,
       status: "DRAFT",
     },
   });
 }
 
-export async function updateSeriesDetails(
-  db: PrismaClient,
-  artistId: string,
-  seriesId: string,
-  data: { title: string; synopsis: string; category: Category; plannedEpisodes: number; coverKey?: string | null },
-) {
+export async function updateSeriesDetails(db: PrismaClient, artistId: string, seriesId: string, data: SeriesDetails) {
   const s = await getOwnedSeries(db, artistId, seriesId);
   if (!isSeriesEditable(s.status)) throw new UserFacingError("Esta série já foi enviada ou publicada. Para mudar os dados, fala com a equipa.");
   return db.series.update({
@@ -66,7 +71,10 @@ export async function updateSeriesDetails(
       title: data.title,
       synopsis: data.synopsis,
       category: data.category,
-      plannedEpisodes: data.plannedEpisodes,
+      ...(data.plannedEpisodes ? { plannedEpisodes: data.plannedEpisodes } : {}),
+      ...(data.ageRating ? { ageRating: data.ageRating } : {}),
+      ...(data.language ? { language: data.language } : {}),
+      ...(data.tags ? { tags: data.tags } : {}),
       ...(data.coverKey ? { coverKey: data.coverKey } : {}),
       ...(s.status === "REJECTED" ? { status: "DRAFT" as const } : {}),
     },
@@ -131,6 +139,30 @@ export async function deleteEpisode(db: PrismaClient, artistId: string, episodeI
   return { keys: [e.videoKey, e.videoKeyHd, e.subtitlesKey].filter((k): k is string => !!k && !k.startsWith("/")) };
 }
 
+export const MIN_EPISODES_TO_SUBMIT = 3;
+export const HOOK_EPISODE = 3;
+
+export type ChecklistItem = { ok: boolean; text: string };
+
+/** Lista de verificação antes de "Enviar para revisão" (o que falta, em linguagem simples). */
+export function reviewChecklist(s: Pick<Series, "status" | "coverKey" | "synopsis">, episodes: Pick<Episode, "number" | "status" | "videoKey" | "endsWithHook" | "hookText">[]): ChecklistItem[] {
+  const withVideo = episodes.filter((e) => e.videoKey).length;
+  const hookEp = episodes.find((e) => e.number === HOOK_EPISODE);
+  const hookOk = !!hookEp && hookEp.endsWithHook && !!hookEp.hookText?.trim();
+  if (!isSeriesEditable(s.status)) {
+    const pending = episodes.filter((e) => isEpisodeEditable(e.status));
+    const items: ChecklistItem[] = [{ ok: pending.some((e) => e.videoKey), text: "Pelo menos um episódio novo com vídeo" }];
+    if (hookEp && isEpisodeEditable(hookEp.status)) items.push({ ok: hookOk, text: `Episódio ${HOOK_EPISODE} com gancho e texto do gancho` });
+    return items;
+  }
+  return [
+    { ok: !!s.coverKey, text: "Capa carregada" },
+    { ok: s.synopsis.trim().length >= 20, text: "Sinopse escrita (pelo menos uma frase)" },
+    { ok: withVideo >= MIN_EPISODES_TO_SUBMIT, text: `Pelo menos ${MIN_EPISODES_TO_SUBMIT} episódios com vídeo (tens ${withVideo})` },
+    { ok: hookOk, text: `Episódio ${HOOK_EPISODE} marcado com gancho e com o texto do gancho` },
+  ];
+}
+
 /** "Enviar para revisão": a série (se for nova) e os episódios com vídeo ainda por enviar. */
 export async function submitForReview(db: PrismaClient, artistId: string, seriesId: string) {
   const s = await db.series.findUnique({ where: { id: seriesId }, include: { episodes: true, artist: true } });
@@ -138,8 +170,8 @@ export async function submitForReview(db: PrismaClient, artistId: string, series
   if (s.status === "HIDDEN") throw new UserFacingError("Esta série foi retirada.");
   const ready = s.episodes.filter((e) => isEpisodeEditable(e.status) && e.videoKey);
   const newSeries = isSeriesEditable(s.status);
-  if (newSeries && !s.coverKey) throw new UserFacingError("Carrega a capa antes de enviar.");
-  if (newSeries && !s.episodes.some((e) => e.videoKey)) throw new UserFacingError("Carrega o vídeo de pelo menos um episódio antes de enviar.");
+  const missing = reviewChecklist(s, s.episodes).filter((i) => !i.ok);
+  if (missing.length) throw new UserFacingError(`Antes de enviar falta: ${missing.map((m) => m.text.toLowerCase()).join("; ")}.`);
   if (!newSeries && ready.length === 0) throw new UserFacingError("Não há episódios novos com vídeo para enviar.");
   const missingVideo = s.episodes.filter((e) => isEpisodeEditable(e.status) && !e.videoKey).length;
   const now = new Date();
@@ -208,3 +240,63 @@ export async function reviewQueue(db: PrismaClient) {
 export async function reviewCount(db: PrismaClient) {
   return db.series.count({ where: { OR: [{ status: "IN_REVIEW" }, { episodes: { some: { status: "IN_REVIEW" } } }] } });
 }
+
+// ---------- Apagar / retirar ----------
+export const WITHDRAW_GRACE_DAYS = 30;
+
+/** Apagar uma série em Rascunho ou Recusada (nunca publicada). Devolve as chaves dos ficheiros a apagar. */
+export async function deleteSeries(db: PrismaClient, artistId: string, seriesId: string) {
+  const s = await db.series.findUnique({ where: { id: seriesId }, include: { episodes: true } });
+  if (!s || s.artistId !== artistId) throw new UserFacingError("Série não encontrada.");
+  if (!isSeriesEditable(s.status)) throw new UserFacingError("Só podes apagar séries em rascunho ou recusadas. Uma série publicada pode ser retirada.");
+  if (s.episodes.some((e) => e.status === "PUBLISHED" || e.status === "IN_REVIEW")) throw new UserFacingError("Esta série tem episódios publicados ou em revisão.");
+  const keys = [s.coverKey, s.trailerKey, ...s.episodes.flatMap((e) => [e.videoKey, e.videoKeyHd, e.subtitlesKey])].filter((k): k is string => !!k && !k.startsWith("/"));
+  await db.$transaction(async (tx) => {
+    await tx.setting.deleteMany({ where: { key: "suggestedSeriesId", value: s.id } });
+    await tx.series.delete({ where: { id: s.id } }); // episódios, favoritos, denúncias em cascata
+  });
+  return { keys };
+}
+
+/**
+ * "Retirar da KONTA": sai logo do catálogo, pesquisa, ranking e sugestão. Quem já desbloqueou
+ * episódios continua a vê-los durante 30 dias; depois os vídeos e a capa são apagados.
+ * O dinheiro ganho fica no saldo e os registos financeiros nunca são apagados.
+ */
+export async function withdrawSeries(db: PrismaClient, artistId: string, seriesId: string, reason?: string) {
+  const s = await getOwnedSeries(db, artistId, seriesId);
+  if (s.status !== "PUBLISHED") throw new UserFacingError("Só podes retirar séries publicadas.");
+  await db.$transaction([
+    db.series.update({ where: { id: s.id }, data: { status: "HIDDEN", featured: false, withdrawnAt: new Date(), withdrawReason: reason?.trim() || null } }),
+    db.setting.deleteMany({ where: { key: "suggestedSeriesId", value: s.id } }),
+  ]);
+  return s;
+}
+
+export const withdrawnUntil = (withdrawnAt: Date) => new Date(withdrawnAt.getTime() + WITHDRAW_GRACE_DAYS * 86400000);
+
+/** Depois dos 30 dias: apaga os vídeos, legendas, trailer e capa das séries retiradas. */
+export async function purgeWithdrawnSeries(db: PrismaClient, now = new Date(), del: (key: string) => Promise<unknown> = async () => {}) {
+  const limit = new Date(now.getTime() - WITHDRAW_GRACE_DAYS * 86400000);
+  const list = await db.series.findMany({ where: { withdrawnAt: { lt: limit }, purgedAt: null }, include: { episodes: true } });
+  for (const s of list) {
+    const keys = [s.coverKey, s.trailerKey, ...s.episodes.flatMap((e) => [e.videoKey, e.videoKeyHd, e.subtitlesKey])].filter((k): k is string => !!k && !k.startsWith("/"));
+    for (const k of keys) await del(k).catch(() => {});
+    await db.$transaction([
+      db.episode.updateMany({ where: { seriesId: s.id }, data: { videoKey: null, videoKeyHd: null, subtitlesKey: null, published: false } }),
+      db.series.update({ where: { id: s.id }, data: { coverKey: null, trailerKey: null, purgedAt: now } }),
+    ]);
+  }
+  return list.length;
+}
+
+/**
+ * Séries que ainda se podem ver: publicadas, ou retiradas pelo artista há menos de 30 dias
+ * (só para quem já tinha desbloqueado — não aparecem no catálogo nem se desbloqueiam).
+ */
+export const watchableSeriesWhere = (now = new Date()) => ({
+  OR: [
+    { status: "PUBLISHED" as const },
+    { status: "HIDDEN" as const, purgedAt: null, withdrawnAt: { gte: new Date(now.getTime() - WITHDRAW_GRACE_DAYS * 86400000) } },
+  ],
+});

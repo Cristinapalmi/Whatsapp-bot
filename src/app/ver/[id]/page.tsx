@@ -9,6 +9,8 @@ import { pointsBalance } from "@/domain/points";
 import { coinBalance, episodePriceCoins } from "@/domain/coins/service";
 import { adOfferStatus } from "@/domain/ads/service";
 import { houseAdProvider } from "@/domain/ads/provider";
+import { watchableSeriesWhere, withdrawnUntil } from "@/domain/series-workflow";
+import { formatDate } from "@/lib/dates";
 import { ReelPlayer } from "./ReelPlayer";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function WatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const episode = await db.episode.findFirst({
-    where: { id, published: true, series: { status: "PUBLISHED" } },
+    where: { id, published: true, series: watchableSeriesWhere() },
     include: {
       series: {
         include: {
@@ -51,7 +53,13 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
     houseAdProvider.pickAd(db, new Date()),
   ]);
   // Oferta única com anúncio: só se ainda estiver livre (ou para convidar a criar conta) e houver anúncios
-  const adOffer = !!ads && (user ? (await adOfferStatus(db, user)).available : true);
+  // Série retirada pelo artista: só ficam os episódios desbloqueados, até ao fim do prazo
+  const withdrawn = series.status !== "PUBLISHED" && series.withdrawnAt ? withdrawnUntil(series.withdrawnAt) : null;
+  if (withdrawn) {
+    for (const e of series.episodes) if (states[e.id] !== "unlocked") states[e.id] = "locked";
+    if (!user || !Object.values(states).includes("unlocked")) notFound();
+  }
+  const adOffer = !withdrawn && !!ads && (user ? (await adOfferStatus(db, user)).available : true);
 
   return (
     <ReelPlayer
@@ -67,7 +75,8 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
       adUnlockedIds={adEnts.map((e) => e.episodeId)}
       isFavorite={!!fav}
       loggedIn={!!user}
-      gifts={gifts.map((g) => ({ code: g.code, label: g.label, emoji: g.emoji, priceCoins: g.priceCoins }))}
+      withdrawnNotice={withdrawn ? `Esta série foi retirada pelo artista. Podes ver os episódios que desbloqueaste até ${formatDate(withdrawn)}.` : null}
+      gifts={withdrawn ? [] : gifts.map((g) => ({ code: g.code, label: g.label, emoji: g.emoji, priceCoins: g.priceCoins }))}
     />
   );
 }
