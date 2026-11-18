@@ -24,29 +24,60 @@ export default async function CreatorsPage() {
     getInts(db, ["founderMonths", "founderSharePercent", "payoutFirstMinKz", "pendingDays"]),
   ]);
   const coinKz = cheapest ? cheapest.priceKz / cheapest.coins : 10;
-  const cta = isArtist ? { href: "/artista", label: "Ir para o meu painel" } : { href: "/artista/registar", label: "Quero ser criador KONTA" };
+  const share = business.artistSharePercent;
+  const cta = isArtist ? { href: "/artista", label: "Ir para o meu painel" } : { href: "/artista/registar", label: "QUERO GANHAR DINHEIRO" };
 
   return (
     <div className="container-app max-w-2xl">
-      <section className="rounded-3xl bg-gradient-to-br from-accent/30 via-surface to-surface p-6">
-        <span className="rounded-full bg-accent2/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-accent2">Área dos criadores</span>
-        <h1 className="mt-3 font-display text-3xl font-extrabold leading-tight">A tua história pode valer muito mais.</h1>
-        <p className="mt-2 text-fg/90">Fazes minisséries no TikTok ou no Instagram? Na {brand.name}, o público vê os 3 primeiros episódios grátis e paga para continuar. Cada desbloqueio é dinheiro para ti.</p>
-        <Link href={cta.href} className="btn-primary mt-4 no-underline">{cta.label}</Link>
-        <p className="mt-3 text-xs font-semibold text-accent2">Publica. Conquista. Monetiza.</p>
+      <section className="glow-gold rounded-3xl border border-accent2/30 bg-[radial-gradient(90%_100%_at_100%_0%,rgb(var(--c-accent)/0.35),transparent_60%),linear-gradient(150deg,#26170c,#120b06)] p-6">
+        <span className="rounded-full bg-accent2/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-accent2">KONTA | Para criadores</span>
+        <h1 className="mt-3 font-hero text-3xl font-black uppercase leading-tight sm:text-4xl">Criador, está na hora de <span className="text-accent2">ganhares mais!</span></h1>
+        <p className="mt-2 text-lg font-bold text-fg">As tuas séries podem pôr mais dinheiro no teu bolso.</p>
+        <p className="mt-2 text-fg/85">Publica as tuas minisséries na KONTA e ganha dinheiro com cada episódio desbloqueado pelos teus fãs. Não dependas só das publis. Cria as tuas próprias fontes de rendimento!</p>
+        <Link href={cta.href} className="btn-glow mt-4 rounded-full font-extrabold no-underline">{cta.label}</Link>
+        <p className="mt-3 text-sm font-bold text-accent">Entra gratuitamente. Publica as tuas séries. Ganha em kwanzas.</p>
       </section>
 
-      <section className="mt-4 grid grid-cols-2 gap-3">
-        <div className="card text-center">
-          <p className="text-xs text-muted">A {brand.name} já pagou aos criadores</p>
-          <p className="font-display text-2xl font-extrabold text-ok">{paid > 0 ? formatKz(paid) : "—"}</p>
-          {paid === 0 && <p className="text-[11px] text-muted">Os primeiros pagamentos vão aparecer aqui.</p>}
+      {/* Três destaques */}
+      <section className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="card-warm glow-accent p-4">
+          <p className="font-hero text-4xl font-black text-accent2">{c.founderSharePercent}%</p>
+          <p className="mt-1 text-sm font-bold text-fg">para os primeiros {founders.limit} Artistas Fundadores, durante {c.founderMonths} meses</p>
+          <p className="mt-2 inline-block rounded-full bg-accent/20 px-2.5 py-1 text-xs font-bold text-accent">{founders.left > 0 ? `Restam ${founders.left} de ${founders.limit} vagas` : "Vagas esgotadas"}</p>
         </div>
-        <div className="card text-center">
-          <p className="text-xs text-muted">Vagas de Artista Fundador</p>
-          <p className="font-display text-2xl font-extrabold text-accent">{founders.left} de {founders.limit}</p>
-          <p className="text-[11px] text-muted">Ganham mais nos primeiros {c.founderMonths} meses</p>
+        <div className="card-warm p-4">
+          <p className="font-hero text-3xl font-black text-accent2">{kzLabel(c.payoutFirstMinKz)}</p>
+          <p className="mt-1 text-sm font-bold text-fg">Levantamento a partir de {kzLabel(c.payoutFirstMinKz)} (primeiro levantamento)</p>
+          <p className="mt-1 text-xs text-muted">Por Multicaixa Express ou IBAN.</p>
         </div>
+        <div className="card-warm p-4">
+          <p className="font-hero text-3xl font-black text-accent2">0 Kz</p>
+          <p className="mt-1 text-sm font-bold text-fg">Sem pagar para entrar: nada de pacotes, níveis ou taxas de inscrição.</p>
+        </div>
+      </section>
+
+      {/* Como dividimos o dinheiro */}
+      <section className="mt-8">
+        <h2 className="text-xl font-bold">Como dividimos o dinheiro</h2>
+        <p className="mt-1 text-sm text-fg/90">Ganhas quando os teus fãs pagam para ver. De cada episódio desbloqueado:</p>
+        <div className="mt-3 overflow-hidden rounded-2xl border border-white/10">
+          <div className="flex h-16 text-center font-hero font-black">
+            <div className="flex flex-col items-center justify-center bg-gradient-to-r from-accent to-accent2 text-[#1A0E05]" style={{ width: `${share}%` }}>
+              <span className="text-2xl leading-none">{share}%</span><span className="text-[11px] font-bold">para ti</span>
+            </div>
+            <div className="flex flex-col items-center justify-center bg-surface2 text-fg" style={{ width: `${100 - share}%` }}>
+              <span className="text-2xl leading-none">{100 - share}%</span><span className="text-[11px] font-bold">para a KONTA</span>
+            </div>
+          </div>
+        </div>
+        <p className="mt-3 text-sm text-fg/85">A metade da KONTA paga os servidores, os vídeos, a divulgação das tuas séries e a equipa.</p>
+        <p className="mt-2 rounded-xl bg-accent2/15 px-3 py-2 text-sm font-semibold text-accent2">Fundadores: {c.founderSharePercent}% para ti nos primeiros {c.founderMonths} meses.</p>
+      </section>
+
+      <section className="mt-6 card text-center">
+        <p className="text-xs text-muted">A {brand.name} já pagou aos criadores</p>
+        <p className="font-display text-2xl font-extrabold text-ok">{paid > 0 ? formatKz(paid) : "—"}</p>
+        {paid === 0 && <p className="text-[11px] text-muted">Os primeiros pagamentos vão aparecer aqui.</p>}
       </section>
 
       <h2 className="mt-8 text-xl font-bold">Como funciona</h2>

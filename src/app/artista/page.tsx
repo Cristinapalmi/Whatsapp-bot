@@ -11,7 +11,8 @@ import { getObjectUrl } from "@/domain/storage";
 import { trailerCaption } from "@/domain/trailer";
 import { monthlyRanking, sortByRevenue, sortByViews } from "@/domain/ranking";
 import { ArtistGrowth } from "./ArtistGrowth";
-import { artistMoneySnapshot, artistShareFor, earningsHistory, seriesAudience, topSpenders } from "@/domain/artists/growth";
+import { artistMoneySnapshot, artistShareFor, earningsHistory, founderUntil, seriesAudience, topSpenders } from "@/domain/artists/growth";
+import { getInts } from "@/domain/settings";
 import { artistLevel, recentActivity, seriesTodayCents, starterChecklist } from "@/domain/artists/dashboard";
 import { weeklyPosition } from "@/domain/creator-ranking";
 import { StatusHeader } from "./painel/StatusHeader";
@@ -84,6 +85,7 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
     starterChecklist(db, artist),
   ]);
   const link = artistLink(artist.slug);
+  const fUntil = artist.founderNumber ? founderUntil(artist.createdAt, (await getInts(db, ["founderMonths"])).founderMonths) : null;
   const history = {
     days: days.map((d) => ({ start: d.start.toISOString(), cents: d.cents })),
     weeks: weeks.map((d) => ({ start: d.start.toISOString(), cents: d.cents })),
@@ -100,7 +102,7 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
   return (
     <div className="container-app max-w-3xl">
       {sp.apagada && <p role="status" className="mb-3 rounded-xl bg-ok/15 px-4 py-3 text-sm text-ok">Série apagada.</p>}
-      <StatusHeader artist={artist} level={level} crowned={series.some((s) => s.crownedAt)} />
+      <StatusHeader artist={artist} level={level} crowned={series.some((s) => s.crownedAt)} share={{ percent: share, founderUntil: fUntil && fUntil > new Date() ? fUntil : null }} />
 
       {isNew && <StarterChecklist tasks={tasks} percent={checklist.percent} />}
 
@@ -172,7 +174,7 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
         )}
       </section>
 
-      <p className="mt-6 flex items-center gap-2 text-xs text-muted"><IconChart size={16} /> Ganhas {share}% do valor das moedas que os fãs gastam nas tuas séries e nos presentes que te oferecem.</p>
+      <p className="mt-6 flex items-center gap-2 text-xs text-muted"><IconChart size={16} /> De cada desbloqueio e presente: {share}% para ti, {100 - share}% para a KONTA (servidores, vídeos, divulgação e equipa).</p>
     </div>
   );
 }

@@ -48,6 +48,9 @@ export default async function ArtistAgreement() {
         Telefone: {blank} · E-mail: {blank}
       </p>
 
+      <h2>Como dividimos o dinheiro</h2>
+      <p>Ganhas quando os teus fãs pagam para ver. De cada episódio desbloqueado (e de cada presente): <strong>{pct}% para ti, {100 - pct}% para a {n}</strong>. A metade da {n} paga os servidores, os vídeos, a divulgação das tuas séries e a equipa. <strong>Artistas Fundadores: {c.founderSharePercent}% para ti nos primeiros {c.founderMonths} meses</strong> (e {100 - c.founderSharePercent}% para a {n}).</p>
+
       <h2>O que ganhas com a {n}</h2>
       <ul>
         <li><strong>{pct}% de tudo o que o público gastar</strong> nas tuas séries: episódios, temporadas e presentes.</li>

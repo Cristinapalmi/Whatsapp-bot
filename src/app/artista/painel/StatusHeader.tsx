@@ -1,13 +1,16 @@
 import { mediaUrl } from "@/lib/media";
 import { IconStar } from "@/components/icons";
+import { formatDate } from "@/lib/dates";
 
 const TIER: Record<string, string> = { ENTRY: "Entrada", NORMAL: "Normal ⭐", PREMIUM: "Premium 💎" };
 
 /** Topo com estatuto: foto com anel de progresso para o próximo nível, nome e selos. */
-export async function StatusHeader({ artist, level, crowned }: {
+export async function StatusHeader({ artist, level, crowned, share }: {
   artist: { stageName: string; photoKey: string | null; founderNumber: number | null; verifiedAt: Date | null };
   level: { tier: null | "ENTRY" | "NORMAL" | "PREMIUM"; progress: number; now: number; target: number };
   crowned: boolean;
+  /** A parte do artista agora (50% ou 70% para Fundadores nos primeiros meses) e até quando. */
+  share: { percent: number; founderUntil: Date | null };
 }) {
   const photo = await mediaUrl(artist.photoKey);
   const R = 46;
@@ -33,6 +36,7 @@ export async function StatusHeader({ artist, level, crowned }: {
           {artist.founderNumber && <span className="badge-free"><IconStar size={12} /> Fundador n.º {artist.founderNumber}</span>}
           {artist.verifiedAt && <span className="badge-unlocked">✓ Verificado</span>}
           {level.tier && <span className="badge-price">Nível {TIER[level.tier]}</span>}
+          <span className="badge-unlocked">{share.founderUntil ? `A tua parte: ${share.percent}% — Fundador, até ${formatDate(share.founderUntil)}` : `A tua parte: ${share.percent}%`}</span>
         </div>
         <p className="mt-1 text-xs text-muted">
           {!level.tier

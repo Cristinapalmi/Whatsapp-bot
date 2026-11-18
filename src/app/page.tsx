@@ -246,11 +246,12 @@ export default async function Home() {
         <section className="container-app mt-8">
           <div className="glow-gold relative grid min-h-[250px] grid-cols-[58%_42%] overflow-hidden rounded-3xl border border-accent2/30 bg-[radial-gradient(90%_120%_at_100%_100%,rgb(var(--c-accent)/0.45),transparent_60%),radial-gradient(80%_90%_at_0%_0%,rgb(var(--c-accent2)/0.20),transparent_55%),linear-gradient(150deg,#26170c,#120b06)] sm:min-h-[300px]">
             <div className="relative z-10 flex flex-col justify-center p-4 sm:p-7">
-              <span className="self-start rounded-full bg-accent2/20 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-accent2 max-[339px]:text-[9px]">Área dos criadores</span>
-              <h2 className="mt-3 font-display text-[1.35rem] font-extrabold leading-tight text-fg max-[339px]:text-lg sm:text-3xl">A tua história pode valer <span className="text-accent2">muito mais.</span></h2>
-              <p className="mt-2 text-[13px] text-fg/85 max-[339px]:text-xs sm:text-sm">Transforma as tuas minisséries numa fonte de rendimento.</p>
-              <Link href="/criadores" className="btn-glow mt-4 self-start px-4 py-2.5 text-sm no-underline max-[339px]:px-3 max-[339px]:text-xs">Quero ser criador KONTA</Link>
-              <p className="mt-3 text-[11px] font-bold text-accent max-[339px]:text-[10px]">Publica. Conquista. Monetiza.</p>
+              <span className="self-start rounded-full bg-accent2/20 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-accent2 max-[339px]:text-[9px]">KONTA | Para criadores</span>
+              <h2 className="mt-3 font-hero text-[1.2rem] font-black uppercase leading-tight text-fg max-[339px]:text-base sm:text-3xl">Criador, está na hora de <span className="text-accent2">ganhares mais!</span></h2>
+              <p className="mt-2 text-[13px] font-bold text-fg max-[339px]:text-xs sm:text-base">As tuas séries podem pôr mais dinheiro no teu bolso.</p>
+              <p className="mt-1.5 text-[11.5px] leading-snug text-fg/80 max-[339px]:text-[10.5px] sm:text-sm">Publica as tuas minisséries na KONTA e ganha dinheiro com cada episódio desbloqueado pelos teus fãs. Não dependas só das publis. Cria as tuas próprias fontes de rendimento!</p>
+              <Link href="/criadores" className="btn-glow mt-3 self-start whitespace-nowrap rounded-full px-3.5 py-2 text-[12px] font-extrabold leading-none no-underline max-[339px]:px-2.5 max-[339px]:text-[10.5px] sm:px-5 sm:text-sm">QUERO GANHAR DINHEIRO</Link>
+              <p className="mt-2.5 text-[10.5px] font-bold text-accent max-[339px]:text-[9.5px] sm:text-xs">Entra gratuitamente. Publica as tuas séries. Ganha em kwanzas.</p>
             </div>
             <div className="relative">
               {/* brilho por trás da foto (mistura o fundo preto da foto com o cartão) */}
