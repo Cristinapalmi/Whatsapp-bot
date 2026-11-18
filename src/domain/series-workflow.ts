@@ -211,7 +211,7 @@ export async function approveReview(db: PrismaClient, adminId: string, seriesId:
     db,
     s.artist.userId,
     s.status === "IN_REVIEW" ? "A tua série foi publicada!" : "Episódios publicados",
-    s.status === "IN_REVIEW" ? `"${s.title}" já está no catálogo. Partilha o teu link!` : `${inReview.length} episódio(s) novo(s) de "${s.title}" já estão visíveis.`,
+    s.status === "IN_REVIEW" ? `"${s.title}" já está no catálogo. O teu kit de promoção (imagem para o estado + texto) já está pronto na página da série!` : `${inReview.length} episódio(s) novo(s) de "${s.title}" já estão visíveis.`,
     `/artista/series/${s.id}`,
   );
   // Quem segue o artista recebe aviso

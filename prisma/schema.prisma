@@ -38,6 +38,13 @@ model User {
   suggestionSeenDay  String?
   /// Quando a oferta de boas-vindas foi mostrada pela 1.ª vez (contagem de 24 h, nunca recomeça).
   welcomeOfferStartedAt DateTime?
+  /// Código pessoal de convite de fã (link /convite/CODIGO).
+  inviteCode         String?   @unique
+  /// Bloqueado nos pontos (batota nos convites): não ganha pontos de convites nem de presença.
+  pointsBlocked      Boolean   @default(false)
+  /// Aparelho e ligação usados no registo (só para detetar contas repetidas nos convites).
+  signupDeviceId     String?
+  signupIp           String?
   /// Autenticação em 2 passos (app de autenticação, TOTP) — obrigatória para a admin.
   totpSecret         String?
   totpEnabled        Boolean  @default(false)
@@ -62,6 +69,8 @@ model User {
   coinSpends         CoinSpend[]
   favorites          Favorite[]
   follows            Follow[]
+  invitesSent        FanInvite[] @relation("inviter")
+  inviteReceived     FanInvite?  @relation("invitee")
   adViews            AdView[]
   adUnlocks          AdUnlock[]
 }
@@ -586,6 +595,8 @@ model PointsTransaction {
   delta     Int
   /// "EPISODE_COMPLETED" | "REDEEM_EPISODE" | "ADMIN_ADJUST"
   reason    String
+  /// Chave única para pontos que só se podem dar uma vez (convites, presença diária).
+  refKey    String?        @unique
   episodeId String?
   episode   Episode?       @relation(fields: [episodeId], references: [id], onDelete: SetNull)
   /// Artista do episódio (para o "Fã n.º 1").
@@ -807,4 +818,27 @@ model Follow {
 
   @@unique([userId, artistId])
   @@index([artistId])
+}
+
+/// Convite de fã ("Mano, vê esta série…"). Os pontos só entram se o amigo voltar outro dia e vir outro episódio.
+model FanInvite {
+  id             String    @id @default(cuid())
+  inviterId      String
+  inviter        User      @relation("inviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  inviteeId      String    @unique
+  invitee        User      @relation("invitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  /// PENDING (à espera) | VALID (pontos dados) | SUSPICIOUS (para o admin ver) | VOID (anulado) | EXPIRED (não voltou) | LIMIT (passou o limite do mês)
+  status         String    @default("PENDING")
+  reason         String?
+  deviceId       String?
+  ip             String?
+  firstWatchAt   DateTime?
+  firstWatchDay  String?
+  returnedAt     DateTime?
+  validatedAt    DateTime?
+  purchaseBonusAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([inviterId, status])
+  @@index([status, createdAt])
 }

@@ -10,6 +10,10 @@ import { formatDate } from "@/lib/dates";
 import { episodePriceCoins, paidUnlocks, tierUpgradeUnlocks } from "@/domain/coins/service";
 import { HOOK_EPISODE, isEpisodeEditable, isSeriesEditable, reviewChecklist, withdrawnUntil } from "@/domain/series-workflow";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { PromoKit } from "@/components/PromoKit";
+import { promoText } from "@/lib/promo";
+import { brand, siteUrl } from "@config/brand";
+import { getObjectUrl } from "@/domain/storage";
 import { DirectVideoUpload } from "@/components/DirectVideoUpload";
 import { SeriesDetailsFields } from "@/components/SeriesDetailsFields";
 import { IconCheck, IconFilm, IconX } from "@/components/icons";
@@ -193,6 +197,22 @@ export default async function ManageSeriesPage({ params, searchParams }: { param
             <SubmitButton className="btn-primary w-full" pendingText="A enviar…">Enviar para revisão</SubmitButton>
           </ActionForm>
           {!canSubmit && <p className="mt-2 text-xs text-muted">Completa o que está marcado com ✗ para poderes enviar.</p>}
+        </section>
+      )}
+
+      {/* Kit de promoção (série publicada) */}
+      {s.status === "PUBLISHED" && (
+        <section className="mt-6">
+          <h2 className="text-lg font-bold">Kit de promoção 📣</h2>
+          <p className="text-sm text-muted">Imagem pronta para o teu estado do WhatsApp e stories, com o link e o código QR. {s.trailerKey ? "Usa também o trailer." : ""}</p>
+          <div className="card mt-2">
+            <PromoKit
+              imageUrl={`/api/kit/${s.id}`}
+              title={s.title}
+              trailerUrl={s.trailerKey ? await getObjectUrl("media", s.trailerKey, 6 * 3600, { downloadName: `trailer-${s.slug}.mp4` }) : null}
+              text={promoText({ title: s.title, hook: s.episodes.find((e) => e.number === s.freeEpisodes)?.hookText, link: `${siteUrl()}/serie/${s.slug}`, brand: brand.name, free: s.freeEpisodes })}
+            />
+          </div>
         </section>
       )}
 

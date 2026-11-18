@@ -7,12 +7,13 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();
-  const [payments, payouts, artists, review, reports] = await Promise.all([
+  const [payments, payouts, artists, review, reports, invites] = await Promise.all([
     db.paymentRequest.count({ where: { status: "PENDING" } }),
     db.payoutRequest.count({ where: { status: "PROCESSING" } }),
     db.artistProfile.count({ where: { status: "PENDING" } }),
     reviewCount(db),
     db.report.count({ where: { status: "OPEN" } }),
+    db.fanInvite.count({ where: { status: "SUSPICIOUS" } }),
   ]);
   const links: [string, string, number][] = [
     ["/admin", "Resumo", 0],
@@ -25,6 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ["/admin/artistas", "Artistas", artists],
     ["/admin/series", "Séries", 0],
     ["/admin/denuncias", "Denúncias", reports],
+    ["/admin/convites", "Convites", invites],
     ["/admin/exportacoes", "Exportações", 0],
   ];
   return (

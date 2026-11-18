@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { deleteObject } from "@/domain/storage";
 import { purgeWithdrawnSeries } from "@/domain/series-workflow";
 import { sendDailySummaries } from "@/domain/artists/growth";
+import { processPendingInvites } from "@/domain/fans/invites";
 
 /**
  * Tarefas diárias (a Vercel chama às 22:40 de Luanda com "Authorization: Bearer <CRON_SECRET>"):
@@ -14,6 +15,7 @@ export async function GET(req: Request) {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`)
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const summaries = await sendDailySummaries(db);
+  const invites = await processPendingInvites(db);
   const purged = await purgeWithdrawnSeries(db, new Date(), (k) => deleteObject("media", k));
-  return NextResponse.json({ summaries, purged });
+  return NextResponse.json({ summaries, invites, purged });
 }

@@ -36,3 +36,15 @@ a { @apply underline-offset-4; }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
+
+/* Animação dos presentes por cima do vídeo */
+@keyframes giftpop {
+  0% { opacity: 0; transform: translateY(30px) scale(0.6); }
+  12% { opacity: 1; transform: translateY(0) scale(1.15); }
+  22% { transform: scale(1); }
+  80% { opacity: 1; transform: translateY(-20px); }
+  100% { opacity: 0; transform: translateY(-60px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes giftpop { 0%, 100% { opacity: 1; } }
+}

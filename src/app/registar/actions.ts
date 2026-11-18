@@ -1,6 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { recordInviteOnSignup } from "@/domain/fans/invites";
 import { z } from "zod";
 import { business } from "@config/business";
 import { db } from "@/lib/db";
@@ -34,7 +35,10 @@ export async function registerAction(_: ActionResult, fd: FormData): Promise<Act
       return { error: "Já existe uma conta com este número. Entra com a tua palavra-passe." };
     const meta = await requestMeta();
     // "Vieram por ti": artista cujo link pessoal trouxe esta pessoa
-    const refId = (await cookies()).get("ref")?.value;
+    const jar = await cookies();
+    const refId = jar.get("ref")?.value;
+    const deviceId = jar.get("did")?.value?.slice(0, 64) ?? null;
+    const inviteCode = jar.get("amigo")?.value?.slice(0, 16) ?? null;
     const referrer = refId ? await db.artistProfile.findFirst({ where: { id: refId, status: "APPROVED" }, select: { id: true } }) : null;
     const user = await db.user.create({
       data: {
@@ -43,6 +47,8 @@ export async function registerAction(_: ActionResult, fd: FormData): Promise<Act
         passwordHash: await hashPassword(data.password),
         birthDate: data.birthDate,
         referredByArtistId: referrer?.id ?? null,
+        signupDeviceId: deviceId,
+        signupIp: ip,
         consents: {
           create: [
             { document: "TERMS", version: business.legalVersions.terms, ...meta },
@@ -52,6 +58,8 @@ export async function registerAction(_: ActionResult, fd: FormData): Promise<Act
       },
     });
     await recordAttempt(data.phone, ip, "register", true);
+    // Convite de um amigo (link com ?amigo=CODIGO)
+    if (inviteCode) await recordInviteOnSignup(db, { inviteeId: user.id, code: inviteCode, deviceId, ip }).catch((e) => console.error("convite", e));
     await createSession(user.id);
     if (data.next?.startsWith("/") && !data.next.startsWith("//")) next = data.next;
   } catch (e) {

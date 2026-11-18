@@ -219,3 +219,17 @@ export async function notifyFollowers(db: PrismaClient, artistId: string, title:
   await db.notification.createMany({ data: follows.map((f) => ({ userId: f.userId, title, body, link })) });
   return follows.length;
 }
+
+/** Artistas de quem este fã é Superfã (está nos 10 maiores fãs). */
+export async function superfanOf(db: Tx, userId: string) {
+  const spent = await db.coinSpend.groupBy({ by: ["artistId"], where: { userId, reversedAt: null }, _sum: { coins: true }, orderBy: { _sum: { coins: "desc" } }, take: 10 });
+  const out: { artistId: string; stageName: string; slug: string; rank: number }[] = [];
+  for (const s of spent) {
+    const top = await topSpenders(db, s.artistId, 10);
+    const rank = top.findIndex((t) => t.userId === userId);
+    if (rank < 0) continue;
+    const a = await db.artistProfile.findUnique({ where: { id: s.artistId }, select: { stageName: true, slug: true } });
+    if (a) out.push({ artistId: s.artistId, stageName: a.stageName, slug: a.slug, rank: rank + 1 });
+  }
+  return out;
+}

@@ -8,6 +8,8 @@ import { formatDateTime } from "@/lib/dates";
 import { formatPhone } from "@/lib/phone";
 import { pointsBalance } from "@/domain/points";
 import { coinBalance } from "@/domain/coins/service";
+import { inviteSummary } from "@/domain/fans/invites";
+import { superfanOf } from "@/domain/artists/growth";
 import { PaymentStatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { IconBell, IconBookmark, IconChevronRight, IconCoin, IconLogout, IconPlay, IconShield, IconStar, IconWallet } from "@/components/icons";
@@ -18,6 +20,7 @@ export const dynamic = "force-dynamic";
 export default async function AccountPage({ searchParams }: { searchParams: Promise<{ pedido?: string }> }) {
   const user = await requireUser("/conta");
   const { pedido } = await searchParams;
+  const [inv, superfan] = await Promise.all([inviteSummary(db, user.id), superfanOf(db, user.id)]);
   const [coins, points, favCount, unread, pass, payments, unlocked] = await Promise.all([
     coinBalance(db, user.id),
     pointsBalance(db, user.id),
@@ -71,7 +74,17 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         </Link>
       </section>
       {pass && <p className="mt-3 rounded-xl bg-ok/10 px-4 py-3 text-sm text-ok">Tens um passe semanal ativo até {formatDateTime(pass.endsAt)}.</p>}
-      <p className="mt-3 text-xs text-muted">Ganhas +{business.points.perCompletedEpisode} pontos por cada episódio que vês até ao fim. Os pontos não valem dinheiro.</p>
+      {(inv.ambassador || superfan.length > 0) && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {inv.ambassador && <span className="badge-free">🏅 Embaixador</span>}
+          {superfan.map((f) => <Link key={f.artistId} href={`/${f.slug}`} className="badge-price no-underline">⭐ Superfã de {f.stageName}</Link>)}
+        </div>
+      )}
+      <Link href="/convidar" className="card mt-3 flex items-center justify-between no-underline hover:bg-surface2">
+        <span><strong className="text-fg">Convidar amigos</strong><span className="block text-xs text-muted">Ganhem pontos os dois · {inv.valid}/{inv.ambassadorTarget} para Embaixador</span></span>
+        <IconChevronRight size={18} className="text-muted" />
+      </Link>
+      <p className="mt-3 text-xs text-muted">Ganhas +{business.points.perCompletedEpisode} pontos por cada episódio que vês até ao fim. Também ganhas pontos por abrir a app todos os dias e por convidar amigos. Os pontos não valem dinheiro (100 pontos = 1 episódio).</p>
 
       <section className="mt-6">
         <h2 className="text-lg font-bold">Episódios desbloqueados</h2>

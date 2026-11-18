@@ -7,6 +7,7 @@ import { postEntry } from "../money/ledger";
 import { weekKey } from "../money/weeks";
 import { notify, audit } from "../notify";
 import { welcomeOffer } from "../coins/welcome";
+import { onInviteePurchaseConfirmed } from "../fans/invites";
 import { UserFacingError } from "../errors";
 import { formatKz, kzToCents } from "@/lib/money";
 import { creditCoinLot, reverseCoinPurchase } from "../coins/service";
@@ -195,6 +196,8 @@ export async function confirmPayment(
       const netCents = p.amountCents - p.feeCents;
       if (netCents < 0) throw new UserFacingError("A comissão não pode ser maior que o valor pago.");
       await creditCoinLot(tx, { id: p.id, userId: p.userId, coins: p.coins, netCents, adminId });
+      // Convites de fãs: 1.ª compra confirmada do amigo → pontos para quem convidou (uma vez)
+      await onInviteePurchaseConfirmed(tx, p.userId);
       await audit(tx, adminId, "PAYMENT_CONFIRMED", "PaymentRequest", p.id, { kind: "COINS", coins: p.coins, netCents });
       return { payment: p, artistCents: 0, platformCents: 0 };
     }

@@ -8,7 +8,7 @@ import { CATEGORY_LABELS } from "@/lib/categories";
 import { SeriesCard } from "@/components/SeriesCard";
 import { RefTracker } from "@/components/RefTracker";
 import { IconTrophy } from "@/components/icons";
-import { topFans } from "@/domain/points";
+import { topSpenders } from "@/domain/artists/growth";
 import { getCurrentUser } from "@/lib/auth";
 import { FollowButton } from "@/components/FollowButton";
 
@@ -34,7 +34,7 @@ export default async function ArtistPublicPage({ params }: { params: Promise<{ s
   const user = await getCurrentUser();
   const [photo, fans, followers, isFollowing] = await Promise.all([
     mediaUrl(artist.photoKey),
-    topFans(db, artist.id, 3),
+    topSpenders(db, artist.id, 10),
     db.follow.count({ where: { artistId: artist.id } }),
     user ? db.follow.findUnique({ where: { userId_artistId: { userId: user.id, artistId: artist.id } } }).then(Boolean) : false,
   ]);
@@ -84,12 +84,13 @@ export default async function ArtistPublicPage({ params }: { params: Promise<{ s
 
       {fans.length > 0 && (
         <section className="card mt-8">
-          <h2 className="flex items-center gap-2 text-lg font-bold"><IconTrophy size={20} className="text-accent2" /> Maiores fãs</h2>
+          <h2 className="flex items-center gap-2 text-lg font-bold"><IconTrophy size={20} className="text-accent2" /> Superfãs de {artist.stageName}</h2>
+          <p className="text-xs text-muted">Os 10 fãs que mais apoiam. Ganham o selo ⭐ Superfã.</p>
           <ol className="mt-2 space-y-1">
             {fans.map((f, i) => (
               <li key={f.userId} className="flex justify-between text-sm">
                 <span>{i === 0 ? <strong className="text-accent2">Fã n.º 1 · {f.displayName}</strong> : `${i + 1}. ${f.displayName}`}</span>
-                <span className="text-muted">{f.points} pontos</span>
+                <span className="text-accent2">⭐ Superfã</span>
               </li>
             ))}
           </ol>

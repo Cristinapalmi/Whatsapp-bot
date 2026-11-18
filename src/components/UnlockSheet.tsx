@@ -32,6 +32,8 @@ type Props = {
   payLines: { label: string; value: string }[];
   payerPhone: string;
   hook: string | null;
+  /** Mostra "Partilha o gancho" (no fim do último episódio grátis). */
+  shareHook?: { url: string; title: string } | null;
   arrivedFromAd: boolean;
   pendingPayment: boolean;
   onUnlocked: (via: "coins" | "points" | "ad") => void;
@@ -200,6 +202,32 @@ export function UnlockSheet(p: Props) {
               </button>
             )}
             {error && <p role="alert" className="rounded-xl bg-danger/15 px-3 py-2 text-sm text-danger">{error}</p>}
+
+            {p.shareHook && p.hook && (
+              <div className="rounded-2xl border border-accent2/40 p-3">
+                <p className="text-sm font-semibold">Partilha o gancho 🔥</p>
+                <p className="text-xs text-muted">Se um amigo entrar pelo teu link e vir um episódio inteiro, ganham pontos (regras dos convites).</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <a
+                    className="btn-secondary btn-sm no-underline"
+                    target="_blank"
+                    rel="noreferrer"
+                    href={`https://wa.me/?text=${encodeURIComponent(`“${p.hook}” 😱\nVê "${p.shareHook.title}" — os primeiros episódios são grátis 👉 ${p.shareHook.url}`)}`}
+                  >WhatsApp</a>
+                  <button
+                    type="button"
+                    className="btn-secondary btn-sm"
+                    onClick={async () => {
+                      const text = `“${p.hook}” 😱 Vê "${p.shareHook!.title}" 👉 ${p.shareHook!.url}`;
+                      try {
+                        if (navigator.share) await navigator.share({ title: p.shareHook!.title, text, url: p.shareHook!.url });
+                        else await navigator.clipboard.writeText(text);
+                      } catch {}
+                    }}
+                  >TikTok / outro</button>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 p-3 opacity-80">
               <IconCrown size={22} className="shrink-0 text-accent2" />

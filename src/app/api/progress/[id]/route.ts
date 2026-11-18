@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { canWatch, episodeStates, hasActivePass } from "@/domain/access";
 import { dayLuanda } from "@/lib/dates";
 import { awardCompletionPoints } from "@/domain/points";
+import { onInviteeCompletion } from "@/domain/fans/invites";
 import { business } from "@config/business";
 
 const schema = z.object({
@@ -61,5 +62,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
   // Pontos de fã (sem valor em dinheiro): +10 na primeira vez que vê o episódio até ao fim
   const pointsAwarded = firstCompletion ? await awardCompletionPoints(db, user.id, id, episode.series.artistId) : false;
+  // Convites de fãs: o amigo viu um episódio inteiro (tempo validado aqui no servidor)
+  if (firstCompletion) await onInviteeCompletion(db, user.id).catch((e) => console.error("convite", e));
   return NextResponse.json({ ok: true, firstCompletion, points: pointsAwarded ? business.points.perCompletedEpisode : 0 });
 }

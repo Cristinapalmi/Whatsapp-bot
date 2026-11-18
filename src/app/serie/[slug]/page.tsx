@@ -28,7 +28,14 @@ async function load(slug: string) {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const s = await load((await params).slug);
-  return s ? { title: s.title, description: s.synopsis } : {};
+  if (!s) return {};
+  const image = `/api/og/serie/${s.slug}`;
+  return {
+    title: s.title,
+    description: s.synopsis,
+    openGraph: { title: s.title, description: `Os ${s.freeEpisodes} primeiros episódios são grátis. ${s.synopsis}`.slice(0, 200), images: [{ url: image, width: 1200, height: 630 }], type: "video.tv_show" },
+    twitter: { card: "summary_large_image", images: [image] },
+  };
 }
 
 export default async function SeriesPage({ params }: { params: Promise<{ slug: string }> }) {

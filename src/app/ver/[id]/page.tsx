@@ -10,6 +10,9 @@ import { coinBalance, episodePriceCoins, packBonusPercent, seasonOffer } from "@
 import { welcomeOffer } from "@/domain/coins/welcome";
 import { manualProvider } from "@/domain/payments/providers/manual";
 import { formatPhone } from "@/lib/phone";
+import { siteUrl } from "@config/brand";
+import { ensureInviteCode } from "@/domain/fans/invites";
+import { publicName } from "@/domain/points";
 import { adOfferStatus } from "@/domain/ads/service";
 import { houseAdProvider } from "@/domain/ads/provider";
 import { watchableSeriesWhere, withdrawnUntil } from "@/domain/series-workflow";
@@ -62,6 +65,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
     user ? db.paymentRequest.count({ where: { userId: user.id, kind: "COINS", status: "PENDING" } }) : 0,
     manualProvider.initiate({ paymentRequestId: "", amountCents: 0, description: "" }),
   ]);
+  const inviteCode = user ? await ensureInviteCode(db, user.id) : null;
   const basePack = packs.reduce((a, pk) => (pk.priceKz < a.priceKz ? pk : a), packs[0] ?? { priceKz: 1, coins: 1 });
   // Oferta única com anúncio: só se ainda estiver livre (ou para convidar a criar conta) e houver anúncios
   // Série retirada pelo artista: só ficam os episódios desbloqueados, até ao fim do prazo
@@ -92,6 +96,8 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
       payLines={instructions.type === "instructions" ? instructions.lines.filter((l) => l.label !== "Valor a transferir") : []}
       payerPhone={user ? formatPhone(user.phone) : ""}
       pendingPayment={pendingPayment > 0}
+      shareUrl={`${siteUrl()}/serie/${series.slug}${inviteCode ? `?amigo=${inviteCode}` : ""}`}
+      viewerName={user ? publicName(user.name) : null}
       withdrawnNotice={withdrawn ? `Esta série foi retirada pelo artista. Podes ver os episódios que desbloqueaste até ${formatDate(withdrawn)}.` : null}
       gifts={withdrawn ? [] : gifts.map((g) => ({ code: g.code, label: g.label, emoji: g.emoji, priceCoins: g.priceCoins }))}
     />

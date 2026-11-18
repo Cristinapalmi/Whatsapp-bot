@@ -24,6 +24,10 @@ type Props = {
   payLines: { label: string; value: string }[];
   payerPhone: string;
   pendingPayment: boolean;
+  /** Link para partilhar (com o código de convite de quem partilha). */
+  shareUrl: string;
+  /** Nome curto de quem está a ver (para a animação do presente). */
+  viewerName: string | null;
   /** Série retirada: aviso no topo e sem desbloqueios. */
   withdrawnNotice?: string | null;
   balance: number;
@@ -69,6 +73,9 @@ export function ReelPlayer(p: Props) {
   const [caption, setCaption] = useState<string | null>(null);
   const [lockClosed, setLockClosed] = useState(false);
   const [season, setSeason] = useState(p.season);
+  const [giftFx, setGiftFx] = useState<{ id: string; text: string; emoji: string } | null>(null);
+  const seenGifts = useRef<Set<string>>(new Set());
+  const giftQueue = useRef<{ id: string; text: string; emoji: string }[]>([]);
   const trackRef = useRef<HTMLTrackElement>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -271,10 +278,39 @@ export function ReelPlayer(p: Props) {
       flash(r.saved ? "Guardada na tua lista" : "Retirada da tua lista");
     }
   }
+  // ---------- animação dos presentes ("Paulo enviou uma 👑 Coroa!") ----------
+  const showGift = useCallback((g: { id: string; text: string; emoji: string }) => {
+    if (seenGifts.current.has(g.id)) return;
+    seenGifts.current.add(g.id);
+    giftQueue.current.push(g);
+    setGiftFx((cur) => cur ?? giftQueue.current.shift() ?? null);
+  }, []);
+  useEffect(() => {
+    if (!giftFx) return;
+    const t = setTimeout(() => setGiftFx(giftQueue.current.shift() ?? null), 3200);
+    return () => clearTimeout(t);
+  }, [giftFx]);
+  useEffect(() => {
+    let since = Date.now() - 60_000;
+    let stop = false;
+    const tick = async () => {
+      if (document.hidden) return;
+      try {
+        const r = await fetch(`/api/presentes/recentes?artista=${p.artist.id}&desde=${since}`, { cache: "no-store" }).then((x) => x.json());
+        if (stop) return;
+        since = r.now ?? Date.now();
+        for (const g of r.gifts ?? []) showGift({ id: g.id, text: `${g.name} enviou ${g.label === "Coroa" ? "uma" : "um"} ${g.emoji} ${g.label}!`, emoji: g.emoji });
+      } catch {}
+    };
+    tick();
+    const t = setInterval(tick, 20_000);
+    return () => { stop = true; clearInterval(t); };
+  }, [p.artist.id, showGift]);
+
   async function share() {
-    const url = `${window.location.origin}/serie/${p.series.slug}`;
+    const url = p.shareUrl;
     try {
-      if (navigator.share) await navigator.share({ title: p.series.title, text: `Vê "${p.series.title}" — os primeiros episódios são grátis!`, url });
+      if (navigator.share) await navigator.share({ title: p.series.title, text: `Mano, vê esta série, está a bater! 🔥 Os ${p.series.freeEpisodes} primeiros episódios são grátis 👉`, url });
       else {
         await navigator.clipboard.writeText(url);
         flash("Link copiado");
@@ -302,7 +338,7 @@ export function ReelPlayer(p: Props) {
     if (r.ok) {
       setBalance((b) => b - g.priceCoins);
       setSheet(null);
-      flash(`${g.emoji} ${g.label} enviado a ${p.artist.name}!`);
+      showGift({ id: (r.ok && r.id) || `me-${Date.now()}`, text: `${p.viewerName ?? "Tu"} enviou ${g.label === "Coroa" ? "uma" : "um"} ${g.emoji} ${g.label}!`, emoji: g.emoji });
     } else flash(r.error);
   }
 
@@ -404,6 +440,7 @@ export function ReelPlayer(p: Props) {
             payLines={p.payLines}
             payerPhone={p.payerPhone}
             hook={hook}
+            shareHook={prev && prev.number === p.series.freeEpisodes ? { url: p.shareUrl, title: p.series.title } : null}
             arrivedFromAd={arrivedFromAd}
             pendingPayment={p.pendingPayment}
             onUnlocked={(via) => unlocked(ep.id, via)}
@@ -512,6 +549,12 @@ export function ReelPlayer(p: Props) {
           </div>
         )}
 
+        {giftFx && (
+          <div key={giftFx.id} role="status" className="pointer-events-none absolute inset-x-0 top-1/4 z-30 flex flex-col items-center animate-[giftpop_3.2s_ease-out_forwards]">
+            <span className="text-7xl drop-shadow-2xl">{giftFx.emoji}</span>
+            <span className="mt-2 rounded-full bg-black/60 px-4 py-2 text-sm font-bold text-accent2">{giftFx.text}</span>
+          </div>
+        )}
         {toast && (
           <div role="status" className="absolute inset-x-6 top-20 z-20 mx-auto flex max-w-xs items-center justify-center gap-2 rounded-2xl bg-accent2 px-4 py-3 text-center font-semibold text-[#1A0E05] shadow-xl">
             <IconStar size={18} /> {toast}

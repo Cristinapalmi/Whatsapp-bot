@@ -16,6 +16,7 @@ import { runDemoCleanup } from "@/domain/demo-cleanup";
 import { approveReview, rejectReview } from "@/domain/series-workflow";
 import { audit, notify } from "@/domain/notify";
 import { saveIntGroup } from "@/domain/settings";
+import { blockFromPoints, voidInvite } from "@/domain/fans/invites";
 import { deleteObject, getUploadUrl, inspectObject, newKey, putObject } from "@/domain/storage";
 import { MAX_VIDEO_BYTES, readValidatedFile, sniff } from "@/lib/filetype";
 import { UserFacingError } from "@/domain/errors";
@@ -438,5 +439,24 @@ export async function verifyArtistAction(_: ActionResult, fd: FormData): Promise
     revalidatePath("/admin/levantamentos");
     revalidatePath("/admin/artistas");
     return { ok: "Artista verificado. Já podes marcar o levantamento como pago." };
+  } catch (e) { return toActionError(e); }
+}
+
+// ---------- Convites de fãs ----------
+export async function voidInviteAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    await voidInvite(db, admin.id, str(fd, "id"));
+    revalidatePath("/admin/convites");
+    return { ok: "Pontos do convite anulados." };
+  } catch (e) { return toActionError(e); }
+}
+
+export async function blockFromPointsAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    await blockFromPoints(db, admin.id, str(fd, "userId"));
+    revalidatePath("/admin/convites");
+    return { ok: "Bloqueado: já não ganha pontos de convites nem de presença." };
   } catch (e) { return toActionError(e); }
 }

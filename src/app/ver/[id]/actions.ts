@@ -6,7 +6,7 @@ import { UserFacingError } from "@/domain/errors";
 import { sendGiftWithCoins, unlockEpisodeWithCoins, unlockSeasonWithCoins } from "@/domain/coins/service";
 import { redeemEpisodeWithPoints } from "@/domain/points";
 
-export type UnlockResult = { ok: true; message?: string } | { ok: false; error: string; code?: string };
+export type UnlockResult = { ok: true; message?: string; id?: string } | { ok: false; error: string; code?: string };
 
 function fail(e: unknown): UnlockResult {
   if (e instanceof UserFacingError) return { ok: false, error: e.message, code: e.code };
@@ -58,8 +58,8 @@ export async function sendGiftAction(artistId: string, giftCode: string): Promis
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Entra na tua conta para oferecer presentes.", code: "LOGIN" };
   try {
-    await sendGiftWithCoins(db, { userId: user.id, artistId, giftCode });
-    return { ok: true, message: "Presente entregue. Obrigado pelo apoio!" };
+    const spend = await sendGiftWithCoins(db, { userId: user.id, artistId, giftCode });
+    return { ok: true, message: "Presente entregue. Obrigado pelo apoio!", id: spend.id };
   } catch (e) {
     return fail(e);
   }

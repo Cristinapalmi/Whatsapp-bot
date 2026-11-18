@@ -31,6 +31,16 @@ export const INT_SETTINGS = [
   { group: "artistas", key: "payoutMinKz", label: "Levantamentos seguintes: mínimo (Kz)", def: 5000, min: 1, max: 10000000 },
   { group: "artistas", key: "artistReferralBonusKz", label: "“Traz um kamba”: bónus por artista convidado (Kz)", def: 2000, min: 0, max: 10000000 },
   { group: "artistas", key: "tiktokViewsPerUnlock", label: "Comparação: 1 desbloqueio ≈ quantas visualizações no TikTok", def: 500, min: 1, max: 1000000 },
+  // Fãs: convites, presença, embaixador (pontos não são dinheiro)
+  { group: "fas", key: "inviteWatchPoints", label: "Convite: pontos para cada um quando o amigo vê e volta", def: 50, min: 0, max: 10000 },
+  { group: "fas", key: "invitePurchasePoints", label: "Convite: pontos quando o amigo faz a 1.ª compra", def: 200, min: 0, max: 100000 },
+  { group: "fas", key: "invitePendingHours", label: "Convite: horas em espera antes de dar os pontos", def: 48, min: 0, max: 720 },
+  { group: "fas", key: "inviteExpireDays", label: "Convite: dias para o amigo voltar (senão não conta)", def: 14, min: 1, max: 365 },
+  { group: "fas", key: "inviteMonthlyLimit", label: "Convites com prémio por mês (por pessoa)", def: 10, min: 0, max: 1000 },
+  { group: "fas", key: "ambassadorInvites", label: "Convites válidos para ser Embaixador", def: 5, min: 1, max: 1000 },
+  { group: "fas", key: "dailyPresencePoints", label: "Pontos de presença por dia", def: 5, min: 0, max: 1000 },
+  { group: "fas", key: "streakDays", label: "Dias seguidos para o bónus", def: 7, min: 2, max: 365 },
+  { group: "fas", key: "streakBonusPoints", label: "Bónus de dias seguidos (pontos)", def: 30, min: 0, max: 10000 },
 ] as const satisfies readonly IntSetting[];
 
 export type IntSettingKey = (typeof INT_SETTINGS)[number]["key"];
