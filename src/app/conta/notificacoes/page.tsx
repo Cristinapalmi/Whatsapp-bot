@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
+import { EmptyState } from "@/components/EmptyState";
+import { IconBell } from "@/components/icons";
 
 export const metadata: Metadata = { title: "Notificações" };
 export const dynamic = "force-dynamic";
@@ -15,7 +17,7 @@ export default async function NotificationsPage() {
   return (
     <div className="container-app max-w-2xl">
       <h1 className="text-2xl font-bold">Notificações</h1>
-      {items.length === 0 && <p className="mt-4 text-muted">Sem notificações.</p>}
+      {items.length === 0 && <EmptyState icon={<IconBell size={24} />} title="Sem notificações" text="Avisamos-te aqui quando as tuas moedas entrarem e quando houver novidades." action={{ href: "/", label: "Descobrir séries em alta" }} />}
       <ul className="mt-4 space-y-2">
         {items.map((n) => (
           <li key={n.id} className={`card ${n.readAt ? "" : "ring-1 ring-accent/50"}`}>

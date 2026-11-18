@@ -27,6 +27,9 @@ export const STATEMENT_LABELS: Record<StatementLine["type"], string> = {
 
 function classify(entryKind: string, paymentKind: string | null | undefined): StatementLine["type"] {
   if (entryKind === "PAYMENT_CONFIRMED") return paymentKind === "GIFT" ? "GIFT" : paymentKind === "EPISODE" ? "EPISODE" : "OTHER";
+  if (entryKind === "COIN_SPEND_EPISODE") return "EPISODE";
+  if (entryKind === "COIN_SPEND_GIFT") return "GIFT";
+  if (entryKind === "COIN_SPEND_REVERSED") return "REVERSAL";
   if (entryKind === "PASS_DISTRIBUTION" || entryKind === "PASS_ROLLOVER") return "PASS";
   if (entryKind === "PAYMENT_REVERSED") return "REVERSAL";
   if (entryKind === "PAYOUT_REQUESTED") return "PAYOUT_REQUEST";

@@ -25,6 +25,9 @@ const KIND_LABEL: Record<string, string> = {
   PAYOUT_REJECTED: "Levantamento devolvido",
   PASS_DISTRIBUTION: "Passe semanal",
   PASS_ROLLOVER: "Passe semanal",
+  COIN_SPEND_EPISODE: "Episódio desbloqueado",
+  COIN_SPEND_GIFT: "Presente recebido",
+  COIN_SPEND_REVERSED: "Ganho anulado",
 };
 
 export default async function WalletPage() {
@@ -105,7 +108,7 @@ export default async function WalletPage() {
           <Link href="/extrato" className="btn-secondary btn-sm no-underline">Extrato mensal (PDF/CSV)</Link>
         </div>
         <ul className="mt-2 divide-y divide-white/5 rounded-2xl bg-surface px-4">
-          {movements.length === 0 && <li className="py-3 text-sm text-muted">Sem movimentos.</li>}
+          {movements.length === 0 && <li className="py-6 text-center text-sm text-muted">Ainda sem movimentos. Cada episódio desbloqueado e cada presente nas tuas séries aparecem aqui.</li>}
           {movements.map((m) => (
             <li key={m.id} className="flex items-center justify-between gap-3 py-3 text-sm">
               <div>
