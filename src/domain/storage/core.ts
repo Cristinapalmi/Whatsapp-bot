@@ -174,3 +174,26 @@ export async function deleteObject(b: Bucket, key: string) {
 }
 
 export const sha256 = (data: Buffer) => crypto.createHash("sha256").update(data).digest("hex");
+
+/**
+ * Lê os primeiros bytes e o tamanho de um ficheiro já guardado (para confirmar, no servidor,
+ * que um vídeo enviado diretamente pelo navegador é mesmo um vídeo e não passa do limite).
+ */
+export async function inspectObject(b: Bucket, key: string, headBytes = 32): Promise<{ head: Uint8Array; size: number } | null> {
+  if (key.startsWith("/")) return null;
+  try {
+    if (driver() === "local") {
+      const data = await fs.readFile(localPath(b, key));
+      return { head: new Uint8Array(data.subarray(0, headBytes)), size: data.length };
+    }
+    const url = await getObjectUrl(b, key, 120);
+    const res = await fetch(url, { headers: { Range: `bytes=0-${headBytes - 1}` } });
+    if (!res.ok && res.status !== 206) return null;
+    const head = new Uint8Array(await res.arrayBuffer()).subarray(0, headBytes);
+    const range = res.headers.get("content-range"); // "bytes 0-31/12345"
+    const size = range ? Number(range.split("/")[1]) : Number(res.headers.get("content-length") ?? 0);
+    return { head, size: Number.isFinite(size) ? size : 0 };
+  } catch {
+    return null;
+  }
+}

@@ -25,7 +25,6 @@ export default async function AdminSeriesDetail({ params }: { params: Promise<{ 
   const defaultPrice = await defaultEpisodePriceCoins(db);
   const isSuggested = (await db.setting.findUnique({ where: { key: "suggestedSeriesId" } }))?.value === s.id;
   const trailer = await mediaUrl(s.trailerKey);
-  const trailerCmd = `npm run trailer -- ${s.slug}`;
   const nextNumber = (s.episodes.at(-1)?.number ?? 0) + 1;
 
   return (
@@ -109,13 +108,8 @@ export default async function AdminSeriesDetail({ params }: { params: Promise<{ 
         <div className="space-y-3 text-sm">
           <p>Vídeo vertical de ~30 s: excerto do episódio 1 + cartão final "O resto está em … · link na bio" com o link pessoal do artista.</p>
           {s.trailerUpdatedAt && <p className="text-muted">Atualizado: {formatDateTime(s.trailerUpdatedAt)}</p>}
-          <p className="font-semibold">Gerar automaticamente (no teu computador):</p>
-          <div className="flex items-center gap-2 rounded-xl bg-surface2 px-3 py-2 font-mono text-xs">
-            <span className="flex-1 break-all">{trailerCmd}</span>
-            <CopyButton text={trailerCmd} label="Copiar comando" />
-          </div>
-          <p className="text-xs text-muted">Opções: <code>--inicio 12</code> (segundo onde começa), <code>--duracao 20</code>, <code>--episodio 2</code>. Ver docs/TRAILERS.md.</p>
-          <VideoUploader episodeId={s.id} quality="trailer" hasVideo={!!s.trailerKey} label="Ou carregar um trailer feito à mão" />
+          <p className="text-xs text-muted">Normalmente é o artista que carrega o trailer no painel dele. Podes também carregar um aqui.</p>
+          <VideoUploader episodeId={s.id} quality="trailer" hasVideo={!!s.trailerKey} label="Carregar trailer" />
         </div>
       </div>
 

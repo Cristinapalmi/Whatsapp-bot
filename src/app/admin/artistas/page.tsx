@@ -11,11 +11,11 @@ import { reviewArtistAction } from "../actions";
 
 export const metadata: Metadata = { title: "Artistas" };
 
-const TABS: [ArtistStatus, string][] = [["PENDING", "Pendentes"], ["APPROVED", "Aprovados"], ["REJECTED", "Rejeitados"], ["SUSPENDED", "Suspensos"]];
+const TABS: [ArtistStatus, string][] = [["APPROVED", "Ativos"], ["SUSPENDED", "Suspensos"], ["PENDING", "Pendentes (antigos)"], ["REJECTED", "Rejeitados"]];
 
 export default async function AdminArtists({ searchParams }: { searchParams: Promise<{ estado?: string }> }) {
   const { estado } = await searchParams;
-  const status = (TABS.find(([s]) => s === estado)?.[0] ?? "PENDING") as ArtistStatus;
+  const status = (TABS.find(([s]) => s === estado)?.[0] ?? "APPROVED") as ArtistStatus;
   const artists = await db.artistProfile.findMany({
     where: { status },
     orderBy: { createdAt: "asc" },
@@ -26,6 +26,7 @@ export default async function AdminArtists({ searchParams }: { searchParams: Pro
   return (
     <div>
       <h1 className="text-2xl font-bold">Artistas</h1>
+      <p className="mt-1 text-sm text-muted">Os artistas ficam ativos logo no registo. Podes suspender quem não cumprir as regras. O BI e o IBAN são verificados no primeiro levantamento.</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {TABS.map(([s, label]) => (
           <Link key={s} href={`/admin/artistas?estado=${s}`} className={s === status ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>{label}</Link>
@@ -50,6 +51,7 @@ export default async function AdminArtists({ searchParams }: { searchParams: Pro
                 <dt className="text-muted">Categoria</dt><dd>{CATEGORY_LABELS[a.category]}</dd>
                 <dt className="text-muted">Link</dt><dd>/{a.slug}</dd>
                 <dt className="text-muted">Registo</dt><dd>{formatDateTime(a.createdAt)}</dd>
+                <dt className="text-muted">Verificação</dt><dd>{a.verifiedAt ? <span className="text-ok">BI e IBAN verificados ({formatDateTime(a.verifiedAt)})</span> : <span className="text-muted">Por verificar (é pedida no primeiro levantamento)</span>}</dd>
                 <dt className="text-muted">Política</dt>
                 <dd>{a.user.consents.length}/5 caixas aceites{a.user.consents[0] ? ` · versão ${a.user.consents[0].version} · ${formatDateTime(a.user.consents[0].acceptedAt)}` : ""}</dd>
                 {a.rejectionReason && <><dt className="text-muted">Motivo</dt><dd className="text-danger">{a.rejectionReason}</dd></>}

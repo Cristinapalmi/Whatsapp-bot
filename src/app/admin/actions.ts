@@ -13,6 +13,7 @@ import { closeEndedWeeks } from "@/domain/payments/pass";
 import { setSetting } from "@/domain/coins/service";
 import { distributeAdPool, registerAdRevenue } from "@/domain/ads/service";
 import { runDemoCleanup } from "@/domain/demo-cleanup";
+import { approveReview, rejectReview } from "@/domain/series-workflow";
 import { audit, notify } from "@/domain/notify";
 import { getUploadUrl, newKey, putObject } from "@/domain/storage";
 import { UserFacingError } from "@/domain/errors";
@@ -47,6 +48,8 @@ export async function reversePaymentAction(_: ActionResult, fd: FormData): Promi
 export async function markPayoutPaidAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
     const admin = await requireAdmin();
+    const payout = await db.payoutRequest.findUnique({ where: { id: str(fd, "id") }, include: { artist: true } });
+    if (payout && !payout.artist.verifiedAt) return { error: "Primeiro verifica o BI e o IBAN deste artista (botão acima)." };
     let proofKey: string | undefined;
     const file = fd.get("proof");
     if (file instanceof File && file.size > 0) {
@@ -199,7 +202,8 @@ export async function saveEpisodeAction(_: ActionResult, fd: FormData): Promise<
     if (d.id) {
       const ep = await db.episode.findUniqueOrThrow({ where: { id: d.id } });
       if (values.published && !ep.videoKey) return { error: "Carrega o vídeo antes de publicar o episódio." };
-      await db.episode.update({ where: { id: d.id }, data: { ...values, ...(subtitlesKey ? { subtitlesKey } : {}) } });
+      const status = values.published ? "PUBLISHED" : ep.status === "PUBLISHED" ? "DRAFT" : ep.status;
+      await db.episode.update({ where: { id: d.id }, data: { ...values, status, ...(subtitlesKey ? { subtitlesKey } : {}) } });
     } else {
       if (await db.episode.findUnique({ where: { seriesId_number: { seriesId: d.seriesId, number: d.number } } }))
         return { error: `Já existe o episódio ${d.number}.` };
@@ -434,5 +438,40 @@ export async function forceDemoCleanupAction(_: ActionResult, _fd: FormData): Pr
     if (r.status === "done") return { ok: "Séries de exemplo apagadas. As moedas e os pontos gastos nelas foram devolvidos aos fãs." };
     if (r.status === "blocked") return { error: "Ainda há pagamentos ou levantamentos ligados ao demo que precisam de decisão manual. Fala com o suporte técnico." };
     return { ok: "Não havia nada para apagar." };
+  } catch (e) { return toActionError(e); }
+}
+
+// ---------- Revisão de séries ----------
+export async function approveReviewAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  const id = str(fd, "id");
+  try {
+    const admin = await requireAdmin();
+    await approveReview(db, admin.id, id);
+    revalidatePath("/admin/revisao");
+  } catch (e) { return toActionError(e); }
+  redirect("/admin/revisao?feito=aprovado");
+}
+
+export async function rejectReviewAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  const id = str(fd, "id");
+  try {
+    const admin = await requireAdmin();
+    await rejectReview(db, admin.id, id, str(fd, "reason"));
+    revalidatePath("/admin/revisao");
+  } catch (e) { return toActionError(e); }
+  redirect("/admin/revisao?feito=recusado");
+}
+
+// ---------- Verificação do artista (antes do primeiro levantamento) ----------
+export async function verifyArtistAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const id = str(fd, "artistId");
+    if (fd.get("confirm") !== "on") return { error: "Confirma que viste o BI e que o IBAN/número está em nome do artista." };
+    await db.artistProfile.update({ where: { id }, data: { verifiedAt: new Date(), verifiedById: admin.id } });
+    await audit(db, admin.id, "ARTIST_VERIFIED", "ArtistProfile", id);
+    revalidatePath("/admin/levantamentos");
+    revalidatePath("/admin/artistas");
+    return { ok: "Artista verificado. Já podes marcar o levantamento como pago." };
   } catch (e) { return toActionError(e); }
 }

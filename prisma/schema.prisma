@@ -121,10 +121,13 @@ model ArtistProfile {
   photoKey        String?
   slug            String       @unique // link pessoal: dominio/slug
   bio             String?
-  status          ArtistStatus @default(PENDING)
+  status          ArtistStatus @default(APPROVED)
   rejectionReason String?
   approvedAt      DateTime?
   approvedById    String?
+  /// Verificação do BI e do IBAN pela administração (exigida antes do primeiro levantamento pago).
+  verifiedAt      DateTime?
+  verifiedById    String?
   createdAt       DateTime     @default(now())
 
   series             Series[]
@@ -140,6 +143,7 @@ model ArtistProfile {
 }
 
 enum SeriesStatus {
+  DRAFT // rascunho: o artista ainda está a preparar
   IN_REVIEW // enviada pelo artista, em análise
   APPROVED // aprovada, mas ainda sem episódios publicados
   PUBLISHED // visível ao público
@@ -181,24 +185,29 @@ model Series {
 }
 
 model Episode {
-  id           String   @id @default(cuid())
-  seriesId     String
-  series       Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  number       Int
-  title        String
-  synopsis     String?
+  id              String        @id @default(cuid())
+  seriesId        String
+  series          Series        @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  number          Int
+  title           String
+  synopsis        String?
   /// Vídeo em qualidade baixa (360p) — usado por defeito / modo poupar dados.
-  videoKey     String?
+  videoKey        String?
   /// Vídeo em qualidade média (480p), opcional.
-  videoKeyHd   String?
+  videoKeyHd      String?
   /// Legendas em WebVTT (.vtt), opcional.
-  subtitlesKey String?
-  durationSec  Int      @default(0)
+  subtitlesKey    String?
+  durationSec     Int           @default(0)
   /// Marca o episódio que termina em suspense (normalmente o último grátis).
-  endsWithHook Boolean  @default(false)
-  hookText     String?
-  published    Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  endsWithHook    Boolean       @default(false)
+  hookText        String?
+  /// Visível ao público (= status PUBLISHED). Mantido para as consultas existentes.
+  published       Boolean       @default(false)
+  /// Rascunho → Em revisão → Publicado / Recusado
+  status          EpisodeStatus @default(DRAFT)
+  rejectionReason String?
+  submittedAt     DateTime?
+  createdAt       DateTime      @default(now())
 
   entitlements       Entitlement[]
   watchProgress      WatchProgress[]
@@ -214,6 +223,13 @@ model Episode {
 }
 
 // ---------- Pagamentos ----------
+
+enum EpisodeStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+  REJECTED
+}
 
 enum PaymentKind {
   EPISODE // (antigo) compra de episódio em Kz — desativado, mantido para o histórico

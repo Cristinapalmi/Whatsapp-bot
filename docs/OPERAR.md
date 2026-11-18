@@ -86,8 +86,11 @@ Cada artista tem um **extrato mensal** (Carteira → "Extrato mensal") que pode 
 - No fim de cada episódio passa sozinho ao seguinte; num episódio bloqueado aparece o cartão de desbloqueio (moedas, anúncio único, comprar moedas).
 - Vídeos verticais (9:16) ocupam o ecrã todo; vídeos horizontais aparecem ao centro com a capa desfocada por trás.
 
-## Primeiro artista e primeira série (passo a passo)
-1. Num telemóvel (ou janela anónima), abre o site → **Conta/Entrar → "Regista-te como artista"** (ou vai a `/artista/registar`). Preenche os dados e as 5 caixas.
-2. Como admin: **Admin → Artistas** → **Aprovar**.
-3. O artista entra no painel → **Enviar nova série** (nome, link do TikTok/Instagram, n.º de episódios).
-4. Como admin: **Admin → Séries** → abre a série → carrega a **capa**, **Adicionar episódio** (n.º 1) → **Escolher vídeo** (MP4 vertical, 360p) → marca **Publicado** e guarda → **Publicar** a série.
+## O artista faz tudo, a admin só verifica e publica
+1. O artista regista-se em `/artista/registar` e fica **logo ativo**.
+2. No painel: **Nova série** (título, sinopse, categoria, capa vertical, episódios previstos) → adiciona episódios → carrega cada vídeo (MP4 vertical, até 50 MB) → opcional: legendas, gancho, trailer → **Enviar para revisão**.
+3. A admin vê em **Admin → Revisão** (com contador): capa, sinopse e cada episódio com leitor → **Aprovar e publicar** ou **Recusar** (com motivo). O artista recebe a notificação.
+4. Episódios novos numa série já publicada também passam pela Revisão.
+5. O preço em moedas e o número de episódios grátis são da plataforma (Admin → Moedas / Admin → Séries).
+6. **Primeiro levantamento:** em Admin → Levantamentos aparece "verifica o artista": confirma o BI e que a conta está em nome dele, e só depois podes marcar como pago.
+7. A admin continua a poder suspender artistas, editar ou retirar séries, escolher o destaque e a sugestão ao abrir a app.

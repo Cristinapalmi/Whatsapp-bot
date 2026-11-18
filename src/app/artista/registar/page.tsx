@@ -17,7 +17,7 @@ export default async function ArtistRegisterPage() {
   return (
     <div className="container-app max-w-xl py-4">
       <h1 className="text-3xl font-bold">Regista-te como artista</h1>
-      <p className="mt-1 text-muted">Publica as tuas minisséries e ganha {pct}% de tudo o que o público pagar. Quanto mais assistirem, mais ganhas. A tua conta fica ativa depois de aprovada.</p>
+      <p className="mt-1 text-muted">Publica as tuas minisséries e ganha {pct}% de tudo o que o público pagar. Quanto mais assistirem, mais ganhas. A tua conta fica ativa logo: podes criar a tua primeira série hoje.</p>
 
       <ActionForm action={registerArtistAction} className="mt-6 space-y-4">
         <Field id="stageName" label="Nome artístico" required />

@@ -1,27 +1,29 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { reviewCount } from "@/domain/series-workflow";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();
-  const [payments, payouts, artists, series, reports] = await Promise.all([
+  const [payments, payouts, artists, review, reports] = await Promise.all([
     db.paymentRequest.count({ where: { status: "PENDING" } }),
     db.payoutRequest.count({ where: { status: "PROCESSING" } }),
     db.artistProfile.count({ where: { status: "PENDING" } }),
-    db.series.count({ where: { status: "IN_REVIEW" } }),
+    reviewCount(db),
     db.report.count({ where: { status: "OPEN" } }),
   ]);
   const links: [string, string, number][] = [
     ["/admin", "Resumo", 0],
+    ["/admin/revisao", "Revisão", review],
     ["/admin/pagamentos", "Pagamentos", payments],
     ["/admin/levantamentos", "Levantamentos", payouts],
     ["/admin/financeiro", "Financeiro", 0],
     ["/admin/moedas", "Moedas", 0],
     ["/admin/anuncios", "Anúncios", 0],
     ["/admin/artistas", "Artistas", artists],
-    ["/admin/series", "Séries", series],
+    ["/admin/series", "Séries", 0],
     ["/admin/denuncias", "Denúncias", reports],
     ["/admin/exportacoes", "Exportações", 0],
   ];

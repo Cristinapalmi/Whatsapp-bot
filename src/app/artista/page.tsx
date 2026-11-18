@@ -22,7 +22,8 @@ export const metadata: Metadata = { title: "Painel do artista" };
 export const dynamic = "force-dynamic";
 
 const SERIES_STATUS: Record<string, [string, string]> = {
-  IN_REVIEW: ["Em análise", "badge-pending"],
+  DRAFT: ["Rascunho", "badge-muted"],
+  IN_REVIEW: ["Enviada para revisão", "badge-pending"],
   APPROVED: ["Aprovada", "badge-unlocked"],
   PUBLISHED: ["Publicada", "badge-free"],
   REJECTED: ["Rejeitada", "badge-danger"],
@@ -196,8 +197,8 @@ export default async function ArtistDashboard() {
                     <p className="text-xs text-muted">{s.plannedEpisodes} episódios · {s.freeEpisodes} grátis</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={SERIES_STATUS[s.status][1]}>{SERIES_STATUS[s.status][0]}</span>
-                    {s.status === "PUBLISHED" && <Link href={`/serie/${s.slug}`} aria-label="Ver série" className="btn-ghost btn-sm"><IconChevronRight size={18} /></Link>}
+                      <span className={SERIES_STATUS[s.status][1]}>{SERIES_STATUS[s.status][0]}</span>
+                    <Link href={`/artista/series/${s.id}`} aria-label="Gerir série" className="btn-ghost btn-sm"><IconChevronRight size={18} /></Link>
                   </div>
                 </div>
                 {trailers[i] && (

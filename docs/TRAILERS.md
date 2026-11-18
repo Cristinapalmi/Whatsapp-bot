@@ -1,4 +1,9 @@
-# Trailers automáticos
+# Trailers
+
+> **Agora:** o artista carrega o seu trailer no painel da série (Trailer → Carregar). Ninguém precisa de correr comandos.
+> O gerador automático abaixo continua disponível para quem é técnico, mas é opcional.
+
+# Gerador automático (opcional, técnico)
 
 Cada série pode ter um **trailer vertical de ~30 s** (formato TikTok/Instagram Reels/Stories):
 

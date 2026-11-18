@@ -108,6 +108,9 @@ export async function registerArtistAction(_: ActionResult, fd: FormData): Promi
           category: data.category,
           slug: data.slug,
           photoKey,
+          // Fica ativo logo: pode criar séries e carregar vídeos. A verificação (BI + IBAN) é feita antes do primeiro levantamento.
+          status: "APPROVED",
+          approvedAt: new Date(),
         },
       });
     });

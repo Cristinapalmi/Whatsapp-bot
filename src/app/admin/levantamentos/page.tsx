@@ -12,7 +12,7 @@ import { Flash } from "@/components/Flash";
 import { PayoutStatusBadge } from "@/components/StatusBadge";
 import { CopyButton } from "@/components/CopyButton";
 import { IconDownload } from "@/components/icons";
-import { markPayoutPaidAction, rejectPayoutAction } from "../actions";
+import { markPayoutPaidAction, rejectPayoutAction, verifyArtistAction } from "../actions";
 
 export const metadata: Metadata = { title: "Levantamentos" };
 
@@ -25,7 +25,7 @@ export default async function AdminPayouts({ searchParams }: { searchParams: Pro
     where: { status },
     orderBy: { requestedAt: status === "PROCESSING" ? "asc" : "desc" },
     take: 100,
-    include: { artist: { select: { stageName: true, fullName: true } }, processedBy: { select: { name: true } } },
+    include: { artist: { select: { id: true, stageName: true, fullName: true, biNumber: true, verifiedAt: true } }, processedBy: { select: { name: true } } },
   });
   const proofUrls = await Promise.all(items.map((p) => (p.proofKey ? getObjectUrl("private", p.proofKey, 900) : null)));
   const now = new Date();
@@ -68,6 +68,15 @@ export default async function AdminPayouts({ searchParams }: { searchParams: Pro
                 {p.adminNote && <><dt className="text-muted">Nota</dt><dd>{p.adminNote}</dd></>}
               </dl>
               {proofUrls[i] && <a href={proofUrls[i]!} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-accent2 underline">Ver comprovativo de pagamento</a>}
+              {p.status === "PROCESSING" && !p.artist.verifiedAt && (
+                <ActionForm action={verifyArtistAction} className="mt-4 rounded-xl border border-warn/40 bg-warn/5 p-3 text-sm">
+                  <input type="hidden" name="artistId" value={p.artist.id} />
+                  <p className="font-semibold text-warn">Primeiro levantamento: verifica o artista</p>
+                  <p className="mt-1 text-muted">Confirma o BI <strong className="font-mono text-fg">{p.artist.biNumber}</strong> (pede uma foto ao artista) e que o titular <strong className="text-fg">{p.holderName}</strong> é o mesmo nome do registo: <strong className="text-fg">{p.artist.fullName}</strong>.</p>
+                  <label className="mt-2 flex items-center gap-2"><input type="checkbox" name="confirm" className="checkbox mt-0" required /> Verifiquei o BI e a conta para receber</label>
+                  <SubmitButton className="btn-secondary btn-sm mt-2">Marcar artista como verificado</SubmitButton>
+                </ActionForm>
+              )}
               {p.status === "PROCESSING" && (
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                   <ActionForm action={markPayoutPaidAction} className="space-y-2">
