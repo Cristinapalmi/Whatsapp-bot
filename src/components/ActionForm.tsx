@@ -26,10 +26,10 @@ export function ActionForm({
     <form ref={ref} action={formAction} className={className}>
       {children}
       {state?.error && (
-        <p role="alert" className="mt-3 rounded-xl bg-danger/15 px-4 py-3 text-sm text-danger">{state.error}</p>
+        <p role="alert" className="col-span-full mt-3 rounded-xl bg-danger/15 px-4 py-3 text-sm text-danger">{state.error}</p>
       )}
       {state?.ok && (
-        <p role="status" className="mt-3 rounded-xl bg-ok/15 px-4 py-3 text-sm text-ok">{state.ok}</p>
+        <p role="status" className="col-span-full mt-3 rounded-xl bg-ok/15 px-4 py-3 text-sm text-ok">{state.ok}</p>
       )}
     </form>
   );

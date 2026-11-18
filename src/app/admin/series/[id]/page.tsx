@@ -8,6 +8,7 @@ import { ALL_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { saveEpisodeAction, saveSeriesAction, setSeriesStatusAction } from "../../actions";
 import { VideoUploader } from "./VideoUploader";
+import { defaultEpisodePriceCoins } from "@/domain/coins/service";
 import { CopyButton } from "@/components/CopyButton";
 import { formatDateTime } from "@/lib/dates";
 
@@ -21,6 +22,7 @@ export default async function AdminSeriesDetail({ params }: { params: Promise<{ 
   });
   if (!s) notFound();
   const cover = await mediaUrl(s.coverKey);
+  const defaultPrice = await defaultEpisodePriceCoins(db);
   const trailer = await mediaUrl(s.trailerKey);
   const trailerCmd = `npm run trailer -- ${s.slug}`;
   const nextNumber = (s.episodes.at(-1)?.number ?? 0) + 1;
@@ -66,9 +68,9 @@ export default async function AdminSeriesDetail({ params }: { params: Promise<{ 
           </select>
         </div>
         <div>
-          <label className="label" htmlFor="priceKz">Preço por episódio (Kz)</label>
-          <input className="input" id="priceKz" name="priceKz" type="number" min={business.episodePriceMinKz} max={business.episodePriceMaxKz} defaultValue={s.priceCents / 100} required />
-          <p className="hint">Entre {business.episodePriceMinKz} e {business.episodePriceMaxKz} Kz.</p>
+          <label className="label" htmlFor="priceCoins">Preço por episódio (moedas)</label>
+          <input className="input" id="priceCoins" name="priceCoins" type="number" min={1} defaultValue={s.priceCoins ?? ""} placeholder={`Por defeito: ${defaultPrice}`} />
+          <p className="hint">Deixa vazio para usar o preço por defeito ({defaultPrice} moedas). Muda em Admin → Moedas.</p>
         </div>
         <div>
           <label className="label" htmlFor="freeEpisodes">Episódios grátis</label>

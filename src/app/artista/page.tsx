@@ -129,7 +129,7 @@ export default async function ArtistDashboard() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold">{s.title}</p>
-                  <p className="text-xs text-muted">{s.plannedEpisodes} episódios · {s.freeEpisodes} grátis · {formatKz(s.priceCents)}</p>
+                  <p className="text-xs text-muted">{s.plannedEpisodes} episódios · {s.freeEpisodes} grátis</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={SERIES_STATUS[s.status][1]}>{SERIES_STATUS[s.status][0]}</span>

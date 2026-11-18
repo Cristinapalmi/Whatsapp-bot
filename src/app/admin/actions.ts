@@ -10,6 +10,7 @@ import { toActionError } from "@/lib/actions";
 import { confirmPayment, rejectPayment, reversePayment } from "@/domain/payments/service";
 import { markPayoutPaid, rejectPayout } from "@/domain/payouts/service";
 import { closeEndedWeeks } from "@/domain/payments/pass";
+import { setSetting } from "@/domain/coins/service";
 import { audit, notify } from "@/domain/notify";
 import { getUploadUrl, newKey, putObject } from "@/domain/storage";
 import { UserFacingError } from "@/domain/errors";
@@ -100,7 +101,8 @@ const seriesSchema = z.object({
   title: z.string().trim().min(2).max(80),
   synopsis: z.string().trim().max(1000),
   category: z.enum(["TERROR", "COMEDIA", "DRAMA", "MAKAS_FAMILIA", "ROMANCE", "ACAO", "OUTRO"]),
-  priceKz: z.coerce.number().int().min(business.episodePriceMinKz, `Preço mínimo ${business.episodePriceMinKz} Kz`).max(business.episodePriceMaxKz, `Preço máximo ${business.episodePriceMaxKz} Kz`),
+  /** Preço em moedas só para esta série (vazio = preço por defeito). */
+  priceCoins: z.union([z.literal(""), z.coerce.number().int().min(1, "Preço mínimo 1 moeda").max(10000, "Preço demasiado alto")]).optional(),
   freeEpisodes: z.coerce.number().int().min(0).max(50),
   plannedEpisodes: z.coerce.number().int().min(1).max(200),
   featured: z.literal("on").optional(),
@@ -123,12 +125,12 @@ export async function saveSeriesAction(_: ActionResult, fd: FormData): Promise<A
     await db.series.update({
       where: { id: d.id },
       data: {
-        title: d.title, synopsis: d.synopsis, category: d.category, priceCents: kzToCents(d.priceKz),
+        title: d.title, synopsis: d.synopsis, category: d.category, priceCoins: d.priceCoins === "" || d.priceCoins === undefined ? null : d.priceCoins,
         freeEpisodes: d.freeEpisodes, plannedEpisodes: d.plannedEpisodes, featured: !!d.featured,
         ...(coverKey ? { coverKey } : {}),
       },
     });
-    await audit(db, admin.id, "SERIES_UPDATED", "Series", d.id, { priceKz: d.priceKz, freeEpisodes: d.freeEpisodes });
+    await audit(db, admin.id, "SERIES_UPDATED", "Series", d.id, { priceCoins: d.priceCoins ?? null, freeEpisodes: d.freeEpisodes });
     revalidatePath(`/admin/series/${d.id}`);
     return { ok: "Série guardada." };
   } catch (e) { return toActionError(e); }
@@ -262,5 +264,60 @@ export async function closeWeeksAction(_: ActionResult, _fd: FormData): Promise<
     const results = await closeEndedWeeks(db, { adminId: admin.id });
     revalidatePath("/admin/passe");
     return { ok: results.length ? `Semanas fechadas: ${results.map((r) => r.week).join(", ")}.` : "Não há semanas terminadas por fechar." };
+  } catch (e) { return toActionError(e); }
+}
+
+// ---------- Moedas: pacotes, preço por defeito, presentes ----------
+const packSchema = z.object({
+  id: z.string().optional(),
+  priceKz: z.coerce.number().int().min(100, "Preço mínimo 100 Kz").max(1000000),
+  coins: z.coerce.number().int().min(1, "Mínimo 1 moeda").max(1000000),
+  sortOrder: z.coerce.number().int().min(0).max(999).default(0),
+  active: z.literal("on").optional(),
+});
+
+export async function saveCoinPackAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const d = packSchema.parse(Object.fromEntries(fd));
+    const data = { priceKz: d.priceKz, coins: d.coins, sortOrder: d.sortOrder, active: !!d.active };
+    const pack = d.id ? await db.coinPack.update({ where: { id: d.id }, data }) : await db.coinPack.create({ data: { ...data, active: true } });
+    await audit(db, admin.id, d.id ? "COIN_PACK_UPDATED" : "COIN_PACK_CREATED", "CoinPack", pack.id, data);
+    revalidatePath("/admin/moedas");
+    return { ok: "Pacote guardado." };
+  } catch (e) { return toActionError(e); }
+}
+
+export async function saveEpisodePriceAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const price = z.coerce.number().int().min(1, "Mínimo 1 moeda").max(10000).parse(fd.get("episodePriceCoins"));
+    await setSetting(db, "episodePriceCoins", String(price));
+    await audit(db, admin.id, "EPISODE_PRICE_UPDATED", "Setting", "episodePriceCoins", { price });
+    revalidatePath("/admin/moedas");
+    return { ok: `Preço por defeito: ${price} moedas por episódio.` };
+  } catch (e) { return toActionError(e); }
+}
+
+const giftSchema = z.object({
+  code: z.string().trim().toUpperCase().regex(/^[A-Z0-9_]{2,20}$/, "Código: letras maiúsculas, números ou _ (2 a 20)."),
+  isNew: z.string().optional(),
+  label: z.string().trim().min(2, "Indica o nome.").max(30),
+  emoji: z.string().trim().min(1, "Indica um emoji.").max(8),
+  priceCoins: z.coerce.number().int().min(1, "Mínimo 1 moeda").max(100000),
+  sortOrder: z.coerce.number().int().min(0).max(999).default(0),
+  active: z.literal("on").optional(),
+});
+
+export async function saveGiftTypeAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const d = giftSchema.parse(Object.fromEntries(fd));
+    const data = { label: d.label, emoji: d.emoji, priceCoins: d.priceCoins, sortOrder: d.sortOrder, active: d.isNew ? true : !!d.active };
+    if (d.isNew && (await db.giftType.findUnique({ where: { code: d.code } }))) return { error: "Já existe um presente com esse código." };
+    await db.giftType.upsert({ where: { code: d.code }, create: { code: d.code, ...data }, update: data });
+    await audit(db, admin.id, "GIFT_TYPE_SAVED", "GiftType", d.code, data);
+    revalidatePath("/admin/moedas");
+    return { ok: "Presente guardado." };
   } catch (e) { return toActionError(e); }
 }
