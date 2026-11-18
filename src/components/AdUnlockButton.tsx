@@ -7,7 +7,7 @@ import { IconPlay, IconX } from "./icons";
 type Ad = { viewId: string; videoUrl: string; durationSec: number; sponsor: string; linkUrl: string | null };
 
 /** "Ver anúncio e desbloquear grátis (oferta única)" — o anúncio tem de ser visto até ao fim. */
-export function AdUnlockButton({ episodeId, disabled }: { episodeId: string; disabled?: boolean }) {
+export function AdUnlockButton({ episodeId, disabled, onUnlocked }: { episodeId: string; disabled?: boolean; onUnlocked?: () => void }) {
   const router = useRouter();
   const [ad, setAd] = useState<Ad | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,7 +42,8 @@ export function AdUnlockButton({ episodeId, disabled }: { episodeId: string; dis
     const r = await completeAdAction(ad.viewId);
     if (r.ok) {
       setAd(null);
-      router.refresh();
+      if (onUnlocked) onUnlocked();
+      else router.refresh();
       return;
     }
     // Pequenos atrasos de rede: espera um pouco e tenta outra vez

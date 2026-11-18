@@ -15,6 +15,8 @@ type Props = {
   loggedIn: boolean;
   /** Oferta única com anúncio: true = ainda disponível para esta conta (e há anúncios). */
   adOffer?: boolean;
+  /** Se existir, é chamado depois de desbloquear (em vez de recarregar a página). */
+  onUnlocked?: (via: "coins" | "points" | "ad") => void;
 };
 
 const coins = (n: number) => `${n} ${n === 1 ? "moeda" : "moedas"}`;
@@ -26,13 +28,16 @@ export function UnlockPanel(p: Props) {
   const [error, setError] = useState<string | null>(null);
   const here = `/ver/${p.episodeId}`;
 
-  const run = (fn: () => Promise<{ ok: boolean; error?: string; code?: string }>) =>
+  const run = (fn: () => Promise<{ ok: boolean; error?: string; code?: string }>, via: "coins" | "points") =>
     start(async () => {
       setError(null);
       const r = await fn();
       if (r.ok) {
-        router.push(here);
-        router.refresh();
+        if (p.onUnlocked) p.onUnlocked(via);
+        else {
+          router.push(here);
+          router.refresh();
+        }
       } else if (r.code === "LOGIN") router.push(`/entrar?next=${encodeURIComponent(here)}`);
       else setError(r.error ?? "Erro");
     });
@@ -52,7 +57,7 @@ export function UnlockPanel(p: Props) {
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-2">
       {enough ? (
-        <button type="button" disabled={pending} onClick={() => run(() => unlockEpisodeAction(p.episodeId))} className="btn-primary w-full text-lg">
+        <button type="button" disabled={pending} onClick={() => run(() => unlockEpisodeAction(p.episodeId), "coins")} className="btn-primary w-full text-lg">
           <IconCoin size={20} /> {pending ? "A desbloquear…" : `Desbloqueia por ${coins(p.priceCoins)}`}
         </button>
       ) : (
@@ -63,9 +68,9 @@ export function UnlockPanel(p: Props) {
       <p className="text-sm text-muted">
         {enough ? `Tens ${coins(p.balance)}.` : `Este episódio custa ${coins(p.priceCoins)}. Tens ${coins(p.balance)}.`}
       </p>
-      {p.adOffer && <AdUnlockButton episodeId={p.episodeId} disabled={pending} />}
+      {p.adOffer && <AdUnlockButton episodeId={p.episodeId} disabled={pending} onUnlocked={p.onUnlocked ? () => p.onUnlocked!("ad") : undefined} />}
       {p.points >= p.pointsCost && (
-        <button type="button" disabled={pending} onClick={() => run(() => redeemPointsAction(p.episodeId))} className="btn-secondary w-full">
+        <button type="button" disabled={pending} onClick={() => run(() => redeemPointsAction(p.episodeId), "points")} className="btn-secondary w-full">
           <IconStar size={18} /> Usar {p.pointsCost} dos teus {p.points} pontos
         </button>
       )}

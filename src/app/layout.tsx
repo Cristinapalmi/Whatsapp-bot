@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { RegisterSW } from "@/components/RegisterSW";
 import { SuggestionCard } from "@/components/SuggestionCard";
+import { ChromeGate } from "@/components/ChromeGate";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display", display: "swap" });
@@ -52,9 +53,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a href="#conteudo" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-3">
           Saltar para o conteúdo
         </a>
-        <Header />
+        <ChromeGate>
+          <Header />
+        </ChromeGate>
         <main id="conteudo" className="pb-28 pt-2 md:pb-12">{children}</main>
-        <BottomNav />
+        <ChromeGate>
+          <BottomNav />
+        </ChromeGate>
         <RegisterSW />
         <SuggestionCard />
       </body>

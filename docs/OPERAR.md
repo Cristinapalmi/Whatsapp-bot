@@ -73,3 +73,21 @@ Cada artista tem um **extrato mensal** (Carteira → "Extrato mensal") que pode 
 - **Admin → Moedas:** muda o preço por defeito de um episódio (começa em 20 moedas), os pacotes da Loja (preço, moedas, ativo/inativo, ordem) e os presentes (nome, emoji, preço). Em **Séries → a série** podes pôr um preço diferente só para essa série.
 - **Admin → Financeiro:** escolhe as datas e vê as moedas vendidas, gastas e por gastar, a parte dos criadores, a parte da plataforma, as comissões e os levantamentos por aprovar. Também podes descarregar em CSV.
 - **Moedas por gastar** ainda não são receita de ninguém: só passam a receita (e a ganho do artista) quando o fã as gasta.
+
+## Séries de exemplo (demo)
+- No primeiro deploy depois desta versão, a app apaga sozinha (uma única vez) as séries, episódios, artistas e contas de teste do demo. Contas reais, compras e contabilidade não são tocadas.
+- O resultado aparece no topo de **Admin → Resumo**: "Séries de exemplo apagadas…".
+- Se alguma conta real estiver ligada ao demo (por exemplo, um fã gastou moedas num episódio de exemplo), nada é apagado. O Resumo mostra a lista e um botão para apagar devolvendo as moedas/pontos a esses fãs.
+- O deploy online nunca mais cria séries de exemplo, mesmo com `SEED_DEMO=true`.
+
+## Leitor (estilo Reels)
+- O episódio abre em ecrã inteiro, na vertical. Desliza para cima → episódio seguinte; para baixo → anterior; toque → pausa.
+- Botões à direita: Presentes, Guardar na lista, Episódios, Partilhar, Legendas, Poupar dados.
+- No fim de cada episódio passa sozinho ao seguinte; num episódio bloqueado aparece o cartão de desbloqueio (moedas, anúncio único, comprar moedas).
+- Vídeos verticais (9:16) ocupam o ecrã todo; vídeos horizontais aparecem ao centro com a capa desfocada por trás.
+
+## Primeiro artista e primeira série (passo a passo)
+1. Num telemóvel (ou janela anónima), abre o site → **Conta/Entrar → "Regista-te como artista"** (ou vai a `/artista/registar`). Preenche os dados e as 5 caixas.
+2. Como admin: **Admin → Artistas** → **Aprovar**.
+3. O artista entra no painel → **Enviar nova série** (nome, link do TikTok/Instagram, n.º de episódios).
+4. Como admin: **Admin → Séries** → abre a série → carrega a **capa**, **Adicionar episódio** (n.º 1) → **Escolher vídeo** (MP4 vertical, 360p) → marca **Publicado** e guarda → **Publicar** a série.
