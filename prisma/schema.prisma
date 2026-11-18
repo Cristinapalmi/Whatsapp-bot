@@ -34,6 +34,8 @@ model User {
   createdAt          DateTime @default(now())
   /// Artista que trouxe este utilizador (link pessoal) — usado na Fase 2.
   referredByArtistId String?
+  /// Último dia (AAAA-MM-DD, Luanda) em que viu a sugestão ao abrir a app (máx. 1 por dia).
+  suggestionSeenDay  String?
 
   consents           Consent[]
   artistProfile      ArtistProfile?

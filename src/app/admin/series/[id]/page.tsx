@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { mediaUrl } from "@/lib/media";
 import { ALL_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
-import { saveEpisodeAction, saveSeriesAction, setSeriesStatusAction } from "../../actions";
+import { saveEpisodeAction, saveSeriesAction, setSeriesStatusAction, setSuggestedSeriesAction } from "../../actions";
 import { VideoUploader } from "./VideoUploader";
 import { defaultEpisodePriceCoins } from "@/domain/coins/service";
 import { CopyButton } from "@/components/CopyButton";
@@ -23,6 +23,7 @@ export default async function AdminSeriesDetail({ params }: { params: Promise<{ 
   if (!s) notFound();
   const cover = await mediaUrl(s.coverKey);
   const defaultPrice = await defaultEpisodePriceCoins(db);
+  const isSuggested = (await db.setting.findUnique({ where: { key: "suggestedSeriesId" } }))?.value === s.id;
   const trailer = await mediaUrl(s.trailerKey);
   const trailerCmd = `npm run trailer -- ${s.slug}`;
   const nextNumber = (s.episodes.at(-1)?.number ?? 0) + 1;
@@ -53,6 +54,15 @@ export default async function AdminSeriesDetail({ params }: { params: Promise<{ 
           </select>
           <input name="reason" className="input" placeholder="Motivo" required minLength={3} />
           <SubmitButton className="btn-danger">OK</SubmitButton>
+        </ActionForm>
+      </section>
+
+      <section className="card mt-6">
+        <h2 className="font-bold">Sugestão ao abrir a app</h2>
+        <p className="text-sm text-muted">{isSuggested ? "Esta série é a sugestão atual (aparece 1 vez por dia a cada pessoa)." : "Sem escolha tua, a app sugere a série em destaque ou a mais vista."}</p>
+        <ActionForm action={setSuggestedSeriesAction} className="mt-3">
+          <input type="hidden" name="id" value={isSuggested ? "" : s.id} />
+          <SubmitButton className={isSuggested ? "btn-secondary" : "btn-primary"}>{isSuggested ? "Deixar de sugerir (automático)" : "Sugerir esta série ao abrir a app"}</SubmitButton>
         </ActionForm>
       </section>
 

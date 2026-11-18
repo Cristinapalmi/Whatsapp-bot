@@ -5,6 +5,7 @@ import { brand, siteUrl } from "@config/brand";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { RegisterSW } from "@/components/RegisterSW";
+import { SuggestionCard } from "@/components/SuggestionCard";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display", display: "swap" });
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main id="conteudo" className="pb-28 pt-2 md:pb-12">{children}</main>
         <BottomNav />
         <RegisterSW />
+        <SuggestionCard />
       </body>
     </html>
   );

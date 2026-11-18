@@ -321,3 +321,21 @@ export async function saveGiftTypeAction(_: ActionResult, fd: FormData): Promise
     return { ok: "Presente guardado." };
   } catch (e) { return toActionError(e); }
 }
+
+// ---------- Sugestão ao abrir a app ----------
+export async function setSuggestedSeriesAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const id = str(fd, "id");
+    if (id) {
+      const s = await db.series.findUnique({ where: { id } });
+      if (!s || s.status !== "PUBLISHED") return { error: "Só podes sugerir uma série publicada." };
+      await setSetting(db, "suggestedSeriesId", id);
+    } else {
+      await db.setting.deleteMany({ where: { key: "suggestedSeriesId" } });
+    }
+    await audit(db, admin.id, "SUGGESTED_SERIES_SET", "Setting", "suggestedSeriesId", { id: id || null });
+    revalidatePath("/admin/series");
+    return { ok: id ? "Esta série passa a ser sugerida ao abrir a app." : "Sugestão automática (série em destaque ou a mais vista)." };
+  } catch (e) { return toActionError(e); }
+}

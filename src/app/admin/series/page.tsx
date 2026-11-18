@@ -13,6 +13,7 @@ const LABEL: Record<string, [string, string]> = {
 };
 
 export default async function AdminSeries() {
+  const suggested = (await db.setting.findUnique({ where: { key: "suggestedSeriesId" } }))?.value;
   const series = await db.series.findMany({
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     include: { artist: { select: { stageName: true } }, _count: { select: { episodes: true } } },
@@ -30,6 +31,7 @@ export default async function AdminSeries() {
                 <p className="text-xs text-muted">{s.artist.stageName} · {CATEGORY_LABELS[s.category]} · {s._count.episodes}/{s.plannedEpisodes} ep. · {s.freeEpisodes} grátis · {s.priceCoins ? `${s.priceCoins} moedas` : "preço por defeito"}</p>
               </div>
               <div className="flex items-center gap-2">
+                {s.id === suggested && <span className="badge-unlocked">Sugerida</span>}
                 <span className={LABEL[s.status][1]}>{LABEL[s.status][0]}</span>
                 <IconChevronRight size={18} className="text-muted" />
               </div>
