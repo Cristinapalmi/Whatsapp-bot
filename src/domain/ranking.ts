@@ -42,7 +42,7 @@ export async function monthlyRanking(db: Tx, month?: string): Promise<RankingRow
     FROM "LedgerLine" l
     JOIN "LedgerAccount" a ON a.id = l."accountId"
     JOIN "JournalEntry" e ON e.id = l."entryId"
-    WHERE a.code LIKE 'artist:%:available'
+    WHERE (a.code LIKE 'artist:%:available' OR a.code LIKE 'artist:%:pending')
       AND e.kind IN (${Prisma.join([...EARNING_KINDS])})
       AND l."createdAt" >= ${r.from} AND l."createdAt" < ${r.to}
     GROUP BY a."artistId"`;

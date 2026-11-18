@@ -18,6 +18,7 @@ export const INT_SETTINGS = [
   { group: "ofertas", key: "welcomeBonusCoins", label: "Moedas extra da oferta", def: 50, min: 1, max: 100000 },
   { group: "ofertas", key: "welcomeOfferHours", label: "Duração da oferta (horas)", def: 24, min: 1, max: 720 },
   // Artistas: Fundadores, marcos, levantamentos, convites
+  { group: "artistas", key: "pendingDays", label: "Dias em pendente antes de os ganhos ficarem disponíveis", def: 3, min: 0, max: 60 },
   { group: "artistas", key: "foundersLimit", label: "Vagas de Artista Fundador", def: 20, min: 0, max: 1000 },
   { group: "artistas", key: "founderMonths", label: "Meses com a parte maior (Fundador)", def: 3, min: 0, max: 36 },
   { group: "artistas", key: "founderSharePercent", label: "Parte do Fundador nesses meses (%)", def: 70, min: 1, max: 100 },

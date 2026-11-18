@@ -22,6 +22,8 @@ import { requestPayout } from "@/domain/payouts/service";
 let db: PrismaClient;
 beforeAll(async () => {
   db = await resetTestDb();
+  // Estes testes verificam outras regras: os ganhos ficam disponíveis logo (o pendente tem testes próprios)
+  await db.setting.create({ data: { key: "pendingDays", value: "0" } });
   // A BD de teste é criada sem os dados da migração: recria os valores por defeito
   await db.coinPack.createMany({
     data: [

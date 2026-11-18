@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { business } from "@config/business";
 import { PLATFORM_CASH, artistAvailable, artistPayout } from "../money/accounts";
-import { balance, lockAccount, postEntry, type Tx } from "../money/ledger";
+import { balance, lockAccount, postEntry, releaseDuePending, type Tx } from "../money/ledger";
 import { getInts } from "../settings";
 import { notify, audit } from "../notify";
 import { UserFacingError } from "../errors";
@@ -27,6 +27,7 @@ export async function requestPayout(db: PrismaClient, { artistId, amountCents }:
   if (!Number.isInteger(amountCents) || amountCents <= 0) throw new UserFacingError("Valor inválido.");
   const minCents = await payoutMinCents(db, artistId);
   if (amountCents < minCents) throw new UserFacingError(`O levantamento mínimo é ${formatKz(minCents)}.`);
+  await releaseDuePending(db, { artistId }); // o que já passou o período fica disponível antes de contar
 
   return db.$transaction(async (tx) => {
     const artist = await tx.artistProfile.findUniqueOrThrow({ where: { id: artistId }, include: { payoutAccount: true } });

@@ -108,11 +108,16 @@ export function ArtistMoneyPanel({ initial }: { initial: ArtistMoneySnapshot }) 
         <div className="rounded-2xl border border-warn/30 bg-warn/5 p-4">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-warn"><IconClock size={14} /> Pendente</p>
           <p className="mt-1 font-display text-2xl font-bold">{fmt(s.pendingCents)}</p>
-          <p className="mt-1 text-xs text-muted">
-            {s.pendingCents > 0
-              ? "A aguardar confirmação do serviço de pagamento. Passa a disponível assim que for confirmado."
-              : "Nada pendente: os teus ganhos ficam disponíveis logo que o fã desbloqueia."}
-          </p>
+          {s.pendingSchedule.length > 0 ? (
+            <ul className="mt-1 space-y-0.5 text-xs text-muted">
+              {s.pendingSchedule.slice(0, 3).map((p) => (
+                <li key={p.availableAt}>{fmt(p.cents)} · {p.daysLeft === 0 ? "disponível hoje" : `disponível em ${p.daysLeft} ${p.daysLeft === 1 ? "dia" : "dias"}`}</li>
+              ))}
+              {s.pendingSchedule.length > 3 && <li>e mais {s.pendingSchedule.length - 3} datas…</li>}
+            </ul>
+          ) : (
+            <p className="mt-1 text-xs text-muted">Nada pendente. Cada ganho novo fica aqui uns dias e depois passa sozinho a Disponível.</p>
+          )}
         </div>
         <div className="rounded-2xl border border-ok/40 bg-ok/10 p-4">
           <p className="text-xs font-semibold text-ok">Disponível</p>

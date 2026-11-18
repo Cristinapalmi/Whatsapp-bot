@@ -6,8 +6,8 @@ import { formatKz } from "@/lib/money";
 import { formatDateTime } from "@/lib/dates";
 import { formatIban } from "@/lib/iban";
 import { formatPhone } from "@/lib/phone";
-import { getArtistWallet } from "@/domain/money/ledger";
-import { artistAvailable } from "@/domain/money/accounts";
+import { getArtistWallet, releaseDuePending } from "@/domain/money/ledger";
+import { artistAvailable, artistPending } from "@/domain/money/accounts";
 import { payoutMinCents } from "@/domain/payouts/service";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { LiveWallet } from "@/components/LiveWallet";
@@ -30,16 +30,19 @@ const KIND_LABEL: Record<string, string> = {
   COIN_SPEND_REVERSED: "Ganho anulado",
   AD_DISTRIBUTION: "Anúncios do mês",
   ARTIST_BONUS: "Bónus 🏆",
+  EARNING_RELEASED: "Passou a disponível ✓",
 };
 
 export default async function WalletPage() {
   const { artist } = await requireArtist({ approved: true });
+  await releaseDuePending(db, { artistId: artist.id });
   const [wallet, payouts, movements] = await Promise.all([
     getArtistWallet(db, artist.id),
     db.payoutRequest.findMany({ where: { artistId: artist.id }, orderBy: { requestedAt: "desc" }, take: 20 }),
     db.ledgerLine.findMany({
-      where: { account: { code: artistAvailable(artist.id).code } },
-      include: { entry: true },
+      // Ganhos (pendentes ou já disponíveis) e levantamentos; a passagem a disponível não se repete na lista
+      where: { account: { code: { in: [artistAvailable(artist.id).code, artistPending(artist.id).code] } }, entry: { kind: { not: "EARNING_RELEASED" } } },
+      include: { entry: true, account: true },
       orderBy: { createdAt: "desc" },
       take: 30,
     }),
@@ -63,7 +66,7 @@ export default async function WalletPage() {
           <div><dt className="text-muted">Ganho este mês</dt><dd className="font-semibold">{formatKz(wallet.earnedThisMonthCents)}</dd></div>
           <div><dt className="text-muted">Total ganho</dt><dd className="font-semibold">{formatKz(wallet.earnedTotalCents)}</dd></div>
         </dl>
-        <p className="mt-3 text-xs text-muted">Disponível = dinheiro já recebido pela plataforma, que podes levantar. Pendente = só na fase de pagamentos automáticos, enquanto o prestador não liquida.</p>
+        <p className="mt-3 text-xs text-muted">Pendente = ganhos dos últimos dias, que passam sozinhos a Disponível na data indicada. Disponível = podes levantar já.</p>
       </section>
 
       <section className="mt-6 scroll-mt-20" id="levantar">
@@ -120,6 +123,11 @@ export default async function WalletPage() {
               <div>
                 <p>{KIND_LABEL[m.entry.kind] ?? m.entry.kind}</p>
                 <p className="text-xs text-muted">{m.entry.description} · {formatDateTime(m.createdAt)}</p>
+                {m.account.code.endsWith(":pending") && m.amountCents < 0 && (
+                  <p className="text-xs text-warn">
+                    {m.entry.cancelledAt ? "Anulado antes de ficar disponível" : m.entry.releasedAt ? "Já disponível" : m.entry.availableAt ? `Pendente · disponível a ${formatDateTime(m.entry.availableAt)}` : "Pendente"}
+                  </p>
+                )}
               </div>
               {/* Na carteira (passivo), crédito = entrada de dinheiro para o artista */}
               <span className={m.amountCents < 0 ? "font-semibold text-ok" : "font-semibold text-muted"}>

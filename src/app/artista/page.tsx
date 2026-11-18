@@ -12,6 +12,7 @@ import { trailerCaption } from "@/domain/trailer";
 import { monthlyRanking, sortByRevenue, sortByViews } from "@/domain/ranking";
 import { ArtistGrowth } from "./ArtistGrowth";
 import { artistMoneySnapshot, artistShareFor, earningsHistory } from "@/domain/artists/growth";
+import { releaseDuePending } from "@/domain/money/ledger";
 import { ArtistMoneyPanel } from "@/components/ArtistMoneyPanel";
 import { EarningsChart } from "@/components/EarningsChart";
 import { CopyButton } from "@/components/CopyButton";
@@ -76,6 +77,7 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
     series.map(async (s) => (s.trailerKey ? getObjectUrl("media", s.trailerKey, 6 * 3600, { downloadName: `trailer-${s.slug}.mp4` }) : null)),
   );
   const hasPublished = series.some((s) => s.status === "PUBLISHED");
+  await releaseDuePending(db, { artistId: artist.id });
   const share = await artistShareFor(db, artist);
   const [money, days, weeks] = await Promise.all([
     artistMoneySnapshot(db, artist.id),

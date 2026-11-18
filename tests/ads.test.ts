@@ -11,6 +11,8 @@ let db: PrismaClient;
 let adId: string;
 beforeAll(async () => {
   db = await resetTestDb();
+  // Estes testes verificam outras regras: os ganhos ficam disponíveis logo (o pendente tem testes próprios)
+  await db.setting.create({ data: { key: "pendingDays", value: "0" } });
   adId = (await db.ad.create({ data: { sponsor: "Loja Exemplo", videoKey: "ads/x.mp4", durationSec: 15 } })).id;
 });
 afterAll(async () => {

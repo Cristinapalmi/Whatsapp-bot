@@ -11,6 +11,8 @@ import { createSeriesDraft } from "@/domain/series-workflow";
 let db: PrismaClient;
 beforeAll(async () => {
   db = await resetTestDb();
+  // Estes testes verificam outras regras: os ganhos ficam disponíveis logo (o pendente tem testes próprios)
+  await db.setting.create({ data: { key: "pendingDays", value: "0" } });
   await db.coinPack.create({ data: { id: "p10000", priceKz: 10000, coins: 1000, sortOrder: 1 } });
 });
 afterAll(async () => {

@@ -480,9 +480,15 @@ model JournalEntry {
   payoutRequest    PayoutRequest?  @relation(fields: [payoutRequestId], references: [id])
   createdById      String?
   createdBy        User?           @relation(fields: [createdById], references: [id])
+  /// Ganhos que entram como PENDENTES: quando passam a disponíveis, e quando passaram (ou foram anulados antes).
+  availableAt      DateTime?
+  releasedAt       DateTime?
+  cancelledAt      DateTime?
   createdAt        DateTime        @default(now())
 
   lines LedgerLine[]
+
+  @@index([releasedAt, availableAt])
 }
 
 /// Cada linha: valor positivo = débito, negativo = crédito.

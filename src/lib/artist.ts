@@ -38,7 +38,7 @@ export async function artistStats(artistId: string) {
       include: { episode: { select: { number: true, series: { select: { title: true } } } }, series: { select: { title: true } } },
     }),
     db.adUnlock.count({ where: { artistId } }),
-    db.ledgerLine.aggregate({ where: { account: { code: `artist:${artistId}:available` }, entry: { kind: "AD_DISTRIBUTION" } }, _sum: { amountCents: true } }),
+    db.ledgerLine.aggregate({ where: { account: { code: { in: [`artist:${artistId}:available`, `artist:${artistId}:pending`] } }, entry: { kind: "AD_DISTRIBUTION" } }, _sum: { amountCents: true } }),
   ]);
   return {
     views,

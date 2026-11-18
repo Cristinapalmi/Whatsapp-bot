@@ -18,7 +18,7 @@ export default async function ArtistAgreement() {
   const pct = business.artistSharePercent;
   const [prices, c] = await Promise.all([
     tierPrices(db),
-    getInts(db, ["seasonDiscountPercent", "tierUpgradeUnlocks", "foundersLimit", "founderMonths", "founderSharePercent", "milestone1Unlocks", "milestone1BonusKz", "milestone2Unlocks", "milestone2BonusKz", "milestone3Unlocks", "milestone3BonusKz", "payoutFirstMinKz", "payoutMinKz", "artistReferralBonusKz"]),
+    getInts(db, ["seasonDiscountPercent", "tierUpgradeUnlocks", "foundersLimit", "founderMonths", "founderSharePercent", "milestone1Unlocks", "milestone1BonusKz", "milestone2Unlocks", "milestone2BonusKz", "milestone3Unlocks", "milestone3BonusKz", "payoutFirstMinKz", "payoutMinKz", "artistReferralBonusKz", "pendingDays"]),
   ]);
   const firstMin = kzLabel(c.payoutFirstMinKz);
   const min = kzLabel(c.payoutMinKz);
@@ -53,7 +53,7 @@ export default async function ArtistAgreement() {
         <li><strong>{pct}% de tudo o que o público gastar</strong> nas tuas séries: episódios, temporadas e presentes.</li>
         <li><strong>Artistas Fundadores</strong> (os primeiros {c.foundersLimit}): {c.founderSharePercent}% nos primeiros {c.founderMonths} meses, selo permanente e séries a começar no nível Normal.</li>
         <li><strong>Bónus por marcos</strong> e <strong>bónus “Traz um kamba”</strong> ({kzLabel(c.artistReferralBonusKz)} por artista convidado que faça a primeira venda).</li>
-        <li><strong>Dinheiro na hora</strong> na tua carteira da app, assim que um fã gasta moedas nas tuas séries.</li>
+        <li><strong>Tudo à vista</strong> na tua carteira da app: cada ganho aparece logo como pendente e fica disponível {c.pendingDays} dias depois.</li>
         <li><strong>Levantamento</strong> para o teu IBAN ou Multicaixa Express.</li>
         <li><strong>O teu link pessoal</strong> para os fãs, com a contagem de quem veio por ti.</li>
         <li><strong>Ranking e destaque</strong> para os artistas mais vistos e mais apoiados.</li>
@@ -96,7 +96,7 @@ export default async function ArtistAgreement() {
 
       <h3 className="mt-5 font-bold">5. Carteira e levantamentos</h3>
       <ul>
-        <li>Os ganhos ficam registados na carteira do artista na app: saldo disponível (pode levantar) e, com pagamentos automáticos, saldo pendente (à espera de o serviço de pagamento transferir).</li>
+        <li>Os ganhos ficam registados na carteira do artista na app: primeiro como pendentes durante {c.pendingDays} dias, depois como disponíveis (pode levantar). Se uma compra for anulada durante esse período, o ganho correspondente é retirado do pendente. Os bónus pagos pela plataforma ficam disponíveis de imediato.</li>
         <li>Primeiro levantamento a partir de {firstMin}; os seguintes a partir de {min}. Para uma conta em nome do artista (IBAN angolano ou Multicaixa Express).</li>
         <li>A {n} tenta pagar em 24 horas; no primeiro levantamento confirma antes o BI e a conta.</li>
         <li>Se uma compra de moedas for anulada, os ganhos que vieram dessas moedas saem da carteira.</li>

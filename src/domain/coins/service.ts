@@ -1,8 +1,8 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { business } from "@config/business";
 import { UserFacingError } from "../errors";
-import { COINS_OUTSTANDING, PLATFORM_REVENUE, artistAvailable } from "../money/accounts";
-import { postEntry, type Tx } from "../money/ledger";
+import { COINS_OUTSTANDING, PLATFORM_REVENUE, artistAvailable, artistPending } from "../money/accounts";
+import { earningAccount, postEntry, type Tx } from "../money/ledger";
 import { splitRevenue } from "../money/split";
 import { notify } from "../notify";
 import { formatKz } from "@/lib/money";
@@ -189,13 +189,16 @@ async function spendCoins(tx: Prisma.TransactionClient, input: SpendInput) {
     },
   });
   if (value > 0) {
+    // O ganho do artista entra como PENDENTE (X dias, editável) e passa sozinho a disponível
+    const earn = await earningAccount(tx, input.artistId);
     await postEntry(tx, {
       kind: input.kind === "GIFT" ? "COIN_SPEND_GIFT" : "COIN_SPEND_EPISODE",
       description: input.description,
       idempotencyKey: `coin-spend:${spend.id}`,
+      availableAt: earn.availableAt,
       lines: [
         { account: COINS_OUTSTANDING, amountCents: value },
-        { account: artistAvailable(input.artistId), amountCents: -artistCents },
+        { account: earn.account, amountCents: -artistCents },
         { account: PLATFORM_REVENUE, amountCents: -platformCents },
       ],
     });
@@ -304,6 +307,13 @@ export async function reverseCoinSpend(tx: Prisma.TransactionClient, spendId: st
   }
   if (spend.valueCents > 0) {
     const platformCents = spend.valueCents - spend.artistCents;
+    // Se o ganho ainda está pendente, sai do pendente (o disponível não é tocado) e nunca chega a passar
+    const original = await tx.journalEntry.findUnique({ where: { idempotencyKey: `coin-spend:${spend.id}` } });
+    let artistAccount = artistAvailable(spend.artistId);
+    if (original?.availableAt && !original.releasedAt) {
+      const cancel = await tx.journalEntry.updateMany({ where: { id: original.id, releasedAt: null, cancelledAt: null }, data: { cancelledAt: new Date() } });
+      if (cancel.count === 1) artistAccount = artistPending(spend.artistId);
+    }
     await postEntry(tx, {
       kind: "COIN_SPEND_REVERSED",
       description: `Anulação de gasto de moedas — ${reason}`,
@@ -311,7 +321,7 @@ export async function reverseCoinSpend(tx: Prisma.TransactionClient, spendId: st
       createdById: adminId ?? undefined,
       lines: [
         { account: COINS_OUTSTANDING, amountCents: -spend.valueCents },
-        { account: artistAvailable(spend.artistId), amountCents: spend.artistCents },
+        { account: artistAccount, amountCents: spend.artistCents },
         { account: PLATFORM_REVENUE, amountCents: platformCents },
       ],
     });

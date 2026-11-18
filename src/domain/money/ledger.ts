@@ -29,6 +29,8 @@ export type PostEntryInput = {
   paymentRequestId?: string;
   payoutRequestId?: string;
   createdById?: string;
+  /** Ganho que entra como pendente: data em que passa a disponível. */
+  availableAt?: Date | null;
 };
 
 export async function postEntry(tx: Tx, input: PostEntryInput) {
@@ -51,6 +53,7 @@ export async function postEntry(tx: Tx, input: PostEntryInput) {
       paymentRequestId: input.paymentRequestId,
       payoutRequestId: input.payoutRequestId,
       createdById: input.createdById,
+      availableAt: input.availableAt ?? null,
       lines: { create: lines.map((l, i) => ({ accountId: accountIds[i], amountCents: l.amountCents })) },
     },
     include: { lines: true },
@@ -84,8 +87,8 @@ export type ArtistWallet = {
 };
 
 export async function getArtistWallet(tx: Tx, artistId: string, now = new Date()): Promise<ArtistWallet> {
-  const availableCode = artistAvailable(artistId).code;
-  const earningWhere = { account: { code: availableCode }, entry: { kind: { in: [...EARNING_KINDS] } } };
+  // Ganhos = linhas de ganho nas contas disponível E pendente (a passagem pendente → disponível não conta duas vezes)
+  const earningWhere = { account: { code: { in: [artistAvailable(artistId).code, artistPending(artistId).code] } }, entry: { kind: { in: [...EARNING_KINDS] } } };
   const [availableCents, pendingCents, processingCents, total, month] = await Promise.all([
     balance(tx, artistAvailable(artistId)),
     balance(tx, artistPending(artistId)),
@@ -109,4 +112,79 @@ export async function getArtistWallet(tx: Tx, artistId: string, now = new Date()
 export async function ledgerIsBalanced(tx: Tx): Promise<boolean> {
   const agg = await tx.ledgerLine.aggregate({ _sum: { amountCents: true } });
   return (agg._sum.amountCents ?? 0) === 0;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* PENDENTE: os ganhos dos artistas ficam X dias em pendente (editável) */
+/* ------------------------------------------------------------------ */
+
+/** Data em que um ganho feito agora fica disponível (null = disponível já). */
+export async function pendingUntil(tx: Tx, now = new Date()): Promise<Date | null> {
+  const { getInt } = await import("../settings");
+  const days = await getInt(tx, "pendingDays");
+  return days > 0 ? new Date(now.getTime() + days * 86_400_000) : null;
+}
+
+/** Conta onde entra um ganho do artista agora: pendente (com data) ou disponível. */
+export async function earningAccount(tx: Tx, artistId: string, now = new Date()) {
+  const until = await pendingUntil(tx, now);
+  return { account: until ? artistPending(artistId) : artistAvailable(artistId), availableAt: until };
+}
+
+/**
+ * Passa para "Disponível" os ganhos cuja data já chegou. Cada lançamento passa uma única vez
+ * (e nunca se já foi anulado). Opcionalmente só de um artista.
+ */
+export async function releaseDuePending(db: PrismaClient, opts: { artistId?: string; now?: Date } = {}) {
+  const now = opts.now ?? new Date();
+  const entries = await db.journalEntry.findMany({
+    where: {
+      availableAt: { lte: now },
+      releasedAt: null,
+      cancelledAt: null,
+      lines: { some: { account: opts.artistId ? { code: artistPending(opts.artistId).code } : { code: { endsWith: ":pending", startsWith: "artist:" } } } },
+    },
+    include: { lines: { include: { account: true } } },
+    take: 500,
+  });
+  let released = 0;
+  for (const e of entries) {
+    await db.$transaction(async (tx) => {
+      const claim = await tx.journalEntry.updateMany({ where: { id: e.id, releasedAt: null, cancelledAt: null }, data: { releasedAt: now } });
+      if (claim.count !== 1) return;
+      const lines: PostEntryInput["lines"] = [];
+      for (const l of e.lines) {
+        const m = /^artist:(.+):pending$/.exec(l.account.code);
+        if (!m || l.amountCents >= 0) continue;
+        lines.push({ account: artistPending(m[1]), amountCents: -l.amountCents }, { account: artistAvailable(m[1]), amountCents: l.amountCents });
+      }
+      if (lines.length) {
+        await postEntry(tx, { kind: "EARNING_RELEASED", description: `Disponível: ${e.description}`, idempotencyKey: `release:${e.id}` , lines });
+        released++;
+      }
+    });
+  }
+  return released;
+}
+
+/** Pendente de um artista agrupado pela data em que fica disponível. */
+export async function pendingSchedule(tx: Tx, artistId: string) {
+  const code = artistPending(artistId).code;
+  const entries = await tx.journalEntry.findMany({
+    where: { releasedAt: null, cancelledAt: null, availableAt: { not: null }, lines: { some: { account: { code } } } },
+    include: { lines: { where: { account: { code } } } },
+    orderBy: { availableAt: "asc" },
+  });
+  const byDay = new Map<string, { availableAt: Date; cents: number }>();
+  for (const e of entries) {
+    const cents = e.lines.reduce((a, l) => a - l.amountCents, 0);
+    if (cents === 0) continue;
+    const key = e.availableAt!.toISOString().slice(0, 10);
+    const cur = byDay.get(key) ?? { availableAt: e.availableAt!, cents: 0 };
+    cur.cents += cents;
+    if (e.availableAt! > cur.availableAt) cur.availableAt = e.availableAt!;
+    byDay.set(key, cur);
+  }
+  return [...byDay.values()];
 }

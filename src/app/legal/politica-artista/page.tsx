@@ -19,7 +19,7 @@ export default async function ArtistPolicy() {
     getInts(db, [
       "tierUpgradeUnlocks", "seasonDiscountPercent", "foundersLimit", "founderMonths", "founderSharePercent",
       "milestone1Unlocks", "milestone1BonusKz", "milestone2Unlocks", "milestone2BonusKz", "milestone3Unlocks", "milestone3BonusKz",
-      "payoutFirstMinKz", "payoutMinKz", "artistReferralBonusKz",
+      "payoutFirstMinKz", "payoutMinKz", "artistReferralBonusKz", "pendingDays",
     ]),
   ]);
   const firstMin = kzLabel(c.payoutFirstMinKz);
@@ -31,7 +31,7 @@ export default async function ArtistPolicy() {
         <p className="font-semibold text-accent2">Em resumo</p>
         <ul>
           <li>Ganhas <strong>{pct}% de tudo o que o público gastar</strong> nas tuas séries — e os <strong>Artistas Fundadores ganham {c.founderSharePercent}%</strong> nos primeiros {c.founderMonths} meses.</li>
-          <li>O dinheiro aparece na tua carteira da app no momento em que o fã desbloqueia.</li>
+          <li>Cada desbloqueio aparece logo na tua carteira como <strong>pendente</strong> e passa sozinho a <strong>disponível</strong> {c.pendingDays} dias depois.</li>
           <li>O teu <strong>primeiro levantamento é a partir de {firstMin}</strong>, para o teu IBAN ou Multicaixa Express. Tentamos pagar em 24 horas.</li>
           <li>Bónus quando as tuas séries chegam a marcos, e bónus por cada artista que convidares.</li>
           <li>Entrar é grátis. Tu crias, carregas e geres as tuas séries; nós revemos e publicamos.</li>
@@ -50,7 +50,7 @@ export default async function ArtistPolicy() {
           </ul>
         </li>
         <li><strong>Traz um kamba:</strong> convida outro artista com o teu link. Quando ele fizer a primeira venda, ganhas {kzLabel(c.artistReferralBonusKz)} (uma vez por artista convidado).</li>
-        <li><strong>Dinheiro na hora:</strong> cada desbloqueio aparece logo na tua carteira. Recebes um resumo por dia (“Hoje ganhaste…”), e avisos no primeiro fã, nos marcos e nos bónus.</li>
+        <li><strong>Acompanhas tudo ao vivo:</strong> cada desbloqueio aparece logo na tua carteira (pendente durante {c.pendingDays} dias, depois disponível). Recebes um resumo por dia (“Hoje ganhaste…”), e avisos no primeiro fã, nos marcos e nos bónus.</li>
         <li><strong>O teu perfil e o teu link pessoal</strong> ({brand.domain}/o-teu-nome), com seguidores: quem te segue é avisado quando publicas séries ou episódios novos.</li>
         <li><strong>Kit de promoção</strong> pronto quando a série é publicada: imagem para o estado e stories, com o link e o código QR, e o texto para colar.</li>
         <li><strong>Não pagas nada para entrar.</strong></li>
@@ -95,6 +95,7 @@ export default async function ArtistPolicy() {
       <h3 className="mt-5 font-bold">5. A tua carteira e os levantamentos</h3>
       <ul>
         <li><strong>Primeiro levantamento:</strong> a partir de {firstMin}. <strong>Seguintes:</strong> a partir de {min}.</li>
+        <li><strong>Pendente:</strong> os ganhos ficam {c.pendingDays} dias em pendente e depois passam sozinhos a disponível (a data aparece na carteira). Se uma compra for anulada nesse período, o ganho correspondente sai do pendente. Os bónus da plataforma ficam disponíveis logo.</li>
         <li><strong>Para onde:</strong> uma conta em teu nome, por IBAN angolano ou Multicaixa Express.</li>
         <li><strong>Prazo:</strong> tentamos pagar em 24 horas. No primeiro levantamento confirmamos o teu BI e a conta antes de pagar.</li>
         <li>Se houver suspeita de fraude, podemos reter um levantamento enquanto verificamos.</li>

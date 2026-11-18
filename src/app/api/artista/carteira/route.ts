@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/origin";
-import { getArtistWallet } from "@/domain/money/ledger";
+import { getArtistWallet, releaseDuePending } from "@/domain/money/ledger";
 import { artistMoneySnapshot } from "@/domain/artists/growth";
 
 async function currentArtist() {
@@ -15,6 +15,7 @@ async function currentArtist() {
 export async function GET() {
   const artist = await currentArtist();
   if (!artist) return NextResponse.json({}, { status: 401 });
+  await releaseDuePending(db, { artistId: artist.id });
   const [wallet, snap] = await Promise.all([getArtistWallet(db, artist.id), artistMoneySnapshot(db, artist.id)]);
   return NextResponse.json({ ...wallet, snapshot: snap }, { headers: { "Cache-Control": "no-store" } });
 }

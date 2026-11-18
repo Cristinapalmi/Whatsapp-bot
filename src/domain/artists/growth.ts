@@ -216,7 +216,7 @@ export async function topSpenders(db: Tx, artistId: string, limit = 10) {
 export async function earnedTodayCents(db: Tx, artistId: string, now = new Date()) {
   const { EARNING_KINDS } = await import("../money/accounts");
   const r = await db.ledgerLine.aggregate({
-    where: { account: { code: artistAvailable(artistId).code }, createdAt: { gte: luandaDayStart(now) }, entry: { kind: { in: [...EARNING_KINDS] } } },
+    where: { account: { code: { in: [artistAvailable(artistId).code, `artist:${artistId}:pending`] } }, createdAt: { gte: luandaDayStart(now) }, entry: { kind: { in: [...EARNING_KINDS] } } },
     _sum: { amountCents: true },
   });
   return 0 - (r._sum.amountCents ?? 0) || 0;
@@ -264,7 +264,7 @@ export async function earningsHistory(db: Tx, artistId: string, by: "day" | "wee
   const end = luandaDayStart(now).getTime() + MS_DAY; // fim de hoje (Luanda)
   const start = end - n * unit;
   const lines = await db.ledgerLine.findMany({
-    where: { account: { code: artistAvailable(artistId).code }, createdAt: { gte: new Date(start) }, entry: { kind: { in: [...EARNING_KINDS] } } },
+    where: { account: { code: { in: [artistAvailable(artistId).code, `artist:${artistId}:pending`] } }, createdAt: { gte: new Date(start) }, entry: { kind: { in: [...EARNING_KINDS] } } },
     select: { amountCents: true, createdAt: true },
   });
   const buckets = Array.from({ length: n }, (_, i) => ({ start: new Date(start + i * unit), cents: 0 }));
@@ -307,10 +307,11 @@ export async function seriesAudience(db: Tx, artistId: string) {
 
 /** Tudo o que o painel financeiro precisa — sempre a partir dos dados reais. */
 export async function artistMoneySnapshot(db: Tx, artistId: string, now = new Date()) {
-  const { getArtistWallet } = await import("../money/ledger");
+  const { getArtistWallet, pendingSchedule } = await import("../money/ledger");
   const { payoutMinCents } = await import("../payouts/service");
   const artist = await db.artistProfile.findUniqueOrThrow({ where: { id: artistId }, select: { achievementsSeenAt: true, createdAt: true } });
-  const [wallet, paid, today, minCents, goals, milestones, series] = await Promise.all([
+  const [schedule, wallet, paid, today, minCents, goals, milestones, series] = await Promise.all([
+    pendingSchedule(db, artistId),
     getArtistWallet(db, artistId, now),
     db.payoutRequest.aggregate({ where: { artistId, status: "PAID" }, _sum: { amountCents: true } }),
     earnedTodayCents(db, artistId, now),
@@ -346,6 +347,8 @@ export async function artistMoneySnapshot(db: Tx, artistId: string, now = new Da
   return {
     totalCents: wallet.earnedTotalCents,
     pendingCents: wallet.pendingCents,
+    /** Quando o pendente fica disponível (datas reais de cada ganho). */
+    pendingSchedule: schedule.map((x) => ({ availableAt: x.availableAt.toISOString(), cents: x.cents, daysLeft: Math.max(0, Math.ceil((x.availableAt.getTime() - now.getTime()) / MS_DAY)) })),
     availableCents: wallet.availableCents,
     processingCents: wallet.processingCents,
     withdrawnCents: paid._sum.amountCents ?? 0,

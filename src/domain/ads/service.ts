@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import { business } from "@config/business";
 import { UserFacingError } from "../errors";
-import { PLATFORM_REVENUE, adPool, artistAvailable } from "../money/accounts";
-import { balance, lockAccount, postEntry, type Tx } from "../money/ledger";
+import { PLATFORM_REVENUE, adPool, artistAvailable, artistPending } from "../money/accounts";
+import { balance, lockAccount, pendingUntil, postEntry, type Tx } from "../money/ledger";
 import { distributePassPool, splitRevenue } from "../money/split";
 import { getSettingInt } from "../coins/service";
 import { monthRange } from "../ranking";
@@ -151,13 +151,16 @@ export async function distributeAdPool(db: PrismaClient, { month, adminId, now =
     const counts = await tx.adUnlock.groupBy({ by: ["artistId"], where: { month }, _count: { _all: true } });
     const r = distributePassPool(pool, Object.fromEntries(counts.map((c) => [c.artistId, c._count._all])));
     const lines = [{ account: adPool(month), amountCents: pool }];
-    for (const [artistId, cents] of Object.entries(r.allocations)) lines.push({ account: artistAvailable(artistId), amountCents: -cents });
+    // Os ganhos de anúncios também ficam pendentes X dias
+    const until = await pendingUntil(tx, now);
+    for (const [artistId, cents] of Object.entries(r.allocations)) lines.push({ account: until ? artistPending(artistId) : artistAvailable(artistId), amountCents: -cents });
     if (r.remainderCents) lines.push({ account: PLATFORM_REVENUE, amountCents: -r.remainderCents });
     if (r.rolloverCents) lines.push({ account: adPool(nextMonthKey(month)), amountCents: -r.rolloverCents });
     await postEntry(tx, {
       kind: r.rolloverCents ? "AD_ROLLOVER" : "AD_DISTRIBUTION",
       description: `Fundo de anúncios ${month}`,
       idempotencyKey: `ad-dist:${month}:${randomUUID()}`,
+      availableAt: until,
       createdById: adminId ?? undefined,
       lines,
     });

@@ -39,14 +39,15 @@ function classify(entryKind: string, paymentKind: string | null | undefined): St
   return "OTHER";
 }
 
-/** Extrato mensal da carteira (saldo disponível) de um artista. */
+/** Extrato mensal da carteira (disponível + pendente) de um artista. A passagem pendente → disponível não aparece (soma zero). */
 export async function artistStatement(db: Tx, artistId: string, month?: string) {
   const r = monthRange(month);
-  const code = artistAvailable(artistId).code;
+  const code = { in: [artistAvailable(artistId).code, `artist:${artistId}:pending`] };
+  const notRelease = { kind: { not: "EARNING_RELEASED" } };
   const [before, lines, paidPayouts] = await Promise.all([
     db.ledgerLine.aggregate({ where: { account: { code }, createdAt: { lt: r.from } }, _sum: { amountCents: true } }),
     db.ledgerLine.findMany({
-      where: { account: { code }, createdAt: { gte: r.from, lt: r.to } },
+      where: { account: { code }, createdAt: { gte: r.from, lt: r.to }, entry: notRelease },
       include: { entry: { include: { paymentRequest: { select: { kind: true } } } } },
       orderBy: { createdAt: "asc" },
     }),
