@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { getAdminForApi } from "@/lib/auth";
 
 /** Exporta em CSV (abre no Excel) os levantamentos de um mês. */
 export async function GET(req: Request) {
-  const user = await getCurrentUser();
-  if (user?.role !== "ADMIN") return new NextResponse("Proibido", { status: 403 });
+  const user = await getAdminForApi();
+  if (!user) return new NextResponse("Proibido", { status: 403 });
   const mes = new URL(req.url).searchParams.get("mes") ?? "";
   const m = /^(\d{4})-(\d{2})$/.exec(mes);
   if (!m) return new NextResponse("Mês inválido (AAAA-MM)", { status: 400 });

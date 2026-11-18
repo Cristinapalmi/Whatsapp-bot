@@ -25,6 +25,32 @@ async function main() {
     await db.$disconnect().catch(() => {});
   }
 
+  // Perdeu o telemóvel dos 2 passos? ADMIN_RESET_2FA=true + Redeploy volta a pedir a configuração.
+  if (process.env.ADMIN_RESET_2FA === "true" && process.env.ADMIN_PHONE) {
+    const { normalizeAngolanPhone } = await import("../src/lib/phone");
+    const phone = normalizeAngolanPhone(process.env.ADMIN_PHONE);
+    const dbr = new PrismaClient();
+    try {
+      if (phone) {
+        const r = await dbr.user.updateMany({ where: { phone, role: "ADMIN" }, data: { totpEnabled: false, totpSecret: null, totpLastStep: null, totpRecoveryHashes: [] } });
+        console.log(`[admin] 2 passos reiniciados (${r.count}). Apaga a variável ADMIN_RESET_2FA na Vercel.`);
+      }
+    } finally {
+      await dbr.$disconnect().catch(() => {});
+    }
+  }
+
+  // Segurança: RLS ativo em todas as tabelas (inclui tabelas novas de migrações futuras)
+  const dbs = new PrismaClient();
+  try {
+    await dbs.$executeRawUnsafe(`DO $$ DECLARE t record; BEGIN FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND NOT rowsecurity LOOP EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t.tablename); END LOOP; END $$;`);
+    console.log("[seguranca] RLS verificado em todas as tabelas.");
+  } catch (e) {
+    console.warn("[seguranca] Aviso: não consegui verificar o RLS:", e instanceof Error ? e.message : e);
+  } finally {
+    await dbs.$disconnect().catch(() => {});
+  }
+
   // Online nunca se criam séries de exemplo (mesmo com SEED_DEMO=true).
   if (process.env.SEED_DEMO === "true") console.log("[seed] SEED_DEMO ignorado: o deploy online nunca cria séries de exemplo.");
 

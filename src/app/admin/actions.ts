@@ -15,7 +15,8 @@ import { distributeAdPool, registerAdRevenue } from "@/domain/ads/service";
 import { runDemoCleanup } from "@/domain/demo-cleanup";
 import { approveReview, rejectReview } from "@/domain/series-workflow";
 import { audit, notify } from "@/domain/notify";
-import { getUploadUrl, newKey, putObject } from "@/domain/storage";
+import { deleteObject, getUploadUrl, inspectObject, newKey, putObject } from "@/domain/storage";
+import { MAX_VIDEO_BYTES, readValidatedFile, sniff } from "@/lib/filetype";
 import { UserFacingError } from "@/domain/errors";
 import type { ActionResult } from "@/components/ActionForm";
 
@@ -53,11 +54,10 @@ export async function markPayoutPaidAction(_: ActionResult, fd: FormData): Promi
     let proofKey: string | undefined;
     const file = fd.get("proof");
     if (file instanceof File && file.size > 0) {
-      const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" }[file.type];
-      if (!ext) return { error: "Comprovativo tem de ser imagem ou PDF." };
-      if (file.size > 5 * 1024 * 1024) return { error: "Máximo 5 MB." };
-      proofKey = newKey("payouts", ext);
-      await putObject("private", proofKey, Buffer.from(await file.arrayBuffer()), file.type);
+      const f = await readValidatedFile(file, ["jpeg", "png", "webp", "pdf"], 5 * 1024 * 1024, "Comprovativo").catch((e: Error) => ({ error: e.message }));
+      if ("error" in f) return { error: f.error };
+      proofKey = newKey("payouts", f.type === "jpeg" ? "jpg" : f.type!);
+      await putObject("private", proofKey, f.bytes, f.type === "pdf" ? "application/pdf" : `image/${f.type}`);
     }
     await markPayoutPaid(db, { payoutId: str(fd, "id"), adminId: admin.id, proofKey, note: str(fd, "note") || undefined });
   } catch (e) { return toActionError(e); }
@@ -120,11 +120,10 @@ export async function saveSeriesAction(_: ActionResult, fd: FormData): Promise<A
     let coverKey: string | undefined;
     const cover = fd.get("cover");
     if (cover instanceof File && cover.size > 0) {
-      const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[cover.type];
-      if (!ext) return { error: "Capa tem de ser JPG, PNG ou WEBP." };
-      if (cover.size > 2 * 1024 * 1024) return { error: "Capa: máximo 2 MB (usa uma imagem 600×900)." };
-      coverKey = newKey("covers", ext);
-      await putObject("media", coverKey, Buffer.from(await cover.arrayBuffer()), cover.type);
+      const f = await readValidatedFile(cover, ["jpeg", "png", "webp"], 3 * 1024 * 1024, "Capa").catch((e: Error) => ({ error: e.message }));
+      if ("error" in f) return { error: `${f.error} Usa JPG, PNG ou WEBP (600×900).` };
+      coverKey = newKey("covers", f.type === "jpeg" ? "jpg" : f.type!);
+      await putObject("media", coverKey, f.bytes, `image/${f.type}`);
     }
     if (d.featured) await db.series.updateMany({ where: { featured: true, NOT: { id: d.id } }, data: { featured: false } });
     await db.series.update({
@@ -195,9 +194,10 @@ export async function saveEpisodeAction(_: ActionResult, fd: FormData): Promise<
     let subtitlesKey: string | undefined;
     const subs = fd.get("subtitles");
     if (subs instanceof File && subs.size > 0) {
-      if (!subs.name.toLowerCase().endsWith(".vtt")) return { error: "Legendas têm de estar em formato .vtt" };
+      const f = await readValidatedFile(subs, ["vtt"], 512 * 1024, "Legendas").catch((e: Error) => ({ error: e.message }));
+      if ("error" in f) return { error: `${f.error} Usa um ficheiro .vtt.` };
       subtitlesKey = newKey("subtitles", "vtt");
-      await putObject("media", subtitlesKey, Buffer.from(await subs.arrayBuffer()), "text/vtt");
+      await putObject("media", subtitlesKey, f.bytes, "text/vtt");
     }
     if (d.id) {
       const ep = await db.episode.findUniqueOrThrow({ where: { id: d.id } });
@@ -237,6 +237,13 @@ export async function createVideoUploadAction(targetId: string, quality: "low" |
 
 export async function attachVideoAction(episodeId: string, quality: "low" | "medium" | "trailer" | "ad", key: string, durationSec: number) {
   const admin = await requireAdmin();
+  // Confirmar no servidor que o ficheiro enviado é mesmo um vídeo e não passa do limite
+  const info = await inspectObject("media", key);
+  const realType = info ? sniff(info.head) : null;
+  if (!info || (realType !== "mp4" && realType !== "webm") || info.size > MAX_VIDEO_BYTES) {
+    await deleteObject("media", key).catch(() => {});
+    throw new Error("O ficheiro não é um vídeo MP4 válido (ou passa de 50 MB).");
+  }
   if (quality === "ad") {
     // Aqui "episodeId" é o id do anúncio
     if (!key.startsWith("ads/")) throw new Error("Chave inválida");

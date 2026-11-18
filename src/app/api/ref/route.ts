@@ -1,3 +1,4 @@
+import { isSameOrigin } from "@/lib/origin";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
@@ -9,6 +10,7 @@ import { dayLuanda } from "@/lib/dates";
  * - Conta no máximo uma visita por navegador, por artista, por dia.
  */
 export async function POST(req: Request) {
+  if (!isSameOrigin(req)) return new Response("Forbidden", { status: 403 });
   const { slug } = (await req.json().catch(() => ({}))) as { slug?: string };
   if (!slug) return NextResponse.json({ ok: false }, { status: 400 });
   const artist = await db.artistProfile.findFirst({ where: { slug, status: "APPROVED" }, select: { id: true } });

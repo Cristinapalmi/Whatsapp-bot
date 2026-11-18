@@ -1,8 +1,57 @@
 /** @type {import('next').NextConfig} */
+
+// Endereços de armazenamento permitidos (Supabase Storage / R2) para imagens, vídeos e envios
+const hostOf = (u) => {
+  try {
+    return u ? new URL(u).host : null;
+  } catch {
+    return null;
+  }
+};
+const storageHosts = [hostOf(process.env.SUPABASE_URL), hostOf(process.env.S3_ENDPOINT)].filter(Boolean).map((h) => `https://${h}`).join(" ");
+const isDev = process.env.NODE_ENV !== "production";
+
+/**
+ * CABEÇALHOS DE SEGURANÇA
+ * - CSP: só carrega scripts, estilos, imagens e vídeos do próprio site e do armazenamento.
+ *   ('unsafe-inline' nos scripts é necessário para o Next.js funcionar sem nonces.)
+ * - HSTS: obriga a usar HTTPS. X-Frame-Options/frame-ancestors: impede pôr o site dentro de outro.
+ */
+const csp = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' data: blob: ${storageHosts}`,
+  `media-src 'self' blob: ${storageHosts}`,
+  `connect-src 'self' ${storageHosts}`,
+  "font-src 'self' data:",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+  ...(isDev ? [] : ["upgrade-insecure-requests"]),
+].join("; ");
+
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+];
+
 const nextConfig = {
+  poweredByHeader: false,
   experimental: {
-    serverActions: { bodySizeLimit: "5mb" }, // comprovativos até 5 MB
+    serverActions: { bodySizeLimit: "5mb" }, // comprovativos e capas até 5 MB
   },
   images: { unoptimized: true }, // poupa custos de otimização de imagens na Vercel
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
 };
 export default nextConfig;

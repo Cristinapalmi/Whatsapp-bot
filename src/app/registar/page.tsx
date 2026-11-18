@@ -14,6 +14,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
       <p className="mt-1 text-muted">É grátis. Vês os primeiros episódios de cada série sem pagar.</p>
       <ActionForm action={registerAction} className="mt-6 space-y-4">
         <input type="hidden" name="next" value={next ?? ""} />
+        <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><label>Não preencher<input name="website" tabIndex={-1} autoComplete="off" /></label></div>
         <div>
           <label className="label" htmlFor="name">Nome</label>
           <input className="input" id="name" name="name" autoComplete="name" required />
@@ -24,8 +25,8 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
         </div>
         <div>
           <label className="label" htmlFor="password">Palavra-passe</label>
-          <input className="input" id="password" name="password" type="password" autoComplete="new-password" minLength={6} required />
-          <p className="hint">Pelo menos 6 caracteres.</p>
+          <input className="input" id="password" name="password" type="password" autoComplete="new-password" minLength={8} required />
+          <p className="hint">Pelo menos 8 caracteres.</p>
         </div>
         <div>
           <label className="label" htmlFor="birthDate">Data de nascimento</label>

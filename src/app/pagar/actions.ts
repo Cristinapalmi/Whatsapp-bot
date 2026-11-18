@@ -8,13 +8,13 @@ import { toActionError } from "@/lib/actions";
 import { newKey, putObject, sha256 } from "@/domain/storage";
 import { createCoinPaymentRequest } from "@/domain/payments/service";
 import type { ActionResult } from "@/components/ActionForm";
+import { readValidatedFile } from "@/lib/filetype";
 
-const ALLOWED: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
 const MAX_BYTES = 5 * 1024 * 1024;
 
 const schema = z.object({
   packId: z.string().min(1, "Escolhe um pacote."),
-  method: z.enum(["MULTICAIXA_EXPRESS", "BANK_TRANSFER"], { errorMap: () => ({ message: "Escolhe como pagaste." }) }),
+  method: z.enum(["MULTICAIXA_EXPRESS", "BANK_TRANSFER"], { error: "Escolhe como pagaste." }),
   payerPhone: phoneSchema,
   transactionRef: z.string().trim().min(4, "Indica o número da operação que aparece no comprovativo.").max(60),
   voltar: z.string().optional(),
@@ -29,10 +29,12 @@ export async function submitPaymentAction(_: ActionResult, fd: FormData): Promis
     const data = schema.parse({ packId: g("packId"), method: g("method"), payerPhone: g("payerPhone"), transactionRef: g("transactionRef"), voltar: g("voltar") });
     const file = fd.get("proof");
     if (!(file instanceof File) || file.size === 0) return { error: "Carrega a fotografia ou captura do comprovativo." };
-    const ext = ALLOWED[file.type];
-    if (!ext) return { error: "O comprovativo tem de ser uma imagem (JPG, PNG, WEBP) ou PDF." };
-    if (file.size > MAX_BYTES) return { error: "Ficheiro demasiado grande (máximo 5 MB)." };
-    const bytes = Buffer.from(await file.arrayBuffer());
+    // Tipo REAL do ficheiro (pelos primeiros bytes), não o que o navegador diz
+    const checked = await readValidatedFile(file, ["jpeg", "png", "webp", "pdf"], MAX_BYTES, "Comprovativo").catch((e: Error) => ({ error: e.message }));
+    if ("error" in checked) return { error: `${checked.error} Usa uma imagem (JPG, PNG, WEBP) ou PDF.` };
+    const bytes = checked.bytes;
+    const ext = checked.type === "jpeg" ? "jpg" : checked.type!;
+    const mime = checked.type === "pdf" ? "application/pdf" : `image/${checked.type}`;
     await createCoinPaymentRequest(db, {
       userId: user.id,
       packId: data.packId,
@@ -42,7 +44,7 @@ export async function submitPaymentAction(_: ActionResult, fd: FormData): Promis
       proofHash: sha256(bytes),
       storeProof: async () => {
         const key = newKey("proofs", ext);
-        await putObject("private", key, bytes, file.type);
+        await putObject("private", key, bytes, mime);
         return key;
       },
     });

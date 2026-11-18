@@ -1,3 +1,4 @@
+import { isSameOrigin } from "@/lib/origin";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -19,6 +20,7 @@ const schema = z.object({
  * - o total por episódio não ultrapassa 3× a duração do episódio.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!isSameOrigin(req)) return new Response("Forbidden", { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
   const { id } = await params;

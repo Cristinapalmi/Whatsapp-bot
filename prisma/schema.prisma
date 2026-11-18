@@ -36,6 +36,12 @@ model User {
   referredByArtistId String?
   /// Último dia (AAAA-MM-DD, Luanda) em que viu a sugestão ao abrir a app (máx. 1 por dia).
   suggestionSeenDay  String?
+  /// Autenticação em 2 passos (app de autenticação, TOTP) — obrigatória para a admin.
+  totpSecret         String?
+  totpEnabled        Boolean  @default(false)
+  totpLastStep       Int?
+  /// Códigos de recuperação (guardados só como hash; cada um serve uma vez).
+  totpRecoveryHashes String[] @default([])
 
   consents           Consent[]
   artistProfile      ArtistProfile?
@@ -84,9 +90,13 @@ model LoginAttempt {
   id        String   @id @default(cuid())
   phone     String
   success   Boolean
+  /// "login", "register" ou "2fa"
+  kind      String   @default("login")
+  ip        String?
   createdAt DateTime @default(now())
 
   @@index([phone, createdAt])
+  @@index([ip, createdAt])
 }
 
 // ---------- Artistas, séries e episódios ----------

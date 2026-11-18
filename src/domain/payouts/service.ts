@@ -29,6 +29,9 @@ export async function requestPayout(db: PrismaClient, { artistId, amountCents }:
     const available = await balance(tx, artistAvailable(artistId));
     if (amountCents > available)
       throw new UserFacingError(`Saldo insuficiente. Disponível: ${formatKz(Math.max(0, available))}.`, "INSUFFICIENT");
+    // Sem duplicados: só um levantamento em processamento de cada vez
+    if (await tx.payoutRequest.findFirst({ where: { artistId, status: "PROCESSING" } }))
+      throw new UserFacingError("Já tens um levantamento em processamento. Espera que seja pago antes de pedir outro.", "PAYOUT_PENDING");
 
     const payout = await tx.payoutRequest.create({
       data: {

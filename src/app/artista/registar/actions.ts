@@ -4,13 +4,14 @@ import { z } from "zod";
 import type { ConsentDocument } from "@prisma/client";
 import { business } from "@config/business";
 import { db } from "@/lib/db";
-import { createSession, getCurrentUser, hashPassword, requestMeta } from "@/lib/auth";
+import { createSession, getCurrentUser, hashPassword, recordAttempt, requestMeta, tooManyRegistrations } from "@/lib/auth";
 import { ageOn } from "@/lib/dates";
 import { RESERVED_SLUGS, slugify } from "@/lib/slug";
 import { birthDateSchema, checkbox, passwordSchema, phoneSchema, urlSchema } from "@/lib/validation";
 import { toActionError } from "@/lib/actions";
 import { newKey, putObject } from "@/domain/storage";
 import type { ActionResult } from "@/components/ActionForm";
+import { readValidatedFile } from "@/lib/filetype";
 
 const artistSchema = z.object({
   stageName: z.string().trim().min(2, "Indica o nome artístico.").max(40),
@@ -36,6 +37,7 @@ const ARTIST_DOCS: ConsentDocument[] = [
 
 export async function registerArtistAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    if (String(fd.get("website") ?? "") !== "") return { error: "Não foi possível criar a conta." };
     const raw = Object.fromEntries(fd);
     const data = artistSchema.parse({ ...raw, slug: raw.slug || slugify(String(raw.stageName ?? "")) });
     if (RESERVED_SLUGS.has(data.slug)) return { error: "Esse link pessoal não está disponível. Escolhe outro." };
@@ -55,6 +57,7 @@ export async function registerArtistAction(_: ActionResult, fd: FormData): Promi
       birthDate = current.birthDate;
     } else {
       newUser = newUserSchema.parse(raw);
+      if (await tooManyRegistrations((await requestMeta()).ip)) return { error: "Foram criadas muitas contas a partir desta ligação. Tenta mais tarde." };
       if (await db.user.findUnique({ where: { phone: newUser.phone } }))
         return { error: "Já existe uma conta com este telefone. Entra primeiro e depois regista-te como artista." };
       birthDate = newUser.birthDate;
@@ -65,11 +68,10 @@ export async function registerArtistAction(_: ActionResult, fd: FormData): Promi
     let photoKey: string | null = null;
     const photo = fd.get("photo");
     if (photo instanceof File && photo.size > 0) {
-      const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[photo.type];
-      if (!ext) return { error: "A foto tem de ser JPG, PNG ou WEBP." };
-      if (photo.size > 3 * 1024 * 1024) return { error: "Foto demasiado grande (máximo 3 MB)." };
-      photoKey = newKey("artists", ext);
-      await putObject("media", photoKey, Buffer.from(await photo.arrayBuffer()), photo.type);
+      const f = await readValidatedFile(photo, ["jpeg", "png", "webp"], 3 * 1024 * 1024, "Foto").catch((e: Error) => ({ error: e.message }));
+      if ("error" in f) return { error: `${f.error} Usa JPG, PNG ou WEBP.` };
+      photoKey = newKey("artists", f.type === "jpeg" ? "jpg" : f.type!);
+      await putObject("media", photoKey, f.bytes, `image/${f.type}`);
     }
 
     const meta = await requestMeta();
@@ -114,7 +116,10 @@ export async function registerArtistAction(_: ActionResult, fd: FormData): Promi
         },
       });
     });
-    if (newUser) await createSession(userId);
+    if (newUser) {
+      await recordAttempt(newUser.phone, meta.ip, "register", true);
+      await createSession(userId);
+    }
   } catch (e) {
     return toActionError(e);
   }

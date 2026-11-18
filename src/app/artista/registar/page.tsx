@@ -20,6 +20,7 @@ export default async function ArtistRegisterPage() {
       <p className="mt-1 text-muted">Publica as tuas minisséries e ganha {pct}% de tudo o que o público pagar. Quanto mais assistirem, mais ganhas. A tua conta fica ativa logo: podes criar a tua primeira série hoje.</p>
 
       <ActionForm action={registerArtistAction} className="mt-6 space-y-4">
+        <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><label>Não preencher<input name="website" tabIndex={-1} autoComplete="off" /></label></div>
         <Field id="stageName" label="Nome artístico" required />
         <Field id="fullName" label="Nome completo (como no BI)" required autoComplete="name" />
         <Field id="biNumber" label="N.º do Bilhete de Identidade" placeholder="001234567LA041" required />
@@ -48,7 +49,7 @@ export default async function ArtistRegisterPage() {
           <fieldset className="card space-y-4">
             <legend className="px-1 text-sm font-semibold">Dados de acesso</legend>
             <Field id="phone" label="Telefone" type="tel" placeholder="923 456 789" required autoComplete="tel" />
-            <Field id="password" label="Palavra-passe (mín. 6 caracteres)" type="password" required autoComplete="new-password" />
+            <Field id="password" label="Palavra-passe (mín. 8 caracteres)" type="password" required minLength={8} autoComplete="new-password" />
             <Field id="birthDate" label="Data de nascimento (18+)" type="date" required />
           </fieldset>
         )}

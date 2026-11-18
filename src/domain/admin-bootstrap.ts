@@ -22,7 +22,7 @@ export async function ensureAdmin(db: PrismaClient, env: { phone?: string; passw
   const existing = await db.user.findUnique({ where: { phone } });
   if (!existing) {
     await db.user.create({
-      data: { name: "Administração", phone, passwordHash: await bcrypt.hash(password, 10), birthDate: new Date("1990-01-01"), role: "ADMIN" },
+      data: { name: "Administração", phone, passwordHash: await bcrypt.hash(password, 12), birthDate: new Date("1990-01-01"), role: "ADMIN" },
     });
     return { status: "created", phone };
   }
@@ -30,7 +30,7 @@ export async function ensureAdmin(db: PrismaClient, env: { phone?: string; passw
   if (existing.role === "ADMIN" && !existing.disabled && samePassword) return { status: "unchanged", phone };
   await db.user.update({
     where: { id: existing.id },
-    data: { role: "ADMIN", disabled: false, ...(samePassword ? {} : { passwordHash: await bcrypt.hash(password, 10) }) },
+    data: { role: "ADMIN", disabled: false, ...(samePassword ? {} : { passwordHash: await bcrypt.hash(password, 12) }) },
   });
   return { status: "updated", phone };
 }

@@ -1,3 +1,4 @@
+import { isSameOrigin } from "@/lib/origin";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
@@ -28,7 +29,8 @@ export async function GET() {
 }
 
 /** POST: marca que a pessoa com conta já viu a sugestão hoje (em qualquer aparelho). */
-export async function POST() {
+export async function POST(req: Request) {
+  if (!isSameOrigin(req)) return new Response("Forbidden", { status: 403 });
   const user = await getCurrentUser();
   if (user) await db.user.update({ where: { id: user.id }, data: { suggestionSeenDay: todayLuanda() } });
   return NextResponse.json({ ok: true });

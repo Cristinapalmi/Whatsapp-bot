@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { getAdminForApi } from "@/lib/auth";
 import { csvKz, csvResponse, toCsv } from "@/lib/csv";
 import { business } from "@config/business";
 import { artistsEarningsSummary, coinFinancialReport, ledgerInMonth, paymentsInMonth, periodRange, seriesReport } from "@/domain/reports";
@@ -8,8 +8,8 @@ import { splitRevenue } from "@/domain/money/split";
 
 /** Exportações CSV da administração (abrem no Excel). */
 export async function GET(req: Request, { params }: { params: Promise<{ tipo: string }> }) {
-  const user = await getCurrentUser();
-  if (user?.role !== "ADMIN") return new Response("Proibido", { status: 403 });
+  const user = await getAdminForApi();
+  if (!user) return new Response("Proibido", { status: 403 });
   const { tipo } = await params;
   const mes = monthRange(new URL(req.url).searchParams.get("mes") ?? undefined).key;
 
