@@ -9,6 +9,7 @@ import { IconDownload } from "@/components/icons";
 export const metadata: Metadata = { title: "Exportações" };
 
 const EXPORTS: [string, string, string][] = [
+  ["financeiro", "Relatório financeiro das moedas", "Moedas vendidas, gastas e por gastar, parte dos criadores, parte da plataforma e comissões, com a lista de compras."],
   ["pagamentos", "Pagamentos do público", "Todos os pedidos do mês, com a divisão artista/plataforma, quem confirmou e quando."],
   ["ganhos-artistas", "Ganhos por artista", "Para cada artista: saldo no início, episódios, presentes, passe, anulações, levantamentos e saldo no fim."],
   ["livro-razao", "Livro-razão", "Todos os lançamentos (débito/crédito) — para o contabilista."],

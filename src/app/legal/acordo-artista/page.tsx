@@ -40,8 +40,8 @@ export default function ArtistAgreement() {
 
       <h2>O que ganhas com a {n}</h2>
       <ul>
-        <li><strong>{pct}% de tudo o que o público pagar</strong> pelas tuas séries: episódios, passe semanal e presentes.</li>
-        <li><strong>Dinheiro na hora</strong> na tua carteira da app, assim que cada pagamento é confirmado.</li>
+        <li><strong>{pct}% de tudo o que o público pagar</strong> pelas tuas séries: episódios desbloqueados e presentes.</li>
+        <li><strong>Dinheiro na hora</strong> na tua carteira da app, assim que um fã gasta moedas nas tuas séries.</li>
         <li><strong>Levantamento</strong> para o teu IBAN ou Multicaixa Express.</li>
         <li><strong>O teu link pessoal</strong> para os fãs, com a contagem de quem veio por ti.</li>
         <li><strong>Ranking e destaque</strong> para os artistas mais vistos e mais apoiados.</li>
@@ -52,9 +52,9 @@ export default function ArtistAgreement() {
       <h2>Como funciona</h2>
       <ol>
         <li>Entregas as tuas séries (ou o link onde estão publicadas).</li>
-        <li>Combinamos juntos os episódios grátis e o preço de cada episódio ({kzLabel(business.episodePriceMinKz)} a {kzLabel(business.episodePriceMaxKz)}).</li>
-        <li>A {n} publica e promove as séries.</li>
-        <li>Cada pagamento do público credita os teus {pct}% na carteira.</li>
+        <li>A {n} publica e promove as séries. Os primeiros episódios (normalmente 3) são grátis.</li>
+        <li>Os fãs desbloqueiam os episódios seguintes com moedas.</li>
+        <li>Cada vez que um fã gasta moedas nas tuas séries, os teus {pct}% entram na carteira.</li>
         <li>Pedes o levantamento e recebes na tua conta.</li>
       </ol>
 
@@ -66,17 +66,17 @@ export default function ArtistAgreement() {
       <h3 className="mt-5 font-bold">2. As séries são tuas</h3>
       <p>As séries continuam a ser propriedade do artista. A {n} não fica com os direitos de autor. O artista garante que tem todas as autorizações necessárias (pessoas filmadas, música, locais).</p>
 
-      <h3 className="mt-5 font-bold">3. Episódios grátis e preço</h3>
-      <p>Para cada série, combinamos juntos quantos episódios são grátis, para atrair público, e o preço de cada episódio. Fica registado no painel da {n}.</p>
+      <h3 className="mt-5 font-bold">3. Episódios grátis e moedas</h3>
+      <p>Normalmente, os 3 primeiros episódios de cada série são grátis, para atrair público. Os seguintes desbloqueiam-se com moedas, a um preço definido pela {n}, igual para todos os artistas.</p>
 
       <h3 className="mt-5 font-bold">4. O que o artista ganha</h3>
       <ul>
-        <li>{pct}% de cada episódio vendido das suas séries.</li>
-        <li>{pct}% de cada presente que receber.</li>
-        <li>Passe semanal: {pct}% do valor dos passes de cada semana vai para um fundo dos artistas, dividido à segunda-feira conforme o tempo visto com passe. Se ninguém vir, o fundo passa para a semana seguinte.</li>
-        <li>Os {pct}% são calculados sobre o valor que fica depois das comissões dos serviços de pagamento (quando existirem).</li>
+        <li>{pct}% do valor real das moedas que os fãs gastam a desbloquear episódios das suas séries.</li>
+        <li>{pct}% do valor real das moedas gastas nos presentes que receber.</li>
+        <li>O valor real de uma moeda é o que o fã pagou por ela, depois das comissões dos serviços de pagamento (quando existirem).</li>
         <li>Episódios desbloqueados com pontos de fã não geram pagamento.</li>
-        <li>O artista recebe só do que o público paga. Não há valor mínimo garantido.</li>
+        <li>Se houver planos de membro com acesso ilimitado, as regras de pagamento ao artista são comunicadas antes.</li>
+        <li>O artista recebe só do que o público gasta. Não há valor mínimo garantido.</li>
       </ul>
 
       <h3 className="mt-5 font-bold">5. Carteira e levantamentos</h3>
@@ -84,7 +84,7 @@ export default function ArtistAgreement() {
         <li>Os ganhos ficam registados na carteira do artista na app: saldo disponível (pode levantar) e, com pagamentos automáticos, saldo pendente (à espera de o serviço de pagamento transferir).</li>
         <li>Levantamento a partir de {min}, para uma conta em nome do artista (IBAN angolano ou Multicaixa Express).</li>
         <li>A {n} paga até 10 dias úteis depois do pedido.</li>
-        <li>Se um pagamento do público for anulado, a parte correspondente sai da carteira.</li>
+        <li>Se uma compra de moedas for anulada, os ganhos que vieram dessas moedas saem da carteira.</li>
       </ul>
 
       <h3 className="mt-5 font-bold">6. Regras da comunidade</h3>

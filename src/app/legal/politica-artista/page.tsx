@@ -11,7 +11,6 @@ export default function ArtistPolicy() {
   const n = brand.name;
   const pct = business.artistSharePercent;
   const min = kzLabel(business.minWithdrawalKz);
-  const gifts = business.gifts.map((g) => `${g.label} (${kzLabel(g.priceKz)})`).join(", ");
 
   return (
     <LegalPage title={`Política do Artista ${n}`} version={v.artistPolicy}>
@@ -28,7 +27,7 @@ export default function ArtistPolicy() {
 
       <h2>O que ganhas com a {n}</h2>
       <ul>
-        <li><strong>{pct}% de tudo o que o público pagar</strong> pelas tuas séries: episódios, passe semanal e presentes.</li>
+        <li><strong>{pct}% de tudo o que o público pagar</strong> pelas tuas séries: episódios desbloqueados e presentes.</li>
         <li><strong>Dinheiro na hora:</strong> cada pagamento confirmado aparece logo na tua carteira da app. Vês o saldo a subir.</li>
         <li><strong>Levantamento para o teu IBAN</strong> ou para o teu número Multicaixa Express.</li>
         <li><strong>O teu link pessoal</strong> ({brand.domain}/o-teu-nome) para pores na bio do TikTok e do Instagram. No painel vês quantos fãs vieram por ti.</li>
@@ -43,9 +42,9 @@ export default function ArtistPolicy() {
         <li>Regista-te e confirma as 5 caixas.</li>
         <li>A nossa equipa aprova a tua conta.</li>
         <li>Envia a tua série (o link do TikTok ou do Instagram).</li>
-        <li>Combinamos contigo quantos episódios são grátis e o preço de cada episódio ({kzLabel(business.episodePriceMinKz)} a {kzLabel(business.episodePriceMaxKz)}).</li>
-        <li>Publicamos. Os fãs veem os primeiros episódios grátis e pagam para continuar.</li>
-        <li>Ganhas {pct}% de cada pagamento, direto na tua carteira.</li>
+        <li>Publicamos. Os fãs veem os primeiros episódios grátis (normalmente 3).</li>
+        <li>Para continuar, os fãs desbloqueiam os episódios seguintes com moedas, que compram na app.</li>
+        <li>Ganhas {pct}% do valor das moedas gastas nas tuas séries, direto na tua carteira.</li>
         <li>Pedes o levantamento quando quiseres, a partir de {min}.</li>
       </ol>
 
@@ -55,23 +54,25 @@ export default function ArtistPolicy() {
       <p>Autorizas a {n} a mostrar as tuas séries na app e a usar excertos, capas, título e o teu nome artístico para as promover (por exemplo, trailers nas redes sociais). Podes continuar a publicar no TikTok, no Instagram ou onde quiseres: não pedimos exclusividade.</p>
 
       <h3 className="mt-5 font-bold">2. Os primeiros episódios são grátis</h3>
-      <p>É assim que se conquista público. Para cada série, combinamos contigo quantos episódios são grátis. O último episódio grátis termina em suspense, para os fãs quererem continuar.</p>
+      <p>É assim que se conquista público. Normalmente, os 3 primeiros episódios de cada série são grátis. O último episódio grátis termina em suspense, para os fãs quererem continuar.</p>
 
       <h3 className="mt-5 font-bold">3. Como calculamos os teus {pct}%</h3>
       <ul>
-        <li><strong>Episódios:</strong> recebes {pct}% de cada episódio vendido das tuas séries.</li>
-        <li><strong>Passe semanal</strong> ({kzLabel(business.weeklyPassPriceKz)}, todos os episódios durante {business.weeklyPassDays} dias): {pct}% do valor dos passes vendidos em cada semana vai para um fundo dos artistas. À segunda-feira, esse fundo é dividido conforme o tempo que o público com passe viu as séries de cada artista. Se numa semana ninguém vir séries com passe, o fundo passa para a semana seguinte.</li>
-        <li><strong>Presentes</strong> — {gifts}: recebes {pct}% de cada presente.</li>
-        <li><strong>Comissões:</strong> se um serviço de pagamento cobrar uma comissão, os teus {pct}% são calculados sobre o valor que fica depois dessa comissão. Hoje, com pagamento por transferência, não há comissões.</li>
-        <li><strong>Pontos de fã:</strong> os fãs ganham pontos por verem episódios até ao fim e podem trocá-los por episódios. Esses episódios não geram pagamento, porque o fã não pagou dinheiro.</li>
-        <li>Só recebes do que o público paga. Não há mensalidade nem valor mínimo garantido.</li>
-        <li>Se um pagamento for anulado (por exemplo, uma transferência falsa), a parte correspondente sai da tua carteira. Se o saldo ficar negativo, os levantamentos ficam em pausa até novos ganhos o compensarem.</li>
+        <li><strong>Moedas:</strong> os fãs compram moedas na app e usam-nas para desbloquear episódios e oferecer presentes. Cada moeda tem um valor real: o que o fã pagou por ela.</li>
+        <li><strong>Episódios:</strong> quando um fã desbloqueia um episódio teu, ganhas {pct}% do valor real das moedas que ele gastou. O preço de cada episódio em moedas é definido pela {n}, igual para todos.</li>
+        <li><strong>Presentes:</strong> quando um fã te oferece um presente, ganhas {pct}% do valor real das moedas gastas.</li>
+        <li><strong>Comissões:</strong> se um serviço de pagamento cobrar uma comissão, o valor real das moedas é calculado depois dessa comissão. Hoje, com pagamento por transferência, não há comissões.</li>
+        <li><strong>Pontos de fã:</strong> os fãs ganham pontos por verem episódios até ao fim e podem trocá-los por episódios. Esses episódios não geram pagamento, porque o fã não gastou dinheiro.</li>
+        <li><strong>Planos de membro:</strong> quando houver planos com acesso ilimitado, explicamos-te antes como ganhas com eles.</li>
+        <li>Só recebes do que o público gasta. Não há mensalidade nem valor mínimo garantido.</li>
+        <li>Se uma compra de moedas for anulada (por exemplo, uma transferência falsa), os ganhos que vieram dessas moedas saem da tua carteira. Se o saldo ficar negativo, os levantamentos ficam em pausa até novos ganhos o compensarem.</li>
       </ul>
 
       <h3 className="mt-5 font-bold">4. A tua carteira e os levantamentos</h3>
       <ul>
         <li><strong>Saldo disponível:</strong> dinheiro que já recebemos e que podes levantar.</li>
         <li><strong>Saldo pendente:</strong> só existe quando houver pagamentos automáticos. É dinheiro que o serviço de pagamento ainda não nos transferiu. Passa a disponível quando chegar.</li>
+        <li>Os teus ganhos entram na carteira no momento em que o fã gasta as moedas nas tuas séries.</li>
         <li><strong>Mínimo para levantar:</strong> {min}.</li>
         <li><strong>Para onde:</strong> uma conta em teu nome (o mesmo nome do registo), por IBAN angolano ou Multicaixa Express.</li>
         <li><strong>Prazo:</strong> pagamos até 10 dias úteis depois do teu pedido. Vês o estado e o comprovativo na app.</li>

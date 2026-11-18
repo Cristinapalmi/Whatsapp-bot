@@ -255,3 +255,25 @@ describe("Anular uma compra de moedas", () => {
     await expect(requestPayout(db, { artistId: artist.id, amountCents: 500000 })).rejects.toThrow(/insuficiente/);
   });
 });
+
+describe("Relatório financeiro das moedas", () => {
+  it("vendidas, gastas, por gastar e partes batem certo com o livro-razão", async () => {
+    const { coinFinancialReport } = await import("@/domain/reports");
+    const before = await coinFinancialReport(db, new Date(Date.now() - 3600_000), new Date(Date.now() + 3600_000));
+    const fan = await makeUser(db);
+    const { artist, episodes } = await makeArtistWithSeries(db, { freeEpisodes: 1 });
+    await buyCoins(fan.id, "p1000", { feeCents: 2000 }); // 1.000 Kz, comissão 20 Kz
+    await unlockEpisodeWithCoins(db, { userId: fan.id, episodeId: episodes[1].id });
+    await sendGiftWithCoins(db, { userId: fan.id, artistId: artist.id, giftCode: "MIMO" });
+    const r = await coinFinancialReport(db, new Date(Date.now() - 3600_000), new Date(Date.now() + 3600_000));
+    expect(r.sold.purchases - before.sold.purchases).toBe(1);
+    expect(r.sold.coins - before.sold.coins).toBe(100);
+    expect(r.sold.grossCents - before.sold.grossCents).toBe(100000);
+    expect(r.sold.feesCents - before.sold.feesCents).toBe(2000);
+    expect(r.spent.coins - before.spent.coins).toBe(30);
+    expect(r.spent.valueCents - before.spent.valueCents).toBe(29400); // 30 × 9,80 Kz
+    expect(r.spent.creatorsCents - before.spent.creatorsCents).toBe(14700);
+    expect(r.spent.platformCents - before.spent.platformCents).toBe(14700);
+    expect(r.outstanding.valueCents).toBe(r.outstanding.ledgerCents); // por gastar = livro-razão
+  });
+});

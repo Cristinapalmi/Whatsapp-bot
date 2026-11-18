@@ -143,3 +143,66 @@ export async function seriesReport(db: Tx, month?: string) {
   }
   return out;
 }
+
+/** Período a partir de datas "AAAA-MM-DD" (hora de Luanda); por defeito, o mês atual. */
+export function periodRange(de?: string, ate?: string) {
+  const ok = (s?: string) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const m = monthRange();
+  const from = ok(de) ? new Date(`${de}T00:00:00+01:00`) : m.from;
+  const toExclusive = ok(ate) ? new Date(new Date(`${ate}T00:00:00+01:00`).getTime() + 86400000) : m.to;
+  const fmt = (d: Date) => new Date(d.getTime() + 3600_000).toISOString().slice(0, 10);
+  return { from, to: toExclusive, de: fmt(from), ate: fmt(new Date(toExclusive.getTime() - 1)) };
+}
+
+/**
+ * RELATÓRIO FINANCEIRO DAS MOEDAS num período.
+ *  - vendidas: compras confirmadas no período (valor pago, comissões, valor líquido)
+ *  - gastas: moedas gastas no período (valor real), parte dos criadores e da plataforma
+ *  - por gastar: saldo atual (independente do período)
+ */
+export async function coinFinancialReport(db: Tx, from: Date, to: Date) {
+  const [purchases, spends, outstanding, outstandingLedger, owedAgg, pendingPayouts, pendingCoinPayments] = await Promise.all([
+    db.paymentRequest.findMany({
+      where: { kind: "COINS", status: { in: ["CONFIRMED", "REVERSED"] }, reviewedAt: { gte: from, lt: to } },
+      orderBy: { reviewedAt: "asc" },
+      include: { user: { select: { name: true, phone: true } }, reviewedBy: { select: { name: true } } },
+    }),
+    db.coinSpend.findMany({ where: { createdAt: { gte: from, lt: to }, reversedAt: null }, select: { kind: true, coins: true, valueCents: true, artistCents: true } }),
+    db.coinLot.aggregate({ where: { revokedAt: null }, _sum: { coinsRemaining: true, valueRemainingCents: true } }),
+    db.ledgerLine.aggregate({ where: { account: { code: "coins:outstanding" } }, _sum: { amountCents: true } }),
+    db.ledgerLine.aggregate({ where: { account: { code: { startsWith: "artist:" } } }, _sum: { amountCents: true } }),
+    db.payoutRequest.aggregate({ where: { status: "PROCESSING" }, _count: true, _sum: { amountCents: true } }),
+    db.paymentRequest.count({ where: { kind: "COINS", status: "PENDING" } }),
+  ]);
+  const confirmed = purchases.filter((p) => p.status === "CONFIRMED");
+  const sum = <T,>(arr: T[], f: (x: T) => number) => arr.reduce((a, x) => a + f(x), 0);
+  const spentValue = sum(spends, (s) => s.valueCents);
+  const creatorsCents = sum(spends, (s) => s.artistCents);
+  return {
+    sold: {
+      purchases: confirmed.length,
+      coins: sum(confirmed, (p) => p.coins ?? 0),
+      grossCents: sum(confirmed, (p) => p.amountCents),
+      feesCents: sum(confirmed, (p) => p.feeCents),
+      netCents: sum(confirmed, (p) => p.amountCents - p.feeCents),
+      reversed: purchases.length - confirmed.length,
+    },
+    spent: {
+      coins: sum(spends, (s) => s.coins),
+      episodes: spends.filter((s) => s.kind === "EPISODE").length,
+      gifts: spends.filter((s) => s.kind === "GIFT").length,
+      valueCents: spentValue,
+      creatorsCents,
+      platformCents: spentValue - creatorsCents,
+    },
+    outstanding: {
+      coins: outstanding._sum.coinsRemaining ?? 0,
+      valueCents: outstanding._sum.valueRemainingCents ?? 0,
+      ledgerCents: 0 - (outstandingLedger._sum.amountCents ?? 0) || 0,
+    },
+    owedToCreatorsCents: 0 - (owedAgg._sum.amountCents ?? 0) || 0,
+    pendingPayouts: { count: pendingPayouts._count, cents: pendingPayouts._sum.amountCents ?? 0 },
+    pendingCoinPayments,
+    purchases,
+  };
+}

@@ -15,6 +15,18 @@ Os valores são guardados em **cêntimos** (100 Kz = 10 000), para não haver er
 | Levantamentos em processamento | dinheiro reservado de levantamentos pedidos |
 | Fundo do passe (semana) | Fase 2: parte dos artistas no passe, até ao fecho semanal |
 
+## Moedas (versão atual)
+| Movimento | Lançamento |
+|---|---|
+| Fã compra 100 moedas por 1.000 Kz (confirmado no admin) | Caixa +1.000 · **Moedas por gastar** −1.000 |
+| Fã gasta 20 moedas num episódio (valor real 200 Kz) | Moedas por gastar +200 · Carteira do artista −100 · Receita da plataforma −100 |
+| Fã oferece um Mimo (10 moedas = 100 Kz) | Moedas por gastar +100 · Carteira do artista −50 · Receita −50 |
+| Compra anulada | os gastos feitos com essas moedas são invertidos, e depois a compra também |
+
+- Cada compra é um **lote** que guarda o valor real das moedas (valor pago − comissões). Nos pacotes com bónus, cada moeda vale menos (ex.: 1.200 moedas por 10.000 Kz ≈ 8,33 Kz por moeda).
+- Gasta-se primeiro as moedas mais antigas. As últimas moedas de cada lote levam o resto dos cêntimos, para a soma dar sempre exatamente o valor pago.
+- Ninguém consegue gastar as mesmas moedas duas vezes, nem com dois cliques ou dois separadores abertos ao mesmo tempo.
+
 ## Exemplos
 **Fã paga 100 Kz por um episódio, tu confirmas:**
 Caixa +100 · Receita −50 · Carteira do artista −50 (crédito = o artista ganha 50).
@@ -43,4 +55,5 @@ Caixa +100 · Receita −50 · Carteira do artista −50 (crédito = o artista g
 - presentes reais (Cuca 25 Kz para o artista, Grade 250 Kz), presente inválido ou a si próprio recusado;
 - pontos: +10 só uma vez por episódio, 100 = 1 episódio sem mexer no livro-razão, sem gastar duas vezes em simultâneo, Fã n.º 1;
 - ranking mensal por visualizações e receita;
+- moedas: só entram depois de confirmadas e uma única vez; valor real com e sem bónus e com comissões; gasto das mais antigas primeiro sem perder cêntimos; sem saldo, não cobra; cliques simultâneos não cobram a dobrar; presentes; anulação de compra (com gastos misturados entre compras e com o artista já a ter levantado); relatório financeiro igual ao livro-razão;
 - no fim, a soma de todo o livro-razão é zero.

@@ -20,31 +20,38 @@ export default function Terms() {
         <li>A conta é pessoal. Não partilhes a tua palavra-passe.</li>
       </ul>
 
-      <h2>3. Episódios grátis e pagos</h2>
+      <h2>3. Episódios grátis e moedas</h2>
       <ul>
-        <li>O número de episódios grátis é definido para cada série e aparece na página da série.</li>
-        <li>Cada episódio pago custa o valor indicado (entre {business.episodePriceMinKz} e {business.episodePriceMaxKz} Kz). Esse valor é mostrado antes do pagamento.</li>
-        <li>O episódio desbloqueado fica disponível na tua conta enquanto a série estiver publicada na plataforma.</li>
-        <li>Se tiveres um passe semanal ativo, podes ver os episódios pagos durante esse período.</li>
+        <li>Os primeiros episódios de cada série são grátis (normalmente 3). O número aparece na página da série.</li>
+        <li>Os episódios seguintes desbloqueiam-se com <strong>moedas</strong>. O preço em moedas aparece antes de desbloqueares.</li>
+        <li>Um episódio desbloqueado fica teu para sempre, enquanto a série estiver publicada na plataforma.</li>
+        <li>Também podes oferecer <strong>presentes</strong> aos artistas, pagos com moedas.</li>
       </ul>
 
-      <h2>4. Como funciona o pagamento (fase atual)</h2>
+      <h2>4. As moedas</h2>
+      <ul>
+        <li>As moedas compram-se na Loja, em pacotes com o preço em Kz indicado. Os pacotes maiores podem incluir moedas de bónus.</li>
+        <li>As moedas só servem para desbloquear episódios e oferecer presentes dentro da {n}.</li>
+        <li><strong>As moedas não são reembolsáveis, não se transferem para outras pessoas e nunca se convertem em dinheiro.</strong></li>
+        <li>Por agora, as moedas não têm prazo de validade. Se isso mudar, avisamos com antecedência.</li>
+        <li>Quando usas moedas numa série, uma parte do valor vai para o artista que a criou.</li>
+      </ul>
+
+      <h2>5. Como pagar as moedas (fase atual)</h2>
       <ol>
-        <li>Escolhes o episódio e vês as instruções de transferência (Multicaixa Express ou transferência bancária).</li>
+        <li>Escolhes um pacote na Loja e vês as instruções de transferência (Multicaixa Express ou transferência bancária).</li>
         <li>Fazes a transferência do valor exato e envias a fotografia ou captura do comprovativo, o número da operação e o número de onde pagaste.</li>
-        <li>O pedido fica "A aguardar confirmação". Depois de verificarmos a entrada do dinheiro, o episódio é desbloqueado e recebes uma notificação.</li>
+        <li>O pedido fica "A aguardar confirmação". Depois de verificarmos a entrada do dinheiro, as moedas entram na tua carteira e recebes uma notificação.</li>
         <li>Se o pagamento não puder ser confirmado (valor errado, comprovativo ilegível ou repetido), o pedido é rejeitado e explicamos o motivo.</li>
       </ol>
-      <p>É proibido enviar comprovativos falsos, alterados ou já usados. Nesses casos a conta pode ser suspensa e os acessos obtidos anulados, sem prejuízo de outras medidas legais.</p>
-
-      <h2>5. Reembolsos</h2>
-      <p>Se pagares e o episódio não for desbloqueado por erro nosso, ou se pagares em duplicado, contacta o apoio. Analisamos cada caso e, quando se justificar, devolvemos o valor pelo mesmo meio de pagamento.</p>
+      <p>É proibido enviar comprovativos falsos, alterados ou já usados. Se descobrirmos um pagamento falso depois de o confirmarmos, retiramos as moedas dessa compra e voltamos a bloquear os episódios desbloqueados com elas. A conta pode ser suspensa, sem prejuízo de outras medidas legais.</p>
+      <p>Se pagares e as moedas não entrarem por erro nosso, ou se pagares em duplicado, contacta o apoio: analisamos cada caso e corrigimos.</p>
 
       <h2>6. Pontos de fã e prémios</h2>
-      <p>Podes ganhar pontos por veres episódios até ao fim. Os pontos <strong>não têm valor em dinheiro</strong>, não podem ser trocados por dinheiro nem transferidos, e só servem para desbloquear episódios ou receber prémios dentro da plataforma. A {n} não organiza apostas, sorteios pagos nem promete ganhar dinheiro a ver vídeos.</p>
+      <p>Podes ganhar pontos por veres episódios até ao fim e trocá-los por episódios. Os pontos são diferentes das moedas: <strong>não têm valor em dinheiro</strong>, não podem ser trocados por dinheiro nem transferidos. A {n} não organiza apostas, sorteios pagos nem promete ganhar dinheiro a ver vídeos.</p>
 
-      <h2>7. Presentes aos artistas</h2>
-      <p>Quando disponíveis, os presentes (Cuca, Muamba, Candonga, Grade) são uma forma voluntária de apoiar um artista. Metade do valor vai para o artista. Os presentes não dão direito a qualquer contrapartida além do agradecimento público, quando existir.</p>
+      <h2>7. Planos de membro</h2>
+      <p>Os planos de membro (semanal, mensal e anual) ainda não estão disponíveis. Quando estiverem, as condições e os preços serão mostrados antes de qualquer pagamento.</p>
 
       <h2>8. Regras de conduta</h2>
       <ul>

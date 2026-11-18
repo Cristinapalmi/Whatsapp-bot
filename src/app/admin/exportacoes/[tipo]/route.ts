@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { csvKz, csvResponse, toCsv } from "@/lib/csv";
 import { business } from "@config/business";
-import { artistsEarningsSummary, ledgerInMonth, paymentsInMonth, seriesReport } from "@/domain/reports";
+import { artistsEarningsSummary, coinFinancialReport, ledgerInMonth, paymentsInMonth, periodRange, seriesReport } from "@/domain/reports";
 import { monthRange } from "@/domain/ranking";
 import { splitRevenue } from "@/domain/money/split";
 
@@ -14,6 +14,39 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
   const mes = monthRange(new URL(req.url).searchParams.get("mes") ?? undefined).key;
 
   switch (tipo) {
+    case "financeiro": {
+      const u = new URL(req.url).searchParams;
+      const mesParam = u.get("mes");
+      let de = u.get("de") ?? undefined;
+      let ate = u.get("ate") ?? undefined;
+      if (!de && !ate && mesParam && /^\d{4}-\d{2}$/.test(mesParam)) {
+        const [y, m] = mesParam.split("-").map(Number);
+        de = `${mesParam}-01`;
+        ate = `${mesParam}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`;
+      }
+      const range = periodRange(de, ate);
+      const r = await coinFinancialReport(db, range.from, range.to);
+      const summary: unknown[][] = [
+        ["Período", `${range.de} a ${range.ate}`],
+        ["Compras de moedas confirmadas", r.sold.purchases],
+        ["Moedas vendidas", r.sold.coins],
+        ["Valor pago pelos fãs (Kz)", csvKz(r.sold.grossCents)],
+        ["Comissões de pagamento (Kz)", csvKz(r.sold.feesCents)],
+        ["Valor líquido (Kz)", csvKz(r.sold.netCents)],
+        ["Moedas gastas", r.spent.coins],
+        ["Valor real gasto (Kz)", csvKz(r.spent.valueCents)],
+        ["Parte dos criadores (Kz)", csvKz(r.spent.creatorsCents)],
+        ["Parte da plataforma (Kz)", csvKz(r.spent.platformCents)],
+        ["Moedas por gastar (agora)", r.outstanding.coins],
+        ["Valor das moedas por gastar (Kz)", csvKz(r.outstanding.valueCents)],
+        ["Devido aos criadores (Kz)", csvKz(r.owedToCreatorsCents)],
+        ["Levantamentos por aprovar (Kz)", csvKz(r.pendingPayouts.cents)],
+        [],
+        ["Compras", "data", "fã", "telefone", "moedas", "pago_kz", "comissao_kz", "estado", "confirmado_por"],
+        ...r.purchases.map((p) => ["", p.reviewedAt, p.user.name, p.user.phone, p.coins, csvKz(p.amountCents), csvKz(p.feeCents), p.status, p.reviewedBy?.name]),
+      ];
+      return csvResponse(toCsv(["indicador", "valor"], summary), `financeiro-${range.de}-a-${range.ate}.csv`);
+    }
     case "pagamentos": {
       const rows = await paymentsInMonth(db, mes);
       const kind = { EPISODE: "Episódio (Kz)", WEEKLY_PASS: "Passe semanal", GIFT: "Presente (Kz)", COINS: "Moedas" } as const;
@@ -86,6 +119,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
       );
     }
     default:
-      return new Response(`Tipo desconhecido. Disponíveis: pagamentos, ganhos-artistas, livro-razao, series, consentimentos.`, { status: 404 });
+      return new Response(`Tipo desconhecido. Disponíveis: financeiro, pagamentos, ganhos-artistas, livro-razao, series, consentimentos.`, { status: 404 });
   }
 }

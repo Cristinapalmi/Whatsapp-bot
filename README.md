@@ -23,6 +23,7 @@ Os primeiros episódios são grátis; os seguintes desbloqueiam-se por pagamento
 - **Fase 1 (MVP) — feita:** registos público/artista com políticas, episódios grátis + gancho, pagamento manual com comprovativo, confirmação no admin, carteira do artista (50%), levantamentos manuais + CSV, painel admin para séries/vídeos, denúncias, textos legais, dados de exemplo, testes das regras de dinheiro.
 - **Fase 2 — feita:** passe semanal (300 Kz, 7 dias) com fecho semanal automático, presentes (Cuca, Muamba, Candonga, Grade), pontos de fã e Fã n.º 1, ranking mensal "Disputa dos artistas", link pessoal do artista com "Vieram por ti".
 - **Fase 3 (parte 1) — feita:** trailers automáticos (`npm run trailer`), exportações avançadas (pagamentos, ganhos por artista, livro-razão, séries, aceitações da política) e extrato mensal do artista (imprimir/PDF/CSV).
+- **Moedas — feita:** loja com pacotes, desbloquear episódios e presentes com moedas, 3 episódios grátis, catálogo logo à entrada, A minha lista, página de Membro ("Brevemente"), admin de moedas e relatório financeiro.
 - **Fase 3 (parte 2) — quando houver prestador:** pagamentos automáticos (Multicaixa Express, PayPay, Referência) — a estrutura está pronta (ver `docs/FASE-3.md`).
 
 ## Tecnologia

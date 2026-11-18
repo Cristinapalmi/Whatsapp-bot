@@ -1,5 +1,7 @@
 # O dia a dia da administração
 
+> **Desde a versão com moedas:** os fãs compram **pacotes de moedas** (com comprovativo) e usam as moedas para desbloquear episódios e oferecer presentes. Já não há compra direta de episódios em Kz, e a venda do passe semanal está desligada.
+
 Entra com a conta admin → botão **Admin** (em baixo, no telemóvel). Os números laranja mostram o que está à tua espera.
 
 ## Confirmar pagamentos (Admin → Pagamentos)
@@ -64,3 +66,10 @@ Escolhe o mês e descarrega (CSV para o Excel):
 - **Levantamentos** e **Aceitações da Política do Artista** (prova legal das 5 caixas).
 
 Cada artista tem um **extrato mensal** (Carteira → "Extrato mensal") que pode imprimir ou guardar em PDF. Tu também abres o extrato de qualquer artista a partir da página de Exportações.
+
+## Moedas (Admin → Moedas e Admin → Financeiro)
+- **Confirmar compras de moedas:** em **Pagamentos**, os pedidos de moedas aparecem como "N moedas". Confirma como qualquer pagamento: as moedas entram logo na carteira do fã, uma única vez.
+- **Anular uma compra** (comprovativo falso descoberto depois): em Pagamentos → Confirmados → Anular. A app retira as moedas que sobram, volta a bloquear os episódios desbloqueados com essas moedas e retira ao artista o que ele ganhou com elas.
+- **Admin → Moedas:** muda o preço por defeito de um episódio (começa em 20 moedas), os pacotes da Loja (preço, moedas, ativo/inativo, ordem) e os presentes (nome, emoji, preço). Em **Séries → a série** podes pôr um preço diferente só para essa série.
+- **Admin → Financeiro:** escolhe as datas e vê as moedas vendidas, gastas e por gastar, a parte dos criadores, a parte da plataforma, as comissões e os levantamentos por aprovar. Também podes descarregar em CSV.
+- **Moedas por gastar** ainda não são receita de ninguém: só passam a receita (e a ganho do artista) quando o fã as gasta.
