@@ -77,7 +77,7 @@ describe("Levantamentos", () => {
 
   it("respeita o mínimo de levantamento", async () => {
     const { artist } = await artistWithBalance(80);
-    await expect(requestPayout(db, { artistId: artist.id, amountCents: 100000 })).rejects.toThrow(/mínimo/);
+    await expect(requestPayout(db, { artistId: artist.id, amountCents: 50000 })).rejects.toThrow(/mínimo/); // 1.º: mínimo 1.000 Kz
   });
 
   it("levantamento rejeitado devolve o valor ao saldo disponível", async () => {

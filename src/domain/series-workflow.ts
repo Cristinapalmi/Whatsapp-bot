@@ -1,4 +1,5 @@
 import type { AgeRating, Category, Episode, PrismaClient, Series } from "@prisma/client";
+import { notifyFollowers } from "./artists/growth";
 import { UserFacingError } from "./errors";
 import { audit, notify } from "./notify";
 import { slugify } from "@/lib/slug";
@@ -45,6 +46,8 @@ export async function createSeriesDraft(db: PrismaClient, artistId: string, data
   const base = slugify(data.title) || "serie";
   let slug = base;
   for (let i = 2; await db.series.findUnique({ where: { slug } }); i++) slug = `${base}-${i}`;
+  // Séries novas começam no nível Entrada; as dos Artistas Fundadores começam em Normal
+  const artist = await db.artistProfile.findUnique({ where: { id: artistId }, select: { founderNumber: true } });
   return db.series.create({
     data: {
       artistId,
@@ -57,6 +60,7 @@ export async function createSeriesDraft(db: PrismaClient, artistId: string, data
       language: data.language ?? "PT",
       tags: data.tags ?? [],
       coverKey: data.coverKey ?? null,
+      tier: artist?.founderNumber ? "NORMAL" : "ENTRY",
       status: "DRAFT",
     },
   });
@@ -209,6 +213,15 @@ export async function approveReview(db: PrismaClient, adminId: string, seriesId:
     s.status === "IN_REVIEW" ? "A tua série foi publicada!" : "Episódios publicados",
     s.status === "IN_REVIEW" ? `"${s.title}" já está no catálogo. Partilha o teu link!` : `${inReview.length} episódio(s) novo(s) de "${s.title}" já estão visíveis.`,
     `/artista/series/${s.id}`,
+  );
+  // Quem segue o artista recebe aviso
+  const published = inReview.filter((e) => e.videoKey).length;
+  await notifyFollowers(
+    db,
+    s.artistId,
+    s.status === "IN_REVIEW" ? `Série nova de ${s.artist.stageName}` : `Episódio novo de ${s.artist.stageName}`,
+    s.status === "IN_REVIEW" ? `"${s.title}" já está na app. Os primeiros episódios são grátis!` : `${published} episódio(s) novo(s) de "${s.title}".`,
+    `/serie/${s.slug}`,
   );
   await audit(db, adminId, "REVIEW_APPROVED", "Series", s.id, { episodes: inReview.length, newSeries: s.status === "IN_REVIEW" });
 }

@@ -17,6 +17,20 @@ export const INT_SETTINGS = [
   { group: "ofertas", key: "welcomePackKz", label: "Pacote da oferta de boas-vindas (Kz)", hint: "Tem de existir um pacote ativo com este preço.", def: 1000, min: 100, max: 1000000 },
   { group: "ofertas", key: "welcomeBonusCoins", label: "Moedas extra da oferta", def: 50, min: 1, max: 100000 },
   { group: "ofertas", key: "welcomeOfferHours", label: "Duração da oferta (horas)", def: 24, min: 1, max: 720 },
+  // Artistas: Fundadores, marcos, levantamentos, convites
+  { group: "artistas", key: "foundersLimit", label: "Vagas de Artista Fundador", def: 20, min: 0, max: 1000 },
+  { group: "artistas", key: "founderMonths", label: "Meses com a parte maior (Fundador)", def: 3, min: 0, max: 36 },
+  { group: "artistas", key: "founderSharePercent", label: "Parte do Fundador nesses meses (%)", def: 70, min: 1, max: 100 },
+  { group: "artistas", key: "milestone1Unlocks", label: "Marco 1: desbloqueios pagos", def: 500, min: 1, max: 10000000 },
+  { group: "artistas", key: "milestone1BonusKz", label: "Marco 1: bónus (Kz)", def: 2500, min: 0, max: 10000000 },
+  { group: "artistas", key: "milestone2Unlocks", label: "Marco 2: desbloqueios pagos", def: 1000, min: 1, max: 10000000 },
+  { group: "artistas", key: "milestone2BonusKz", label: "Marco 2: bónus (Kz)", def: 5000, min: 0, max: 10000000 },
+  { group: "artistas", key: "milestone3Unlocks", label: "Marco 3 (👑): desbloqueios pagos", def: 5000, min: 1, max: 10000000 },
+  { group: "artistas", key: "milestone3BonusKz", label: "Marco 3 (👑): bónus (Kz)", def: 25000, min: 0, max: 10000000 },
+  { group: "artistas", key: "payoutFirstMinKz", label: "1.º levantamento: mínimo (Kz)", def: 1000, min: 1, max: 10000000 },
+  { group: "artistas", key: "payoutMinKz", label: "Levantamentos seguintes: mínimo (Kz)", def: 5000, min: 1, max: 10000000 },
+  { group: "artistas", key: "artistReferralBonusKz", label: "“Traz um kamba”: bónus por artista convidado (Kz)", def: 2000, min: 0, max: 10000000 },
+  { group: "artistas", key: "tiktokViewsPerUnlock", label: "Comparação: 1 desbloqueio ≈ quantas visualizações no TikTok", def: 500, min: 1, max: 1000000 },
 ] as const satisfies readonly IntSetting[];
 
 export type IntSettingKey = (typeof INT_SETTINGS)[number]["key"];

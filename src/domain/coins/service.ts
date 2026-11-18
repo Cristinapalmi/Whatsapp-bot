@@ -7,6 +7,7 @@ import { splitRevenue } from "../money/split";
 import { notify } from "../notify";
 import { formatKz } from "@/lib/money";
 import { getInt, getInts } from "../settings";
+import { afterArtistSale, artistShareFor } from "../artists/growth";
 
 /**
  * MOEDAS — regras:
@@ -170,7 +171,9 @@ async function spendCoins(tx: Prisma.TransactionClient, input: SpendInput) {
     value += v;
     need -= take;
   }
-  const { artistCents, platformCents } = splitRevenue(value, 0, business.artistSharePercent);
+  // Parte do artista (Artistas Fundadores ganham mais nos primeiros meses)
+  const artist = await tx.artistProfile.findUniqueOrThrow({ where: { id: input.artistId }, select: { founderNumber: true, createdAt: true } });
+  const { artistCents, platformCents } = splitRevenue(value, 0, await artistShareFor(tx, artist));
   const spend = await tx.coinSpend.create({
     data: {
       userId: input.userId,
@@ -221,7 +224,7 @@ export async function unlockEpisodeWithCoins(db: PrismaClient, { userId, episode
       description: `Episódio ${episode.number} de "${episode.series.title}" (${price} moedas)`,
     });
     await tx.entitlement.create({ data: { userId, episodeId, source: "COINS", coinSpendId: spend.id } });
-    return { spend, artistUserId: episode.series.artist.userId, seriesId: episode.seriesId };
+    return { spend, artistUserId: episode.series.artist.userId, seriesId: episode.seriesId, artistId: episode.series.artistId };
   });
   await afterPaidUnlock(db, result);
   return result.spend;
@@ -248,17 +251,19 @@ export async function unlockSeasonWithCoins(db: PrismaClient, { userId, seriesId
       data: offer.episodeIds.map((episodeId) => ({ userId, episodeId, source: "COINS" as const, coinSpendId: spend.id })),
       skipDuplicates: true,
     });
-    return { spend, artistUserId: series.artist.userId, seriesId, count: offer.count };
+    return { spend, artistUserId: series.artist.userId, seriesId, count: offer.count, artistId: series.artistId };
   });
   await afterPaidUnlock(db, result);
   return result;
 }
 
-/** Depois de um desbloqueio pago: talvez subir o nível da série. (O resumo para o artista é diário.) */
-async function afterPaidUnlock(db: PrismaClient, r: { spend: { artistCents: number }; artistUserId: string; seriesId: string }) {
+/**
+ * Depois de um desbloqueio pago: talvez subir o nível da série, 1.ª venda, convite e marcos.
+ * Não se avisa o artista a cada desbloqueio — recebe um resumo por dia.
+ */
+async function afterPaidUnlock(db: PrismaClient, r: { artistId: string; seriesId: string }) {
   await maybeUpgradeTier(db, r.seriesId).catch(() => {});
-  if (r.spend.artistCents > 0)
-    await notify(db, r.artistUserId, "Ganhaste dinheiro", `+${formatKz(r.spend.artistCents)} na tua carteira.`, "/artista/carteira");
+  await afterArtistSale(db, { artistId: r.artistId, seriesId: r.seriesId }).catch((e) => console.error("afterArtistSale", e));
 }
 
 /** Oferece um presente a um artista, pago com moedas. */

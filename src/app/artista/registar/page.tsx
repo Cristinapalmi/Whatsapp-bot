@@ -5,21 +5,42 @@ import { business } from "@config/business";
 import { getCurrentUser } from "@/lib/auth";
 import { ALL_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
-import { kzLabel } from "@/lib/money";
+import { formatKz, kzLabel } from "@/lib/money";
+import { db } from "@/lib/db";
+import { foundersLeft, totalPaidToArtists } from "@/domain/artists/growth";
+import { getInts } from "@/domain/settings";
 import { registerArtistAction } from "./actions";
 
 export const metadata: Metadata = { title: "Registo de artista" };
 export const dynamic = "force-dynamic";
 
-export default async function ArtistRegisterPage() {
+export default async function ArtistRegisterPage({ searchParams }: { searchParams: Promise<{ convite?: string }> }) {
+  const { convite } = await searchParams;
   const user = await getCurrentUser();
   const pct = business.artistSharePercent;
+  const [founders, paidCents, inviter, fcfg] = await Promise.all([
+    foundersLeft(db),
+    totalPaidToArtists(db),
+    convite ? db.artistProfile.findUnique({ where: { slug: convite.toLowerCase() }, select: { stageName: true, slug: true } }) : null,
+    getInts(db, ["founderMonths", "founderSharePercent"]),
+  ]);
+  const firstMin = (await getInts(db, ["payoutFirstMinKz"])).payoutFirstMinKz;
   return (
     <div className="container-app max-w-xl py-4">
       <h1 className="text-3xl font-bold">Regista-te como artista</h1>
       <p className="mt-1 text-muted">Publica as tuas minisséries e ganha {pct}% de tudo o que o público pagar. Quanto mais assistirem, mais ganhas. A tua conta fica ativa logo: podes criar a tua primeira série hoje.</p>
 
+      {inviter && <p className="mt-3 rounded-xl bg-accent2/15 px-4 py-3 text-sm text-accent2">Foste convidado por <strong>{inviter.stageName}</strong>. Bem-vindo, kamba!</p>}
+      {founders.left > 0 && (
+        <div className="mt-4 rounded-2xl border border-accent/50 bg-accent/10 p-4">
+          <p className="font-display text-lg font-extrabold text-accent">Restam {founders.left} de {founders.limit} vagas de Artista Fundador</p>
+          <p className="mt-1 text-sm text-fg/90">Os Artistas Fundadores ganham {fcfg.founderSharePercent}% nos primeiros {fcfg.founderMonths} meses, ficam com o selo “Artista Fundador” para sempre e as séries começam logo no nível Normal.</p>
+        </div>
+      )}
+      {paidCents > 0 && <p className="mt-3 text-sm text-ok">A {brand.name} já pagou {formatKz(paidCents)} aos artistas.</p>}
+
       <ActionForm action={registerArtistAction} className="mt-6 space-y-4">
+        {inviter && <input type="hidden" name="convite" value={inviter.slug} />}
         <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><label>Não preencher<input name="website" tabIndex={-1} autoComplete="off" /></label></div>
         <Field id="stageName" label="Nome artístico" required />
         <Field id="fullName" label="Nome completo (como no BI)" required autoComplete="name" />
@@ -61,7 +82,7 @@ export default async function ArtistRegisterPage() {
           <Check name="c2">2. Aceito que os primeiros episódios sejam grátis, para atrair público.</Check>
           <Check name="c3">3. Ganho {pct}% de tudo o que o público pagar pelas minhas séries.</Check>
           <Check name="c4">4. O conteúdo é meu e respeita as regras da comunidade.</Check>
-          <Check name="c5">5. Aceito as regras de levantamento (mínimo {kzLabel(business.minWithdrawalKz)}).</Check>
+          <Check name="c5">5. Aceito as regras de levantamento (o 1.º a partir de {kzLabel(firstMin)}).</Check>
           <p className="text-xs text-muted">Todos os detalhes estão na <Link href="/legal/politica-artista" target="_blank" className="text-accent2 underline">Política do Artista</Link> e no <Link href="/legal/acordo-artista" target="_blank" className="text-accent2 underline">Acordo do Artista</Link> completos.</p>
         </fieldset>
         <Check name="terms">Li e aceito os <Link href="/legal/termos" target="_blank" className="text-accent2 underline">Termos</Link> e a <Link href="/legal/privacidade" target="_blank" className="text-accent2 underline">Política de Privacidade</Link>.</Check>

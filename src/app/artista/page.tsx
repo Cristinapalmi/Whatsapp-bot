@@ -10,6 +10,8 @@ import { topFans } from "@/domain/points";
 import { getObjectUrl } from "@/domain/storage";
 import { trailerCaption } from "@/domain/trailer";
 import { monthlyRanking, sortByRevenue, sortByViews } from "@/domain/ranking";
+import { ArtistGrowth } from "./ArtistGrowth";
+import { artistShareFor } from "@/domain/artists/growth";
 import { LiveWallet } from "@/components/LiveWallet";
 import { CopyButton } from "@/components/CopyButton";
 import { EmptyState } from "@/components/EmptyState";
@@ -73,22 +75,20 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
     series.map(async (s) => (s.trailerKey ? getObjectUrl("media", s.trailerKey, 6 * 3600, { downloadName: `trailer-${s.slug}.mp4` }) : null)),
   );
   const hasPublished = series.some((s) => s.status === "PUBLISHED");
+  const share = await artistShareFor(db, artist);
 
   return (
     <div className="container-app max-w-3xl">
       {sp.apagada && <p role="status" className="mb-3 rounded-xl bg-ok/15 px-4 py-3 text-sm text-ok">Série apagada.</p>}
       <h1 className="text-2xl font-bold">Olá, {artist.stageName}</h1>
       <p className="text-sm text-muted">Quanto mais assistirem às tuas séries, mais ganhas.</p>
+      <ArtistGrowth artist={artist} wallet={wallet} />
 
       {/* Carteira */}
       <section className="mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-accent/25 via-surface to-surface p-5">
         <p className="flex items-center gap-2 text-sm text-muted"><IconWallet size={18} /> Saldo disponível</p>
         <LiveWallet initialCents={wallet.availableCents} />
-        <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-          <div><p className="text-muted">Este mês</p><p className="font-semibold">{formatKz(wallet.earnedThisMonthCents)}</p></div>
-          <div><p className="text-muted">Total ganho</p><p className="font-semibold">{formatKz(wallet.earnedTotalCents)}</p></div>
-          <div><p className="text-muted">A levantar</p><p className="font-semibold">{formatKz(wallet.processingCents)}</p></div>
-        </div>
+        {wallet.processingCents > 0 && <p className="mt-2 text-sm text-muted">A levantar: <strong className="text-fg">{formatKz(wallet.processingCents)}</strong></p>}
         <Link href="/artista/carteira" className="btn-primary mt-4 w-full no-underline sm:w-auto">Carteira e levantamentos</Link>
       </section>
 
@@ -235,7 +235,7 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
         )}
       </section>
 
-      <p className="mt-6 flex items-center gap-2 text-xs text-muted"><IconChart size={16} /> Ganhas 50% do valor das moedas que os fãs gastam nas tuas séries e nos presentes que te oferecem.</p>
+      <p className="mt-6 flex items-center gap-2 text-xs text-muted"><IconChart size={16} /> Ganhas {share}% do valor das moedas que os fãs gastam nas tuas séries e nos presentes que te oferecem.</p>
     </div>
   );
 }

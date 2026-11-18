@@ -61,6 +61,7 @@ model User {
   coinLots           CoinLot[]
   coinSpends         CoinSpend[]
   favorites          Favorite[]
+  follows            Follow[]
   adViews            AdView[]
   adUnlocks          AdUnlock[]
 }
@@ -140,8 +141,18 @@ model ArtistProfile {
   /// Verificação do BI e do IBAN pela administração (exigida antes do primeiro levantamento pago).
   verifiedAt      DateTime?
   verifiedById    String?
+  /// Artista Fundador n.º X (os primeiros 20). Ganha mais nos primeiros meses e fica com o selo para sempre.
+  founderNumber   Int?         @unique
+  /// "Traz um kamba": quem convidou este artista, e quando o bónus do convite foi pago.
+  invitedByArtistId   String?
+  referralBonusPaidAt DateTime?
+  /// Primeira venda (para a notificação "o teu primeiro fã pagou").
+  firstSaleAt     DateTime?
+  tiktokUrl       String?
+  instagramUrl    String?
   createdAt       DateTime     @default(now())
 
+  followers          Follow[]
   series             Series[]
   payoutAccount      PayoutAccount?
   payoutRequests     PayoutRequest[]
@@ -193,6 +204,8 @@ model Series {
   /// "PT" = Português; "PT_NATIONAL" = Português + línguas nacionais
   language         String        @default("PT")
   tags             String[]      @default([])
+  /// 👑 — a série chegou ao marco mais alto de desbloqueios.
+  crownedAt        DateTime?
   /// Nível de preço por episódio (Entrada / Normal / Premium)
   tier             PriceTier     @default(ENTRY)
   /// Série retirada pelo artista: sai logo do catálogo; quem desbloqueou vê 30 dias; depois os ficheiros são apagados
@@ -204,6 +217,7 @@ model Series {
   reports   Report[]
   favorites Favorite[]
   coinSpends CoinSpend[]
+  milestones SeriesMilestone[]
 
   @@index([status, category])
 }
@@ -766,4 +780,31 @@ model AdRevenue {
   createdAt   DateTime @default(now())
 
   @@index([month])
+}
+
+/// Marcos de uma série: bónus por desbloqueios pagos (pagos uma única vez) e marcos de ganhos (só aviso).
+model SeriesMilestone {
+  id         String   @id @default(cuid())
+  seriesId   String
+  series     Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  /// "UNLOCKS" (bónus em dinheiro) ou "EARNED" (aviso "passou os 10.000 Kz")
+  kind       String
+  threshold  Int
+  bonusCents Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([seriesId, kind, threshold])
+}
+
+/// Fã que segue um artista (recebe aviso de séries e episódios novos).
+model Follow {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artistId  String
+  artist    ArtistProfile @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([userId, artistId])
+  @@index([artistId])
 }

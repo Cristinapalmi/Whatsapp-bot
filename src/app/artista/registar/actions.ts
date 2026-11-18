@@ -12,6 +12,7 @@ import { toActionError } from "@/lib/actions";
 import { newKey, putObject } from "@/domain/storage";
 import type { ActionResult } from "@/components/ActionForm";
 import { readValidatedFile } from "@/lib/filetype";
+import { assignFounder } from "@/domain/artists/growth";
 
 const artistSchema = z.object({
   stageName: z.string().trim().min(2, "Indica o nome artístico.").max(40),
@@ -74,6 +75,10 @@ export async function registerArtistAction(_: ActionResult, fd: FormData): Promi
       await putObject("media", photoKey, f.bytes, `image/${f.type}`);
     }
 
+    // "Traz um kamba": artista que convidou (link /artista/registar?convite=slug)
+    const inviteSlug = String(fd.get("convite") ?? "").trim().toLowerCase();
+    const inviter = inviteSlug ? await db.artistProfile.findUnique({ where: { slug: inviteSlug }, select: { id: true, userId: true } }) : null;
+
     const meta = await requestMeta();
     const v = business.legalVersions;
     await db.$transaction(async (tx) => {
@@ -99,8 +104,9 @@ export async function registerArtistAction(_: ActionResult, fd: FormData): Promi
           ...ARTIST_DOCS.map((document) => ({ userId, document, version: v.artistPolicy, ...meta })),
         ],
       });
-      await tx.artistProfile.create({
+      const created = await tx.artistProfile.create({
         data: {
+          invitedByArtistId: inviter && inviter.userId !== userId ? inviter.id : null,
           userId,
           stageName: data.stageName,
           fullName: data.fullName,
@@ -115,6 +121,8 @@ export async function registerArtistAction(_: ActionResult, fd: FormData): Promi
           approvedAt: new Date(),
         },
       });
+      // Os primeiros 20 artistas são Artistas Fundadores
+      await assignFounder(tx, created.id);
     });
     if (newUser) {
       await recordAttempt(newUser.phone, meta.ip, "register", true);

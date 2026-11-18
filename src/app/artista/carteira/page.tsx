@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { business } from "@config/business";
 import { db } from "@/lib/db";
 import { requireArtist } from "@/lib/artist";
 import { formatKz } from "@/lib/money";
@@ -9,6 +8,7 @@ import { formatIban } from "@/lib/iban";
 import { formatPhone } from "@/lib/phone";
 import { getArtistWallet } from "@/domain/money/ledger";
 import { artistAvailable } from "@/domain/money/accounts";
+import { payoutMinCents } from "@/domain/payouts/service";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { LiveWallet } from "@/components/LiveWallet";
 import { PayoutStatusBadge } from "@/components/StatusBadge";
@@ -29,6 +29,7 @@ const KIND_LABEL: Record<string, string> = {
   COIN_SPEND_GIFT: "Presente recebido",
   COIN_SPEND_REVERSED: "Ganho anulado",
   AD_DISTRIBUTION: "Anúncios do mês",
+  ARTIST_BONUS: "Bónus 🏆",
 };
 
 export default async function WalletPage() {
@@ -44,7 +45,10 @@ export default async function WalletPage() {
     }),
   ]);
   const acc = artist.payoutAccount;
-  const min = business.minWithdrawalKz * 100;
+  const [min, firstPayout] = await Promise.all([
+    payoutMinCents(db, artist.id),
+    db.payoutRequest.count({ where: { artistId: artist.id, status: { in: ["PROCESSING", "PAID"] } } }).then((n) => n === 0),
+  ]);
 
   return (
     <div className="container-app max-w-2xl">
@@ -67,13 +71,14 @@ export default async function WalletPage() {
         {!acc ? (
           <p className="mt-2 text-sm text-muted">Primeiro liga a conta onde queres receber (em baixo).</p>
         ) : wallet.availableCents < min ? (
-          <p className="mt-2 text-sm text-muted">O levantamento mínimo é {formatKz(min)}. Faltam {formatKz(min - Math.max(0, wallet.availableCents))}.</p>
+          <p className="mt-2 text-sm text-muted">{firstPayout ? "O teu primeiro levantamento pode ser a partir de" : "O levantamento mínimo é"} {formatKz(min)}. Faltam {formatKz(min - Math.max(0, wallet.availableCents))}.</p>
         ) : (
           <ActionForm action={requestPayoutAction} className="card mt-2 space-y-3" resetOnSuccess>
             <label className="label" htmlFor="amount">Valor (Kz)</label>
-            <input className="input" id="amount" name="amount" type="number" inputMode="numeric" min={business.minWithdrawalKz} max={Math.floor(wallet.availableCents / 100)} defaultValue={Math.floor(wallet.availableCents / 100)} required />
+            <input className="input" id="amount" name="amount" type="number" inputMode="numeric" min={Math.ceil(min / 100)} max={Math.floor(wallet.availableCents / 100)} defaultValue={Math.floor(wallet.availableCents / 100)} required />
             <p className="hint">Para: {acc.method === "BANK_IBAN" ? `${acc.bankName} · ${formatIban(acc.iban ?? "")}` : `Multicaixa Express ${formatPhone(acc.mcxPhone ?? "")}`}</p>
             <SubmitButton>Levantar</SubmitButton>
+            <p className="text-center text-xs text-muted">Tentamos pagar em 24 horas{firstPayout ? " (no 1.º levantamento confirmamos primeiro o teu BI e a conta)" : ""}.</p>
           </ActionForm>
         )}
       </section>

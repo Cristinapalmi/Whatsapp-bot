@@ -1,7 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
 import { business } from "@config/business";
 import { PLATFORM_CASH, artistAvailable, artistPayout } from "../money/accounts";
-import { balance, lockAccount, postEntry } from "../money/ledger";
+import { balance, lockAccount, postEntry, type Tx } from "../money/ledger";
+import { getInts } from "../settings";
 import { notify, audit } from "../notify";
 import { UserFacingError } from "../errors";
 import { formatKz, kzToCents } from "@/lib/money";
@@ -13,9 +14,18 @@ import { formatKz, kzToCents } from "@/lib/money";
  *  3. Rejeitado → o valor volta ao saldo disponível.
  */
 
+/** Mínimo para levantar: o 1.º levantamento é mais baixo (1.000 Kz), os seguintes 5.000 Kz (editáveis). */
+export async function payoutMinCents(db: Tx, artistId: string) {
+  const [c, before] = await Promise.all([
+    getInts(db, ["payoutFirstMinKz", "payoutMinKz"]),
+    db.payoutRequest.count({ where: { artistId, status: { in: ["PROCESSING", "PAID"] } } }),
+  ]);
+  return kzToCents(before === 0 ? c.payoutFirstMinKz : c.payoutMinKz);
+}
+
 export async function requestPayout(db: PrismaClient, { artistId, amountCents }: { artistId: string; amountCents: number }) {
   if (!Number.isInteger(amountCents) || amountCents <= 0) throw new UserFacingError("Valor inválido.");
-  const minCents = kzToCents(business.minWithdrawalKz);
+  const minCents = await payoutMinCents(db, artistId);
   if (amountCents < minCents) throw new UserFacingError(`O levantamento mínimo é ${formatKz(minCents)}.`);
 
   return db.$transaction(async (tx) => {

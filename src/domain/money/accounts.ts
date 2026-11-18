@@ -59,4 +59,5 @@ export const EARNING_KINDS = [
   "COIN_SPEND_GIFT",
   "COIN_SPEND_REVERSED",
   "AD_DISTRIBUTION",
+  "ARTIST_BONUS",
 ] as const;

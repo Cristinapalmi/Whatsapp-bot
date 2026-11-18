@@ -1,3 +1,4 @@
+import { SettingsGroupForm } from "@/components/SettingsGroupForm";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { ArtistStatus } from "@prisma/client";
@@ -26,6 +27,11 @@ export default async function AdminArtists({ searchParams }: { searchParams: Pro
   return (
     <div>
       <h1 className="text-2xl font-bold">Artistas</h1>
+      <details className="card mt-3">
+        <summary className="cursor-pointer font-bold">Regras dos artistas: Fundadores, marcos, levantamentos, convites</summary>
+        <p className="mt-2 text-sm text-muted">Os bónus saem da parte da plataforma e ficam no livro-razão. Cada marco paga uma única vez por série.</p>
+        <SettingsGroupForm group="artistas" />
+      </details>
       <p className="mt-1 text-sm text-muted">Os artistas ficam ativos logo no registo. Podes suspender quem não cumprir as regras. O BI e o IBAN são verificados no primeiro levantamento.</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {TABS.map(([s, label]) => (
@@ -41,7 +47,7 @@ export default async function AdminArtists({ searchParams }: { searchParams: Pro
               {photos[i] && <img src={photos[i]!} alt="" className="h-full w-full object-cover" />}
             </div>
             <div>
-              <p className="text-lg font-bold">{a.stageName}</p>
+              <p className="text-lg font-bold">{a.stageName}{a.founderNumber ? <span className="badge-free ml-2 align-middle">⭐ Fundador n.º {a.founderNumber}</span> : null}</p>
               <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                 <dt className="text-muted">Nome</dt><dd>{a.fullName}</dd>
                 <dt className="text-muted">BI</dt><dd className="font-mono">{a.biNumber}</dd>

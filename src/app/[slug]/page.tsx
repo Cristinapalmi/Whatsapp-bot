@@ -9,6 +9,8 @@ import { SeriesCard } from "@/components/SeriesCard";
 import { RefTracker } from "@/components/RefTracker";
 import { IconTrophy } from "@/components/icons";
 import { topFans } from "@/domain/points";
+import { getCurrentUser } from "@/lib/auth";
+import { FollowButton } from "@/components/FollowButton";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +31,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function ArtistPublicPage({ params }: { params: Promise<{ slug: string }> }) {
   const artist = await load((await params).slug);
   if (!artist) notFound();
-  const [photo, fans] = await Promise.all([mediaUrl(artist.photoKey), topFans(db, artist.id, 3)]);
+  const user = await getCurrentUser();
+  const [photo, fans, followers, isFollowing] = await Promise.all([
+    mediaUrl(artist.photoKey),
+    topFans(db, artist.id, 3),
+    db.follow.count({ where: { artistId: artist.id } }),
+    user ? db.follow.findUnique({ where: { userId_artistId: { userId: user.id, artistId: artist.id } } }).then(Boolean) : false,
+  ]);
+  const crowned = artist.series.some((s) => s.crownedAt);
   const cards = await Promise.all(
     artist.series.map(async (s) => ({
       slug: s.slug, title: s.title, category: s.category, coverUrl: await mediaUrl(s.coverKey),
@@ -46,11 +55,23 @@ export default async function ArtistPublicPage({ params }: { params: Promise<{ s
           {photo ? <img src={photo} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center font-display text-4xl font-bold text-accent">{artist.stageName[0]}</span>}
         </div>
         <div>
-          <h1 className="text-3xl font-extrabold">{artist.stageName}</h1>
+          <h1 className="text-3xl font-extrabold">{artist.stageName}{crowned ? " 👑" : ""}</h1>
           <p className="text-muted">{CATEGORY_LABELS[artist.category]} · {artist.series.length} {artist.series.length === 1 ? "série" : "séries"}</p>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {artist.founderNumber && <span className="badge-free">⭐ Artista Fundador</span>}
+            {artist.verifiedAt && <span className="badge-unlocked">✓ Verificado</span>}
+          </div>
         </div>
       </section>
-      <p className="rounded-2xl bg-surface p-4 text-fg/90">
+      {user?.id !== artist.userId && <FollowButton artistId={artist.id} initial={isFollowing} count={followers} next={`/${artist.slug}`} />}
+      {artist.bio && <p className="mt-3 text-fg/90">{artist.bio}</p>}
+      {(artist.tiktokUrl || artist.instagramUrl) && (
+        <p className="mt-2 flex gap-3 text-sm">
+          {artist.tiktokUrl && <a href={artist.tiktokUrl} target="_blank" rel="noreferrer nofollow" className="text-accent2 underline">TikTok</a>}
+          {artist.instagramUrl && <a href={artist.instagramUrl} target="_blank" rel="noreferrer nofollow" className="text-accent2 underline">Instagram</a>}
+        </p>
+      )}
+      <p className="mt-4 rounded-2xl bg-surface p-4 text-fg/90">
         Bem-vindo! Os primeiros episódios são <strong className="text-ok">grátis</strong>. Cada episódio que desbloqueias apoia diretamente {artist.stageName}.
       </p>
 
