@@ -40,7 +40,8 @@ function SlideFields({ s, series }: { s?: BannerSlide; series: { slug: string; t
       <div><label className="label" htmlFor={`i-${s?.id ?? "n"}`}>Começa a</label><input className="input" id={`i-${s?.id ?? "n"}`} name="startsAt" type="date" defaultValue={ymd(s?.startsAt ?? null)} /></div>
       <div><label className="label" htmlFor={`e-${s?.id ?? "n"}`}>Acaba a</label><input className="input" id={`e-${s?.id ?? "n"}`} name="endsAt" type="date" defaultValue={ymd(s?.endsAt ?? null)} /></div>
       <div className="sm:col-span-2">
-        <label className="label" htmlFor={`img-${s?.id ?? "n"}`}>Imagem {s ? "(substituir)" : "(obrigatória — também é a capa do vídeo)"} · horizontal, sem texto escrito</label>
+        <label className="label" htmlFor={`img-${s?.id ?? "n"}`}>Imagem {s ? "(substituir)" : "(obrigatória — também é a capa do vídeo)"} · sem texto escrito</label>
+        <p className="hint">Usa imagens largas (16:9) com as pessoas ao centro ou à direita. A imagem aparece na metade direita do banner; o texto fica sempre à esquerda.</p>
         <input className="input" id={`img-${s?.id ?? "n"}`} name="image" type="file" accept="image/jpeg,image/png,image/webp" required={!s} />
       </div>
       <datalist id="banner-series">{series.map((x) => <option key={x.slug} value={x.slug}>{x.title}</option>)}</datalist>

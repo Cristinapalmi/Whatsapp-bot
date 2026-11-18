@@ -28,6 +28,12 @@ export function BrandBackdrop() {
   );
 }
 
+/** A borda esquerda da imagem desvanece suavemente para o fundo escuro (sem linha dura). */
+const FADE_LEFT: React.CSSProperties = {
+  WebkitMaskImage: "linear-gradient(to right, transparent 0%, #000 28%)",
+  maskImage: "linear-gradient(to right, transparent 0%, #000 28%)",
+};
+
 /** Divide a frase: a 1.ª frase em destaque, o resto mais pequeno. */
 function splitSubtitle(s: string | null) {
   if (!s) return { lead: null, rest: null };
@@ -47,9 +53,9 @@ function Title({ text, highlight }: { text: string; highlight?: string }) {
   const after = text.slice(at + gold.length).trim();
   return (
     <h2 className="font-hero uppercase leading-[0.95]">
-      {before && <span className="block w-max whitespace-nowrap bg-gradient-to-b from-white to-[#d9d2cb] bg-clip-text text-[clamp(21px,6.6vw,30px)] font-black text-transparent sm:text-[56px]">{before}</span>}
-      <span className="block w-max whitespace-nowrap bg-gradient-to-r from-[#FFD36B] via-accent2 to-accent bg-clip-text pr-[0.12em] text-[clamp(26px,8.2vw,38px)] font-black italic text-transparent drop-shadow-[0_2px_14px_rgb(var(--c-accent)/0.55)] sm:text-[72px]">{goldText}</span>
-      {after && <span className="block text-[clamp(18px,5.5vw,22px)] font-black text-white sm:text-[40px]">{after}</span>}
+      {before && <span className="block max-w-full bg-gradient-to-b from-white to-[#d9d2cb] bg-clip-text text-[clamp(14px,4.4vw,18px)] font-black text-transparent sm:text-[30px] lg:text-[42px]">{before}</span>}
+      <span className="block w-max whitespace-nowrap bg-gradient-to-r from-[#FFD36B] via-accent2 to-accent bg-clip-text pr-[0.12em] text-[clamp(18px,5.9vw,24px)] font-black italic text-transparent drop-shadow-[0_2px_10px_rgb(var(--c-accent)/0.55)] sm:text-[40px] lg:text-[58px]">{goldText}</span>
+      {after && <span className="block text-[clamp(13px,4vw,16px)] font-black text-white sm:text-[24px] lg:text-[32px]">{after}</span>}
     </h2>
   );
 }
@@ -75,10 +81,11 @@ export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
   const go = (to: number) => { setI(((to % n) + n) % n); restart(); };
 
   return (
-    <section className="container-app" aria-roledescription="carrossel" aria-label="Destaques">
-      <div className="overflow-hidden rounded-3xl border border-accent/25 shadow-[0_12px_40px_-14px_rgb(var(--c-accent)/0.55)]">
+    <section className="sm:container-app" aria-roledescription="carrossel" aria-label="Destaques">
+      <div className="overflow-hidden border-y border-accent/25 shadow-[0_12px_40px_-14px_rgb(var(--c-accent)/0.55)] sm:rounded-3xl sm:border">
+        {/* Formato baixo e largo (2,4:1); no computador até 420 px de altura */}
         <div
-          className="relative h-[340px] bg-[#0d0805] sm:h-[460px]"
+          className="relative aspect-[2.4/1] max-h-[420px] w-full bg-[linear-gradient(120deg,#2b170b_0%,#170d07_30%,#0b0604_55%,#0b0604_100%)]"
           onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
           onTouchEnd={(e) => {
             if (touch.current === null) return;
@@ -91,27 +98,29 @@ export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
             const { lead, rest } = splitSubtitle(s.subtitle);
             return (
               <div key={s.id} className={`absolute inset-0 transition-opacity duration-700 ${k === i ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={k !== i}>
-                {/* Imagem encostada à direita, sem filtros de cor */}
-                {s.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={s.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-[right_center]" loading={k === 0 ? "eager" : "lazy"} />
-                ) : (
-                  <BrandBackdrop />
-                )}
-                {video && s.videoUrl && k === i && (
-                  <video src={s.videoUrl} poster={s.imageUrl ?? undefined} muted loop playsInline autoPlay preload="none" className="absolute inset-0 h-full w-full object-cover object-[right_center]" />
-                )}
-                {/* Só um gradiente escuro do lado esquerdo, para o texto se ler */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(0_0_0/0.9)_0%,rgb(0_0_0/0.55)_35%,transparent_60%)]" />
-                <div className="absolute inset-y-0 left-0 flex w-[66%] flex-col justify-center p-4 sm:w-[55%] sm:p-10">
+                {/* ESQUERDA (46%): o fundo escuro quente é o do próprio banner (sem emendas) */}
+                {/* DIREITA (54%): imagem ou vídeo, sem filtros; a borda esquerda desvanece para o escuro */}
+                <div className="absolute inset-y-0 right-0 w-[54%]" style={FADE_LEFT}>
+                  {s.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" loading={k === 0 ? "eager" : "lazy"} />
+                  ) : (
+                    <BrandBackdrop />
+                  )}
+                  {video && s.videoUrl && k === i && (
+                    <video src={s.videoUrl} poster={s.imageUrl ?? undefined} muted loop playsInline autoPlay preload="none" className="absolute inset-0 h-full w-full object-cover" />
+                  )}
+                </div>
+                {/* Texto só na zona da esquerda */}
+                <div className="absolute inset-y-0 left-0 flex w-[46%] flex-col justify-center py-2 pl-3 pr-1 sm:pl-8 sm:pr-4 lg:pl-12">
                   <Title text={s.title} highlight={s.highlight} />
-                  {lead && <p className="mt-2 text-[16px] font-bold leading-tight text-white sm:mt-4 sm:text-[26px] sm:leading-snug">{lead}</p>}
-                  {rest && <p className="mt-1.5 text-[12.5px] leading-snug text-white/85 sm:mt-2 sm:text-[17px]">{rest}</p>}
+                  {lead && <p className="mt-1 text-[12px] font-bold leading-tight text-white sm:mt-3 sm:text-[18px] lg:text-[22px]">{lead}</p>}
+                  {rest && <p className="mt-0.5 line-clamp-2 text-[9px] leading-snug text-white/85 sm:mt-1.5 sm:text-[13px] lg:text-[15px]">{rest}</p>}
                   {s.ctaText && s.href && (
                     <Link
                       href={s.href}
                       tabIndex={k === i ? 0 : -1}
-                      className="btn-glow mt-3 self-start rounded-full px-5 py-2.5 text-sm font-extrabold no-underline sm:mt-6 sm:px-7 sm:py-3 sm:text-lg"
+                      className="btn-glow mt-1.5 min-h-0 self-start rounded-full px-3 py-1 text-[10px] font-extrabold no-underline sm:mt-4 sm:px-6 sm:py-2.5 sm:text-base"
                     >
                       {s.ctaText}
                     </Link>
@@ -124,7 +133,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
         {/* Faixa por baixo do banner: estrela dourada, frase e bolinhas */}
         <div className="flex items-center gap-2 bg-gradient-to-r from-[#1c120a] via-[#140d08] to-[#1c120a] px-3 py-2.5 sm:px-5">
           <svg width="20" height="20" viewBox="0 0 24 24" className="shrink-0 text-accent2 drop-shadow-[0_0_6px_rgb(var(--c-accent2)/0.7)]" aria-hidden><path d="M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8L12 2.5z" fill="currentColor" /></svg>
-          <p className="min-w-0 flex-1 text-[12px] font-semibold leading-tight text-white sm:text-sm">Histórias angolanas. Criadores locais. Entretenimento de qualidade.</p>
+          <p className="min-w-0 flex-1 text-[11px] font-semibold leading-tight text-white sm:text-sm">Histórias angolanas. Criadores locais. Entretenimento de qualidade.</p>
           {n > 1 && (
             <div className="flex shrink-0 gap-1.5">
               {slides.map((s, k) => (
