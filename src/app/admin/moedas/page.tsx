@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { formatKz } from "@/lib/money";
 import { defaultEpisodePriceCoins, packBonusPercent } from "@/domain/coins/service";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
-import { saveCoinPackAction, saveEpisodePriceAction, saveGiftTypeAction } from "../actions";
+import { saveCoinPackAction, saveGiftTypeAction } from "../actions";
+import { SettingsGroupForm } from "@/components/SettingsGroupForm";
 
 export const metadata: Metadata = { title: "Moedas" };
 
@@ -21,16 +22,10 @@ export default async function AdminCoins() {
       <h1 className="text-2xl font-bold">Moedas</h1>
 
       <section className="card mt-4">
-        <h2 className="font-bold">Preço por defeito de um episódio</h2>
-        <p className="text-sm text-muted">Usado em todas as séries, exceto as que têm um preço próprio (em Séries → a série).</p>
-        <ActionForm action={saveEpisodePriceAction} className="mt-3 flex flex-wrap items-end gap-2">
-          <div>
-            <label className="label" htmlFor="episodePriceCoins">Moedas por episódio</label>
-            <input className="input w-32" id="episodePriceCoins" name="episodePriceCoins" type="number" min={1} defaultValue={price} required />
-          </div>
-          <SubmitButton className="btn-primary">Guardar</SubmitButton>
-        </ActionForm>
-        {activePacks[0] && <p className="mt-2 text-xs text-muted">No pacote mais pequeno, {price} moedas ≈ {formatKz(Math.round((base.priceKz * 100 * price) / base.coins))}.</p>}
+        <h2 className="font-bold">Preços por nível</h2>
+        <p className="text-sm text-muted">Os primeiros 3 episódios de cada série são sempre grátis. As séries novas começam em Entrada e sobem sozinhas a Normal; Premium só tu decides (na página da série). O que já foi desbloqueado fica desbloqueado.</p>
+        <SettingsGroupForm group="precos" />
+        {activePacks[0] && <p className="mt-2 text-xs text-muted">No pacote mais pequeno, {price} moedas (Normal) ≈ {formatKz(Math.round((base.priceKz * 100 * price) / base.coins))}.</p>}
       </section>
 
       <h2 className="mt-8 text-lg font-bold">Pacotes da Loja</h2>

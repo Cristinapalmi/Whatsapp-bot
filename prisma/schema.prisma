@@ -201,6 +201,7 @@ model Series {
   episodes  Episode[]
   reports   Report[]
   favorites Favorite[]
+  coinSpends CoinSpend[]
 
   @@index([status, category])
 }
@@ -346,9 +347,12 @@ model Entitlement {
   source           EntitlementSource
   paymentRequestId String?           @unique
   paymentRequest   PaymentRequest?   @relation(fields: [paymentRequestId], references: [id])
+  /// Gasto de moedas que deu este acesso (episódio ou temporada) — para anular certo.
+  coinSpendId      String?
   createdAt        DateTime          @default(now())
 
   @@unique([userId, episodeId])
+  @@index([coinSpendId])
 }
 
 /// Passe semanal (Fase 2).
@@ -641,10 +645,12 @@ model CoinSpend {
   id          String        @id @default(cuid())
   userId      String
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// "EPISODE" ou "GIFT"
+  /// "EPISODE", "SEASON" (todos os episódios restantes de uma série) ou "GIFT"
   kind        String
   episodeId   String?
   episode     Episode?      @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+  seriesId    String?
+  series      Series?       @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   giftCode    String?
   artistId    String
   artist      ArtistProfile @relation(fields: [artistId], references: [id])

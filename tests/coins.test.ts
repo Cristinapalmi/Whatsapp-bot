@@ -7,7 +7,10 @@ import {
   defaultEpisodePriceCoins,
   episodePriceCoins,
   packBonusPercent,
+  reverseCoinSpend,
+  seasonOffer,
   sendGiftWithCoins,
+  unlockSeasonWithCoins,
   setSetting,
   unlockEpisodeWithCoins,
 } from "@/domain/coins/service";
@@ -95,13 +98,68 @@ describe("Comprar moedas", () => {
 });
 
 describe("Desbloquear episódios com moedas", () => {
-  it("preço por defeito 20 moedas, editável, com exceção por série", async () => {
+  it("níveis: Entrada 10, Normal 20, Premium 30 moedas — editáveis", async () => {
     const { series } = await makeArtistWithSeries(db);
     expect(await defaultEpisodePriceCoins(db)).toBe(20);
-    await setSetting(db, "episodePriceCoins", "25");
+    expect(await episodePriceCoins(db, { tier: "ENTRY" })).toBe(10);
+    expect(await episodePriceCoins(db, series)).toBe(20);
+    expect(await episodePriceCoins(db, { tier: "PREMIUM" })).toBe(30);
+    await setSetting(db, "tierPriceNormal", "25");
     expect(await episodePriceCoins(db, series)).toBe(25);
-    expect(await episodePriceCoins(db, { priceCoins: 40 })).toBe(40);
-    await setSetting(db, "episodePriceCoins", "20");
+    await setSetting(db, "tierPriceNormal", "20");
+  });
+
+  it("a série sobe de Entrada para Normal aos desbloqueios pagos definidos e avisa o artista", async () => {
+    await setSetting(db, "tierUpgradeUnlocks", "2");
+    const { artist, series, episodes } = await makeArtistWithSeries(db, { tier: "ENTRY", freeEpisodes: 1 });
+    const [f1, f2] = [await makeUser(db), await makeUser(db)];
+    await buyCoins(f1.id, "p1000");
+    await buyCoins(f2.id, "p1000");
+    const s1 = await unlockEpisodeWithCoins(db, { userId: f1.id, episodeId: episodes[1].id });
+    expect(s1.coins).toBe(10);
+    expect((await db.series.findUniqueOrThrow({ where: { id: series.id } })).tier).toBe("ENTRY");
+    await unlockEpisodeWithCoins(db, { userId: f2.id, episodeId: episodes[1].id });
+    expect((await db.series.findUniqueOrThrow({ where: { id: series.id } })).tier).toBe("NORMAL");
+    const n = await db.notification.findFirst({ where: { userId: artist.userId, body: { contains: "subiu para Normal" } } });
+    expect(n).not.toBeNull();
+    // o que já estava desbloqueado continua desbloqueado
+    expect((await episodeStates(db, f1.id, series, [episodes[1]]))[episodes[1].id]).toBe("unlocked");
+    await setSetting(db, "tierUpgradeUnlocks", "100");
+  });
+
+  it("temporada: todos os restantes com 20% de desconto, uma só cobrança, sem duplicados", async () => {
+    const fan = await makeUser(db);
+    const { artist, series, episodes } = await makeArtistWithSeries(db, { freeEpisodes: 3, episodes: 8 });
+    await buyCoins(fan.id, "p1000"); // 100 moedas, 10 Kz cada
+    await unlockEpisodeWithCoins(db, { userId: fan.id, episodeId: episodes[3].id }); // ep 4: 20 moedas
+    const offer = await seasonOffer(db, fan.id, series);
+    expect(offer).toMatchObject({ count: 4, fullPrice: 80, price: 64, discountPercent: 20 });
+    const before = (await getArtistWallet(db, artist.id)).availableCents;
+    const r = await unlockSeasonWithCoins(db, { userId: fan.id, seriesId: series.id });
+    expect(r.spend.coins).toBe(64);
+    expect(r.spend.valueCents).toBe(64000);
+    expect((await getArtistWallet(db, artist.id)).availableCents - before).toBe(32000); // 50% do valor real
+    expect(await coinBalance(db, fan.id)).toBe(100 - 20 - 64);
+    const states = await episodeStates(db, fan.id, series, episodes);
+    expect(episodes.slice(3).every((e) => states[e.id] === "unlocked")).toBe(true);
+    // segunda vez: nada para comprar, não cobra
+    await expect(unlockSeasonWithCoins(db, { userId: fan.id, seriesId: series.id })).rejects.toThrow();
+    expect(await coinBalance(db, fan.id)).toBe(16);
+    // anular a temporada volta a bloquear só esses episódios
+    await db.$transaction((tx) => reverseCoinSpend(tx, r.spend.id, null, "teste"));
+    const after = await episodeStates(db, fan.id, series, episodes);
+    expect(after[episodes[3].id]).toBe("unlocked");
+    expect(episodes.slice(4).every((e) => after[e.id] === "locked")).toBe(true);
+    expect(await coinBalance(db, fan.id)).toBe(80);
+  });
+
+  it("dois pedidos de temporada ao mesmo tempo só cobram uma vez", async () => {
+    const fan = await makeUser(db);
+    const { series } = await makeArtistWithSeries(db, { freeEpisodes: 3, episodes: 6 });
+    await buyCoins(fan.id, "p2000");
+    const rs = await Promise.allSettled([1, 2, 3].map(() => unlockSeasonWithCoins(db, { userId: fan.id, seriesId: series.id })));
+    expect(rs.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(await coinBalance(db, fan.id)).toBe(220 - 48);
   });
 
   it("artista ganha 50% do VALOR REAL das moedas gastas; o episódio fica desbloqueado para sempre", async () => {

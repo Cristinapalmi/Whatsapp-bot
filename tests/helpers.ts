@@ -50,7 +50,7 @@ export async function makeUser(db: PrismaClient, role: "PUBLIC" | "ARTIST" | "AD
   });
 }
 
-export async function makeArtistWithSeries(db: PrismaClient, opts: { priceCents?: number; freeEpisodes?: number } = {}) {
+export async function makeArtistWithSeries(db: PrismaClient, opts: { priceCents?: number; freeEpisodes?: number; tier?: "ENTRY" | "NORMAL" | "PREMIUM"; episodes?: number } = {}) {
   const user = await makeUser(db, "ARTIST");
   const n = uniq();
   const artist = await db.artistProfile.create({
@@ -75,8 +75,9 @@ export async function makeArtistWithSeries(db: PrismaClient, opts: { priceCents?
       priceCents: opts.priceCents ?? 10000,
       freeEpisodes: opts.freeEpisodes ?? 2,
       status: "PUBLISHED",
+      tier: opts.tier ?? "NORMAL",
       episodes: {
-        create: [1, 2, 3, 4].map((number) => ({ number, title: `Ep ${number}`, published: true, durationSec: 120 })),
+        create: Array.from({ length: opts.episodes ?? 4 }, (_, i) => i + 1).map((number) => ({ number, title: `Ep ${number}`, published: true, durationSec: 120 })),
       },
     },
     include: { episodes: { orderBy: { number: "asc" } } },

@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { coinsLabel } from "@/lib/money";
-import { episodePriceCoins } from "@/domain/coins/service";
+import { coinBalance, episodePriceCoins, seasonOffer } from "@/domain/coins/service";
+import { SeasonUnlockButton } from "@/components/SeasonUnlockButton";
 import { CATEGORY_LABELS } from "@/lib/categories";
 import { episodeStates, type EpisodeState } from "@/domain/access";
 import { IconCheck, IconClock, IconLock, IconPlay, IconTrophy } from "@/components/icons";
@@ -37,7 +38,11 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
   const states = await episodeStates(db, user?.id ?? null, series, series.episodes);
   const cover = await mediaUrl(series.coverKey);
   const [fan1] = await topFans(db, series.artistId, 1);
-  const priceCoins = await episodePriceCoins(db, series);
+  const [priceCoins, season, balance] = await Promise.all([
+    episodePriceCoins(db, series),
+    seasonOffer(db, user?.id ?? null, series),
+    user ? coinBalance(db, user.id) : 0,
+  ]);
   const isFav = user ? !!(await db.favorite.findUnique({ where: { userId_seriesId: { userId: user.id, seriesId: series.id } } })) : false;
   const firstWatchable = series.episodes.find((e) => states[e.id] === "free" || states[e.id] === "unlocked");
 
@@ -76,6 +81,12 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
       </div>
 
       <h2 className="mt-10 text-xl font-bold">Episódios</h2>
+      {season && user && (
+        <div className="card mt-3">
+          <SeasonUnlockButton seriesId={series.id} offer={season} balance={balance} />
+          {balance < season.price && <Link href={`/loja?voltar=${encodeURIComponent(`/serie/${series.slug}`)}`} className="mt-2 block text-center text-sm text-accent2 underline">Comprar moedas</Link>}
+        </div>
+      )}
       <ol className="mt-3 space-y-2">
         {series.episodes.map((e) => (
           <li key={e.id}>

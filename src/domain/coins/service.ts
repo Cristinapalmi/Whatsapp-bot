@@ -6,6 +6,7 @@ import { postEntry, type Tx } from "../money/ledger";
 import { splitRevenue } from "../money/split";
 import { notify } from "../notify";
 import { formatKz } from "@/lib/money";
+import { getInt, getInts } from "../settings";
 
 /**
  * MOEDAS — regras:
@@ -29,11 +30,69 @@ export async function setSetting(db: Tx, key: string, value: string) {
   await db.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
 }
 
-export const defaultEpisodePriceCoins = (db: Tx) => getSettingInt(db, "episodePriceCoins", DEFAULT_EPISODE_PRICE_COINS);
+/**
+ * NÍVEIS DE PREÇO (editáveis em Admin → Moedas):
+ *  - Entrada 10 moedas (todas as séries novas começam aqui);
+ *  - Normal 20 moedas (sobe sozinha aos 100 desbloqueios pagos);
+ *  - Premium 30 moedas (só o admin decide).
+ * Os primeiros 3 episódios são sempre grátis.
+ */
+export type Tier = "ENTRY" | "NORMAL" | "PREMIUM";
+export const TIER_LABELS: Record<Tier, string> = { ENTRY: "Entrada", NORMAL: "Normal ⭐", PREMIUM: "Premium 💎" };
 
-/** Preço de um episódio em moedas: exceção da série, ou o preço por defeito. */
-export async function episodePriceCoins(db: Tx, series: { priceCoins: number | null }) {
-  return series.priceCoins && series.priceCoins > 0 ? series.priceCoins : defaultEpisodePriceCoins(db);
+export async function tierPrices(db: Tx): Promise<Record<Tier, number>> {
+  const [v, legacy] = await Promise.all([
+    getInts(db, ["tierPriceEntry", "tierPriceNormal", "tierPricePremium"]),
+    db.setting.findMany({ where: { key: { in: ["tierPriceNormal", "episodePriceCoins"] } } }),
+  ]);
+  // compatibilidade: o antigo "preço por defeito" vale como Normal se o Normal nunca foi gravado
+  const old = legacy.some((r) => r.key === "tierPriceNormal") ? null : Number.parseInt(legacy.find((r) => r.key === "episodePriceCoins")?.value ?? "", 10);
+  return { ENTRY: v.tierPriceEntry, NORMAL: old && old > 0 ? old : v.tierPriceNormal, PREMIUM: v.tierPricePremium };
+}
+
+/** Preço de referência (nível Normal) — usado na loja para dizer "1 episódio ≈ X moedas". */
+export const defaultEpisodePriceCoins = async (db: Tx) => (await tierPrices(db)).NORMAL;
+export const tierUpgradeUnlocks = (db: Tx) => getInt(db, "tierUpgradeUnlocks");
+export const seasonDiscountPercent = (db: Tx) => getInt(db, "seasonDiscountPercent");
+
+/** Preço de um episódio em moedas, conforme o nível da série. */
+export async function episodePriceCoins(db: Tx, series: { tier: Tier }) {
+  return (await tierPrices(db))[series.tier];
+}
+
+/** Desbloqueios pagos com moedas de uma série (cada episódio de uma temporada conta). */
+export const paidUnlocks = (db: Tx, seriesId: string) =>
+  db.entitlement.count({ where: { source: "COINS", episode: { seriesId } } });
+
+/** Sobe a série de Entrada para Normal quando chega aos desbloqueios pagos definidos (100). */
+export async function maybeUpgradeTier(db: PrismaClient, seriesId: string) {
+  const s = await db.series.findUnique({ where: { id: seriesId }, include: { artist: true } });
+  if (!s || s.tier !== "ENTRY") return false;
+  if ((await paidUnlocks(db, seriesId)) < (await tierUpgradeUnlocks(db))) return false;
+  const r = await db.series.updateMany({ where: { id: seriesId, tier: "ENTRY" }, data: { tier: "NORMAL" } });
+  if (r.count === 0) return false;
+  await notify(db, s.artist.userId, "A tua série subiu de nível", `A tua série subiu para Normal ⭐! Agora ganhas mais por episódio.`, `/artista/series/${s.id}`);
+  return true;
+}
+
+/**
+ * Oferta "temporada": todos os episódios pagos que o fã ainda não tem, com desconto.
+ * Só aparece se faltarem pelo menos 2 episódios.
+ */
+export async function seasonOffer(db: Tx, userId: string | null, series: { id: string; tier: Tier; freeEpisodes: number }) {
+  const eps = await db.episode.findMany({
+    where: { seriesId: series.id, published: true, number: { gt: series.freeEpisodes } },
+    select: { id: true },
+  });
+  const owned = userId
+    ? new Set((await db.entitlement.findMany({ where: { userId, episodeId: { in: eps.map((e) => e.id) } }, select: { episodeId: true } })).map((e) => e.episodeId))
+    : new Set<string>();
+  const episodeIds = eps.map((e) => e.id).filter((id) => !owned.has(id));
+  if (episodeIds.length < 2) return null;
+  const [unit, discountPercent] = await Promise.all([episodePriceCoins(db, series), seasonDiscountPercent(db)]);
+  const fullPrice = unit * episodeIds.length;
+  const price = Math.max(1, Math.round((fullPrice * (100 - discountPercent)) / 100));
+  return { episodeIds, count: episodeIds.length, unit, fullPrice, price, discountPercent };
 }
 
 export async function coinBalance(db: Tx, userId: string) {
@@ -76,9 +135,10 @@ export async function creditCoinLot(
 type SpendInput = {
   userId: string;
   coins: number;
-  kind: "EPISODE" | "GIFT";
+  kind: "EPISODE" | "SEASON" | "GIFT";
   artistId: string;
   episodeId?: string;
+  seriesId?: string;
   giftCode?: string;
   description: string;
 };
@@ -116,6 +176,7 @@ async function spendCoins(tx: Prisma.TransactionClient, input: SpendInput) {
       userId: input.userId,
       kind: input.kind,
       episodeId: input.episodeId,
+      seriesId: input.seriesId,
       giftCode: input.giftCode,
       artistId: input.artistId,
       coins: input.coins,
@@ -126,7 +187,7 @@ async function spendCoins(tx: Prisma.TransactionClient, input: SpendInput) {
   });
   if (value > 0) {
     await postEntry(tx, {
-      kind: input.kind === "EPISODE" ? "COIN_SPEND_EPISODE" : "COIN_SPEND_GIFT",
+      kind: input.kind === "GIFT" ? "COIN_SPEND_GIFT" : "COIN_SPEND_EPISODE",
       description: input.description,
       idempotencyKey: `coin-spend:${spend.id}`,
       lines: [
@@ -156,14 +217,48 @@ export async function unlockEpisodeWithCoins(db: PrismaClient, { userId, episode
       kind: "EPISODE",
       artistId: episode.series.artistId,
       episodeId,
+      seriesId: episode.seriesId,
       description: `Episódio ${episode.number} de "${episode.series.title}" (${price} moedas)`,
     });
-    await tx.entitlement.create({ data: { userId, episodeId, source: "COINS" } });
-    return { spend, artistUserId: episode.series.artist.userId };
+    await tx.entitlement.create({ data: { userId, episodeId, source: "COINS", coinSpendId: spend.id } });
+    return { spend, artistUserId: episode.series.artist.userId, seriesId: episode.seriesId };
   });
-  if (result.spend.artistCents > 0)
-    await notify(db, result.artistUserId, "Ganhaste dinheiro", `+${formatKz(result.spend.artistCents)} na tua carteira.`, "/artista/carteira");
+  await afterPaidUnlock(db, result);
   return result.spend;
+}
+
+/** Desbloqueia de uma vez todos os episódios restantes da série, com desconto. Uma só cobrança. */
+export async function unlockSeasonWithCoins(db: PrismaClient, { userId, seriesId }: { userId: string; seriesId: string }) {
+  const result = await db.$transaction(async (tx) => {
+    await lockUser(tx, userId);
+    const series = await tx.series.findUnique({ where: { id: seriesId }, include: { artist: true } });
+    if (!series || series.status !== "PUBLISHED") throw new UserFacingError("Série não encontrada.");
+    // Calculado dentro da transação (com o fã bloqueado): nunca cobra duas vezes o mesmo episódio.
+    const offer = await seasonOffer(tx, userId, series);
+    if (!offer) throw new UserFacingError("Já tens todos os episódios desta série (ou falta só um).", "ALREADY_UNLOCKED");
+    const spend = await spendCoins(tx, {
+      userId,
+      coins: offer.price,
+      kind: "SEASON",
+      artistId: series.artistId,
+      seriesId,
+      description: `Temporada de "${series.title}": ${offer.count} episódios (${offer.price} moedas, -${offer.discountPercent}%)`,
+    });
+    await tx.entitlement.createMany({
+      data: offer.episodeIds.map((episodeId) => ({ userId, episodeId, source: "COINS" as const, coinSpendId: spend.id })),
+      skipDuplicates: true,
+    });
+    return { spend, artistUserId: series.artist.userId, seriesId, count: offer.count };
+  });
+  await afterPaidUnlock(db, result);
+  return result;
+}
+
+/** Depois de um desbloqueio pago: talvez subir o nível da série. (O resumo para o artista é diário.) */
+async function afterPaidUnlock(db: PrismaClient, r: { spend: { artistCents: number }; artistUserId: string; seriesId: string }) {
+  await maybeUpgradeTier(db, r.seriesId).catch(() => {});
+  if (r.spend.artistCents > 0)
+    await notify(db, r.artistUserId, "Ganhaste dinheiro", `+${formatKz(r.spend.artistCents)} na tua carteira.`, "/artista/carteira");
 }
 
 /** Oferece um presente a um artista, pago com moedas. */
@@ -216,7 +311,9 @@ export async function reverseCoinSpend(tx: Prisma.TransactionClient, spendId: st
       ],
     });
   }
-  if (spend.kind === "EPISODE" && spend.episodeId) {
+  if (spend.kind === "SEASON") {
+    await tx.entitlement.deleteMany({ where: { coinSpendId: spend.id } });
+  } else if (spend.kind === "EPISODE" && spend.episodeId) {
     await tx.entitlement.deleteMany({ where: { userId: spend.userId, episodeId: spend.episodeId, source: "COINS" } });
   }
   return tx.coinSpend.update({ where: { id: spend.id }, data: { reversedAt: new Date() } });

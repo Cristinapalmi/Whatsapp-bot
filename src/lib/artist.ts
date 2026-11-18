@@ -19,7 +19,7 @@ export async function artistStats(artistId: string) {
     db.watchProgress.count({ where: { episode: { series: { artistId } } } }),
     db.watchProgress.count({ where: { completed: true, episode: { series: { artistId } } } }),
     db.paymentRequest.count({ where: { artistId, status: "CONFIRMED", kind: "EPISODE" } }),
-    db.coinSpend.aggregate({ where: { artistId, kind: "EPISODE", reversedAt: null }, _count: true, _sum: { artistCents: true } }),
+    db.coinSpend.aggregate({ where: { artistId, kind: { in: ["EPISODE", "SEASON"] }, reversedAt: null }, _count: true, _sum: { artistCents: true } }),
     db.watchLog.aggregate({ where: { artistId }, _sum: { seconds: true } }),
     db.paymentRequest.aggregate({ where: { artistId, status: "CONFIRMED", kind: "GIFT" }, _count: true, _sum: { amountCents: true } }),
     db.coinSpend.aggregate({ where: { artistId, kind: "GIFT", reversedAt: null }, _count: true, _sum: { artistCents: true } }),
@@ -35,7 +35,7 @@ export async function artistStats(artistId: string) {
       where: { artistId, reversedAt: null },
       orderBy: { createdAt: "desc" },
       take: 5,
-      include: { episode: { select: { number: true, series: { select: { title: true } } } } },
+      include: { episode: { select: { number: true, series: { select: { title: true } } } }, series: { select: { title: true } } },
     }),
     db.adUnlock.count({ where: { artistId } }),
     db.ledgerLine.aggregate({ where: { account: { code: `artist:${artistId}:available` }, entry: { kind: "AD_DISTRIBUTION" } }, _sum: { amountCents: true } }),
@@ -55,7 +55,7 @@ export async function artistStats(artistId: string) {
     recentSales: recentSales.map((s) => ({
       id: s.id,
       date: s.createdAt,
-      text: s.kind === "EPISODE" && s.episode ? `${s.episode.series.title} — Ep. ${s.episode.number}` : "Presente",
+      text: s.kind === "EPISODE" && s.episode ? `${s.episode.series.title} — Ep. ${s.episode.number}` : s.kind === "SEASON" && s.series ? `${s.series.title} — temporada` : "Presente",
       earnedCents: s.artistCents,
     })),
   };

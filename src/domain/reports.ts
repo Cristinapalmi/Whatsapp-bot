@@ -198,7 +198,7 @@ export async function coinFinancialReport(db: Tx, from: Date, to: Date) {
     },
     spent: {
       coins: sum(spends, (s) => s.coins),
-      episodes: spends.filter((s) => s.kind === "EPISODE").length,
+      episodes: spends.filter((s) => s.kind === "EPISODE" || s.kind === "SEASON").length,
       gifts: spends.filter((s) => s.kind === "GIFT").length,
       valueCents: spentValue,
       creatorsCents,

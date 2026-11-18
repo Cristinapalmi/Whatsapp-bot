@@ -25,7 +25,7 @@ async function createDemo() {
     });
     await db.series.create({
       data: {
-        artistId: a.id, title: seriesSlug, slug: seriesSlug, category: "TERROR", status: "PUBLISHED", freeEpisodes: 3, coverKey: `/covers/${seriesSlug}.svg`,
+        artistId: a.id, title: seriesSlug, slug: seriesSlug, category: "TERROR", status: "PUBLISHED", tier: "NORMAL", freeEpisodes: 3, coverKey: `/covers/${seriesSlug}.svg`,
         episodes: { create: [1, 2, 3, 4].map((n) => ({ number: n, title: `Ep ${n}`, published: true, videoKey: "/samples/demo-360.mp4", durationSec: 15 })) },
       },
     });

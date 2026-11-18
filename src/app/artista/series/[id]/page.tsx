@@ -7,7 +7,7 @@ import { mediaUrl } from "@/lib/media";
 import { AGE_LABELS, CATEGORY_LABELS, LANGUAGE_LABELS } from "@/lib/categories";
 import { coinsLabel, formatKz } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
-import { episodePriceCoins } from "@/domain/coins/service";
+import { episodePriceCoins, paidUnlocks, tierUpgradeUnlocks } from "@/domain/coins/service";
 import { HOOK_EPISODE, isEpisodeEditable, isSeriesEditable, reviewChecklist, withdrawnUntil } from "@/domain/series-workflow";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { DirectVideoUpload } from "@/components/DirectVideoUpload";
@@ -51,7 +51,8 @@ export default async function ManageSeriesPage({ params, searchParams }: { param
   const canSubmit = s.status !== "HIDDEN" && s.status !== "IN_REVIEW" && checklist.every((c) => c.ok);
   const [label, badge, help] = SERIES_LABEL[s.status];
   const nextNumber = (s.episodes.at(-1)?.number ?? 0) + 1;
-  const earned = await db.coinSpend.aggregate({ where: { artistId: artist.id, episode: { seriesId: s.id }, reversedAt: null }, _sum: { artistCents: true } });
+  const [unlocks, upgradeAt] = await Promise.all([paidUnlocks(db, s.id), tierUpgradeUnlocks(db)]);
+  const earned = await db.coinSpend.aggregate({ where: { artistId: artist.id, OR: [{ episode: { seriesId: s.id } }, { seriesId: s.id }], reversedAt: null }, _sum: { artistCents: true } });
 
   return (
     <div className="container-app max-w-2xl">
@@ -91,6 +92,12 @@ export default async function ManageSeriesPage({ params, searchParams }: { param
 
       <section className="card mt-4 text-sm text-muted">
         Nível de preço: <strong className="text-fg">{TIER_LABEL[s.tier]}</strong> ({coinsLabel(price)} por episódio, definido pela plataforma). Os primeiros {s.freeEpisodes} episódios são sempre grátis.
+        {s.tier === "ENTRY" && (
+          <span className="mt-2 block">
+            <span className="block text-xs">{unlocks} de {upgradeAt} desbloqueios pagos para subir a Normal ⭐ (ganhas mais por episódio)</span>
+            <span className="mt-1 block h-2 overflow-hidden rounded-full bg-surface2"><span className="block h-full bg-accent" style={{ width: `${Math.min(100, Math.round((unlocks / upgradeAt) * 100))}%` }} /></span>
+          </span>
+        )}
         {s.status === "PUBLISHED" && <> Já ganhaste <strong className="text-ok">{formatKz(earned._sum.artistCents ?? 0)}</strong> com esta série.</>}
       </section>
 

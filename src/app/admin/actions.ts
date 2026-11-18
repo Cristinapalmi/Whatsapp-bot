@@ -15,6 +15,7 @@ import { distributeAdPool, registerAdRevenue } from "@/domain/ads/service";
 import { runDemoCleanup } from "@/domain/demo-cleanup";
 import { approveReview, rejectReview } from "@/domain/series-workflow";
 import { audit, notify } from "@/domain/notify";
+import { saveIntGroup } from "@/domain/settings";
 import { deleteObject, getUploadUrl, inspectObject, newKey, putObject } from "@/domain/storage";
 import { MAX_VIDEO_BYTES, readValidatedFile, sniff } from "@/lib/filetype";
 import { UserFacingError } from "@/domain/errors";
@@ -231,14 +232,20 @@ export async function saveCoinPackAction(_: ActionResult, fd: FormData): Promise
   } catch (e) { return toActionError(e); }
 }
 
-export async function saveEpisodePriceAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+/** Grava um grupo de regras numéricas (preços, ofertas, fundadores, convites…). */
+export async function saveSettingsGroupAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
     const admin = await requireAdmin();
-    const price = z.coerce.number().int().min(1, "Mínimo 1 moeda").max(10000).parse(fd.get("episodePriceCoins"));
-    await setSetting(db, "episodePriceCoins", String(price));
-    await audit(db, admin.id, "EPISODE_PRICE_UPDATED", "Setting", "episodePriceCoins", { price });
-    revalidatePath("/admin/moedas");
-    return { ok: `Preço por defeito: ${price} moedas por episódio.` };
+    const group = str(fd, "group");
+    let changed: Record<string, number>;
+    try {
+      changed = await saveIntGroup(db, group, Object.fromEntries(fd));
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "Valor inválido." };
+    }
+    await audit(db, admin.id, "SETTINGS_SAVED", "Setting", group, changed);
+    revalidatePath("/admin", "layout");
+    return { ok: "Guardado." };
   } catch (e) { return toActionError(e); }
 }
 

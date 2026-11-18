@@ -25,7 +25,7 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
           where: { userId: user.id },
           orderBy: { createdAt: "desc" },
           take: 20,
-          include: { episode: { select: { number: true, series: { select: { title: true } } } }, artist: { select: { stageName: true } } },
+          include: { episode: { select: { number: true, series: { select: { title: true } } } }, series: { select: { title: true } }, artist: { select: { stageName: true } } },
         })
       : [],
   ]);
@@ -35,7 +35,7 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
     ...lots.map((l) => ({ date: l.createdAt, text: l.revokedAt ? "Compra anulada" : "Compra de moedas", coins: l.revokedAt ? 0 : l.coinsTotal, revoked: !!l.revokedAt })),
     ...spends.map((s) => ({
       date: s.createdAt,
-      text: s.kind === "EPISODE" && s.episode ? `${s.episode.series.title} — Ep. ${s.episode.number}` : `Presente para ${s.artist.stageName}`,
+      text: s.kind === "EPISODE" && s.episode ? `${s.episode.series.title} — Ep. ${s.episode.number}` : s.kind === "SEASON" && s.series ? `${s.series.title} — temporada completa` : `Presente para ${s.artist.stageName}`,
       coins: s.reversedAt ? 0 : -s.coins,
       revoked: !!s.reversedAt,
     })),

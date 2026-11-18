@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { UserFacingError } from "@/domain/errors";
-import { sendGiftWithCoins, unlockEpisodeWithCoins } from "@/domain/coins/service";
+import { sendGiftWithCoins, unlockEpisodeWithCoins, unlockSeasonWithCoins } from "@/domain/coins/service";
 import { redeemEpisodeWithPoints } from "@/domain/points";
 
 export type UnlockResult = { ok: true; message?: string } | { ok: false; error: string; code?: string };
@@ -22,6 +22,19 @@ export async function unlockEpisodeAction(episodeId: string): Promise<UnlockResu
     await unlockEpisodeWithCoins(db, { userId: user.id, episodeId });
     revalidatePath(`/ver/${episodeId}`);
     return { ok: true };
+  } catch (e) {
+    if (e instanceof UserFacingError && e.code === "ALREADY_UNLOCKED") return { ok: true };
+    return fail(e);
+  }
+}
+
+/** Desbloquear todos os episódios restantes da série (com desconto). Uma só cobrança. */
+export async function unlockSeasonAction(seriesId: string): Promise<UnlockResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Entra na tua conta para desbloquear.", code: "LOGIN" };
+  try {
+    const r = await unlockSeasonWithCoins(db, { userId: user.id, seriesId });
+    return { ok: true, message: `${r.count} episódios desbloqueados!` };
   } catch (e) {
     if (e instanceof UserFacingError && e.code === "ALREADY_UNLOCKED") return { ok: true };
     return fail(e);
