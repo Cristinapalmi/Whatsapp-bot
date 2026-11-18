@@ -21,6 +21,9 @@ type Props = {
   balance: number;
   points: number;
   pointsCost: number;
+  adOffer: boolean;
+  /** Este episódio foi desbloqueado com a oferta do anúncio. */
+  adUnlocked: boolean;
 };
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -162,7 +165,8 @@ export function Player(p: Props) {
     }
   }
 
-  const showHook = ended && p.next && (p.next.state === "locked" || p.next.state === "pending") && (p.isLastFree || p.endsWithHook);
+  const showAdUpsell = ended && p.adUnlocked && (!p.next || p.next.state === "locked");
+  const showHook = !showAdUpsell && ended && p.next && (p.next.state === "locked" || p.next.state === "pending") && (p.isLastFree || p.endsWithHook);
   const progress = duration ? (time / duration) * 100 : 0;
 
   return (
@@ -200,14 +204,16 @@ export function Player(p: Props) {
         )}
 
         {showHook && p.next && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/95 p-6 text-center">
-            <p className="font-display text-2xl font-extrabold text-accent2 sm:text-3xl">Queres saber o que acontece?</p>
-            {p.hookText && <p className="max-w-md text-fg/90">{p.hookText}</p>}
-            {p.next.state === "pending" ? (
-              <p className="badge-pending text-sm"><IconClock size={14} /> O teu pagamento do episódio {p.next.number} está a ser confirmado</p>
-            ) : (
-              <UnlockPanel episodeId={p.next.id} priceCoins={p.priceCoins} balance={p.balance} points={p.points} pointsCost={p.pointsCost} loggedIn={p.loggedIn} />
-            )}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/90 p-4 text-center">
+            <p className="font-display text-xl font-extrabold text-accent2 sm:text-3xl">Queres saber o que acontece?</p>
+            {p.hookText && <p className="line-clamp-3 max-w-md text-sm text-fg/90 sm:text-base">{p.hookText}</p>}
+          </div>
+        )}
+
+        {showAdUpsell && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/90 p-4 text-center">
+            <p className="font-display text-2xl font-extrabold text-accent2 sm:text-3xl">Gostaste?</p>
+            <p className="text-fg/90">Continua já por {p.priceCoins} moedas.</p>
           </div>
         )}
 
@@ -217,6 +223,22 @@ export function Player(p: Props) {
           </div>
         )}
       </div>
+
+      {(showHook || showAdUpsell) && p.next && (
+        <div className="card mt-3 flex flex-col items-center gap-2 text-center">
+          <p className="text-sm font-semibold">Episódio {p.next.number}</p>
+          {p.next.state === "pending" ? (
+            <p className="badge-pending text-sm"><IconClock size={14} /> O teu pagamento do episódio {p.next.number} está a ser confirmado</p>
+          ) : (
+            <UnlockPanel episodeId={p.next.id} priceCoins={p.priceCoins} balance={p.balance} points={p.points} pointsCost={p.pointsCost} loggedIn={p.loggedIn} adOffer={showHook ? p.adOffer : false} />
+          )}
+        </div>
+      )}
+      {showAdUpsell && (
+        <div className="mt-2 flex justify-center">
+          <Link href={`/loja?voltar=${encodeURIComponent(`/ver/${p.episodeId}`)}`} className="btn-secondary no-underline">Ir à Loja</Link>
+        </div>
+      )}
 
       {error && <p role="alert" className="mt-2 rounded-xl bg-danger/15 px-4 py-3 text-sm text-danger">{error}</p>}
 

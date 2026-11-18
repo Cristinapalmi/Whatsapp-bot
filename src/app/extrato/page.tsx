@@ -55,7 +55,7 @@ export default async function StatementPage({ searchParams }: { searchParams: Pr
       <section className="card mt-4 print:border print:border-black/20 print:bg-white">
         <h2 className="font-bold">Resumo</h2>
         <dl className="mt-2 grid grid-cols-[1fr_auto] gap-y-1 text-sm">
-          {(["EPISODE", "GIFT", "PASS", "REVERSAL", "PAYOUT_REQUEST", "PAYOUT_RETURNED"] as const).map((k) => (
+          {(["EPISODE", "GIFT", "PASS", "ADS", "REVERSAL", "PAYOUT_REQUEST", "PAYOUT_RETURNED"] as const).map((k) => (
             <div key={k} className="contents">
               <dt className="text-muted print:text-black">{STATEMENT_LABELS[k]}</dt>
               <dd className="text-right font-semibold">{formatKz(st.totals[k])}</dd>

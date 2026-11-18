@@ -8,6 +8,8 @@ import { mediaUrl } from "@/lib/media";
 import { canWatch, episodeStates } from "@/domain/access";
 import { pointsBalance } from "@/domain/points";
 import { coinBalance, episodePriceCoins } from "@/domain/coins/service";
+import { adOfferStatus } from "@/domain/ads/service";
+import { houseAdProvider } from "@/domain/ads/provider";
 import { IconChevronLeft, IconClock } from "@/components/icons";
 import { UnlockPanel } from "@/components/UnlockPanel";
 import { Player } from "./Player";
@@ -42,6 +44,12 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
     episodePriceCoins(db, series),
     db.giftType.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { priceCoins: "asc" }] }),
   ]);
+  // Oferta única com anúncio: aparece se ainda estiver livre (ou para convidar a criar conta) e houver anúncios
+  const adsAvailable = !!(await houseAdProvider.pickAd(db, new Date()));
+  const adOffer = adsAvailable && (user ? (await adOfferStatus(db, user)).available : true);
+  const adUnlocked = user
+    ? (await db.entitlement.findUnique({ where: { userId_episodeId: { userId: user.id, episodeId: episode.id } } }))?.source === "AD"
+    : false;
 
   return (
     <div className="container-app max-w-3xl">
@@ -65,12 +73,14 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
           balance={balance}
           points={points}
           pointsCost={business.points.costPerEpisode}
+          adOffer={adOffer}
+          adUnlocked={adUnlocked}
         />
       ) : (
-        <div className="relative mt-2 aspect-video overflow-hidden rounded-2xl bg-surface">
+        <div className="relative mt-2 min-h-[220px] overflow-hidden rounded-2xl bg-surface sm:aspect-video">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {cover && <img src={cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25 blur-sm" />}
-          <div className="relative flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+          <div className="relative flex h-full min-h-[220px] flex-col items-center justify-center gap-3 p-6 text-center">
             {state === "pending" ? (
               <>
                 <IconClock size={36} className="text-warn" />
@@ -81,7 +91,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
             ) : (
               <>
                 <p className="font-display text-xl font-extrabold text-accent2">Episódio {episode.number}</p>
-                <UnlockPanel episodeId={episode.id} priceCoins={priceCoins} balance={balance} points={points} pointsCost={business.points.costPerEpisode} loggedIn={!!user} />
+                <UnlockPanel episodeId={episode.id} priceCoins={priceCoins} balance={balance} points={points} pointsCost={business.points.costPerEpisode} loggedIn={!!user} adOffer={adOffer} />
               </>
             )}
           </div>

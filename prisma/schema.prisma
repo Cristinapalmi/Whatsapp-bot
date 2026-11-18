@@ -53,6 +53,8 @@ model User {
   coinLots           CoinLot[]
   coinSpends         CoinSpend[]
   favorites          Favorite[]
+  adViews            AdView[]
+  adUnlocks          AdUnlock[]
 }
 
 enum ConsentDocument {
@@ -134,6 +136,7 @@ model ArtistProfile {
   referralVisits     ReferralVisit[]
   pointsTransactions PointsTransaction[]
   coinSpends         CoinSpend[]
+  adUnlocks          AdUnlock[]
 }
 
 enum SeriesStatus {
@@ -204,6 +207,8 @@ model Episode {
   reports            Report[]
   pointsTransactions PointsTransaction[]
   coinSpends         CoinSpend[]
+  adViews            AdView[]
+  adUnlocks          AdUnlock[]
 
   @@unique([seriesId, number])
 }
@@ -279,6 +284,7 @@ enum EntitlementSource {
   POINTS // desbloqueado com pontos: NÃO gera pagamento ao artista
   ADMIN
   COINS // desbloqueado com moedas: o artista ganha a sua parte do valor real das moedas
+  AD // desbloqueado com anúncio (oferta única): conta para o fundo mensal de anúncios
 }
 
 model Entitlement {
@@ -627,4 +633,77 @@ model Favorite {
   createdAt DateTime @default(now())
 
   @@id([userId, seriesId])
+}
+
+// ---------- Anúncios ----------
+
+/// Anúncio "da casa": vídeo curto de um patrocinador, carregado no admin.
+model Ad {
+  id          String    @id @default(cuid())
+  sponsor     String
+  title       String?
+  videoKey    String?
+  durationSec Int       @default(0)
+  linkUrl     String?
+  active      Boolean   @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  /// Quantas vezes começou a ser visto / foi visto até ao fim.
+  impressions Int       @default(0)
+  completions Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  views AdView[]
+}
+
+/// Uma visualização de anúncio. O tempo é medido no SERVIDOR (início → fim).
+model AdView {
+  id          String    @id @default(cuid())
+  adId        String
+  ad          Ad        @relation(fields: [adId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episodeId   String
+  episode     Episode   @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  unlock AdUnlock?
+
+  @@index([userId, startedAt])
+}
+
+/// Oferta única usada: um episódio desbloqueado por anúncio.
+/// Guarda o telefone para o limite valer "por número", mesmo que a conta seja apagada.
+model AdUnlock {
+  id        String        @id @default(cuid())
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  phone     String
+  episodeId String
+  episode   Episode       @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  artistId  String
+  artist    ArtistProfile @relation(fields: [artistId], references: [id])
+  /// Anúncio que deu a oferta (fica vazio se a conta for apagada; o registo e o telefone ficam).
+  adViewId  String?       @unique
+  adView    AdView?       @relation(fields: [adViewId], references: [id], onDelete: SetNull)
+  /// Mês (AAAA-MM, Luanda) — base da divisão do fundo de anúncios.
+  month     String
+  createdAt DateTime      @default(now())
+
+  @@index([phone])
+  @@index([month, artistId])
+}
+
+/// Receita de anúncios registada pela administração (ex.: o que um patrocinador pagou).
+model AdRevenue {
+  id          String   @id @default(cuid())
+  month       String
+  amountCents Int
+  sponsor     String?
+  description String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([month])
 }

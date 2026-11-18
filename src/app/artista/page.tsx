@@ -97,6 +97,18 @@ export default async function ArtistDashboard() {
         <Stat icon={<IconClock size={16} />} label="Minutos vistos" value={stats.minutes} />
       </section>
 
+      <section className="card mt-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-1.5 text-xs text-muted"><IconPlay size={16} /> Episódios vistos com anúncio</p>
+          <p className="font-display text-2xl font-bold">{stats.adUnlocks.toLocaleString("pt-AO")}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-muted">Ganhaste com anúncios</p>
+          <p className="font-display text-2xl font-bold text-ok">{formatKz(stats.adsEarnedCents)}</p>
+        </div>
+      </section>
+      <p className="mt-1 text-xs text-muted">Os ganhos com anúncios entram uma vez por mês, conforme os episódios teus desbloqueados com anúncio nesse mês.</p>
+
       {/* Últimas vendas */}
       <section className="mt-6">
         <h2 className="text-lg font-bold">Últimos ganhos</h2>

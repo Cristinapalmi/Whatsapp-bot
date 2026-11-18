@@ -46,6 +46,14 @@ export default async function AdminFinance({ searchParams }: { searchParams: Pro
         <Kpi label="Parte da plataforma" value={formatKz(r.spent.platformCents)} />
       </div>
 
+      <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">Anúncios no período</h2>
+      <div className="mt-2 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi label="Episódios desbloqueados com anúncio" value={String(r.ads.unlocks)} href="/admin/anuncios" />
+        <Kpi label="Receita de anúncios registada" value={formatKz(r.ads.revenueCents)} sub={`${r.ads.revenueEntries} registo(s)`} />
+        <Kpi label="Distribuído aos criadores" value={formatKz(r.ads.distributedToCreatorsCents)} />
+        <Kpi label="Fundos de anúncios por dividir" value={formatKz(r.ads.poolsNowCents)} sub="agora" />
+      </div>
+
       <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">Agora</h2>
       <div className="mt-2 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Moedas por gastar" value={r.outstanding.coins.toLocaleString("pt-AO")} sub={`${formatKz(r.outstanding.valueCents)} (ainda não é receita)`} />

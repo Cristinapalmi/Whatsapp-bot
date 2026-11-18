@@ -37,6 +37,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
         ["Valor real gasto (Kz)", csvKz(r.spent.valueCents)],
         ["Parte dos criadores (Kz)", csvKz(r.spent.creatorsCents)],
         ["Parte da plataforma (Kz)", csvKz(r.spent.platformCents)],
+        ["Episódios desbloqueados com anúncio", r.ads.unlocks],
+        ["Receita de anúncios registada (Kz)", csvKz(r.ads.revenueCents)],
+        ["Anúncios: distribuído aos criadores (Kz)", csvKz(r.ads.distributedToCreatorsCents)],
+        ["Fundos de anúncios por dividir (Kz)", csvKz(r.ads.poolsNowCents)],
         ["Moedas por gastar (agora)", r.outstanding.coins],
         ["Valor das moedas por gastar (Kz)", csvKz(r.outstanding.valueCents)],
         ["Devido aos criadores (Kz)", csvKz(r.owedToCreatorsCents)],
@@ -71,10 +75,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
       const rows = await artistsEarningsSummary(db, mes);
       return csvResponse(
         toCsv(
-          ["artista", "nome_completo", "bi", "saldo_inicio_kz", "episodios_kz", "presentes_kz", "passe_kz", "anulacoes_kz", "total_ganho_kz", "levantamentos_pedidos_kz", "levantamentos_devolvidos_kz", "levantamentos_pagos_kz", "saldo_fim_kz"],
+          ["artista", "nome_completo", "bi", "saldo_inicio_kz", "episodios_kz", "presentes_kz", "passe_kz", "anuncios_kz", "anulacoes_kz", "total_ganho_kz", "levantamentos_pedidos_kz", "levantamentos_devolvidos_kz", "levantamentos_pagos_kz", "saldo_fim_kz"],
           rows.map((r) => [
             r.artist.stageName, r.artist.fullName, r.artist.biNumber, csvKz(r.openingCents),
-            csvKz(r.totals.EPISODE), csvKz(r.totals.GIFT), csvKz(r.totals.PASS), csvKz(r.totals.REVERSAL), csvKz(r.earnedCents),
+            csvKz(r.totals.EPISODE), csvKz(r.totals.GIFT), csvKz(r.totals.PASS), csvKz(r.totals.ADS), csvKz(r.totals.REVERSAL), csvKz(r.earnedCents),
             csvKz(-r.totals.PAYOUT_REQUEST), csvKz(r.totals.PAYOUT_RETURNED), csvKz(r.payoutsPaid.cents), csvKz(r.closingCents),
           ]),
         ),

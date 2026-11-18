@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { redeemPointsAction, unlockEpisodeAction } from "@/app/ver/[id]/actions";
 import { IconCoin, IconLock, IconStar } from "./icons";
+import { AdUnlockButton } from "./AdUnlockButton";
 
 type Props = {
   episodeId: string;
@@ -12,6 +13,8 @@ type Props = {
   points: number;
   pointsCost: number;
   loggedIn: boolean;
+  /** Oferta única com anúncio: true = ainda disponível para esta conta (e há anúncios). */
+  adOffer?: boolean;
 };
 
 const coins = (n: number) => `${n} ${n === 1 ? "moeda" : "moedas"}`;
@@ -41,6 +44,7 @@ export function UnlockPanel(p: Props) {
           <IconLock size={20} /> Entrar para desbloquear
         </Link>
         <p className="text-sm text-muted">Custa {coins(p.priceCoins)}. Criar conta é grátis.</p>
+        {p.adOffer && <p className="text-sm text-accent2">Com conta, podes desbloquear 1 episódio grátis com um anúncio (oferta única).</p>}
       </div>
     );
 
@@ -59,6 +63,7 @@ export function UnlockPanel(p: Props) {
       <p className="text-sm text-muted">
         {enough ? `Tens ${coins(p.balance)}.` : `Este episódio custa ${coins(p.priceCoins)}. Tens ${coins(p.balance)}.`}
       </p>
+      {p.adOffer && <AdUnlockButton episodeId={p.episodeId} disabled={pending} />}
       {p.points >= p.pointsCost && (
         <button type="button" disabled={pending} onClick={() => run(() => redeemPointsAction(p.episodeId))} className="btn-secondary w-full">
           <IconStar size={18} /> Usar {p.pointsCost} dos teus {p.points} pontos

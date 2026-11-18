@@ -74,6 +74,7 @@ export default function ArtistAgreement() {
         <li>{pct}% do valor real das moedas que os fãs gastam a desbloquear episódios das suas séries.</li>
         <li>{pct}% do valor real das moedas gastas nos presentes que receber.</li>
         <li>O valor real de uma moeda é o que o fã pagou por ela, depois das comissões dos serviços de pagamento (quando existirem).</li>
+        <li>Anúncios: {pct}% da receita de anúncios de cada mês é dividida pelos artistas, proporcionalmente aos episódios de cada um desbloqueados com anúncio nesse mês (oferta única do fã).</li>
         <li>Episódios desbloqueados com pontos de fã não geram pagamento.</li>
         <li>Se houver planos de membro com acesso ilimitado, as regras de pagamento ao artista são comunicadas antes.</li>
         <li>O artista recebe só do que o público gasta. Não há valor mínimo garantido.</li>

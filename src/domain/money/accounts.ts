@@ -10,6 +10,7 @@ import type { AccountType } from "@prisma/client";
  *  artist:<id>:payout          PASSIVO    Levantamentos "em processamento" (dinheiro reservado)
  *  pass-pool:<semana>          PASSIVO    Parte dos artistas do passe semanal, à espera do fecho
  *  coins:outstanding           PASSIVO    Moedas compradas e ainda NÃO gastas (não são receita de ninguém)
+ *  ad-pool:<AAAA-MM>           PASSIVO    Parte dos artistas na receita de anúncios do mês, à espera da divisão
  */
 
 export type AccountSpec = { code: string; name: string; type: AccountType; artistId?: string };
@@ -41,6 +42,12 @@ export const passPool = (weekKey: string): AccountSpec => ({
   type: "LIABILITY",
 });
 
+export const adPool = (month: string): AccountSpec => ({
+  code: `ad-pool:${month}`,
+  name: `Fundo de anúncios ${month}`,
+  type: "LIABILITY",
+});
+
 export const COINS_OUTSTANDING: AccountSpec = { code: "coins:outstanding", name: "Moedas por gastar", type: "LIABILITY" };
 
 /** Tipos de lançamento que contam como "ganho" do artista. */
@@ -51,4 +58,5 @@ export const EARNING_KINDS = [
   "COIN_SPEND_EPISODE",
   "COIN_SPEND_GIFT",
   "COIN_SPEND_REVERSED",
+  "AD_DISTRIBUTION",
 ] as const;

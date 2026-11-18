@@ -47,32 +47,41 @@ export default function Terms() {
       <p>É proibido enviar comprovativos falsos, alterados ou já usados. Se descobrirmos um pagamento falso depois de o confirmarmos, retiramos as moedas dessa compra e voltamos a bloquear os episódios desbloqueados com elas. A conta pode ser suspensa, sem prejuízo de outras medidas legais.</p>
       <p>Se pagares e as moedas não entrarem por erro nosso, ou se pagares em duplicado, contacta o apoio: analisamos cada caso e corrigimos.</p>
 
-      <h2>6. Pontos de fã e prémios</h2>
+      <h2>6. Oferta única: 1 episódio grátis com anúncio</h2>
+      <ul>
+        <li>Com a conta iniciada, podes desbloquear <strong>um episódio pago grátis, vendo um anúncio até ao fim</strong>. É uma oferta única: só pode ser usada o número de vezes indicado na app (normalmente 1 vez), <strong>no total e para sempre</strong>, em todas as séries.</li>
+        <li>A oferta vale por conta e por número de telefone. Apagar a conta e criar outra com o mesmo número não dá direito a uma nova oferta.</li>
+        <li>O anúncio tem de ser visto até ao fim; se fechares antes, o episódio não é desbloqueado e a oferta continua disponível.</li>
+        <li>É proibido usar programas ou truques para contornar estas regras. Nesses casos, o desbloqueio pode ser anulado.</li>
+        <li>Os anúncios são de patrocinadores. Se tocares em "Saber mais", abres o site do patrocinador, que tem as suas próprias regras.</li>
+      </ul>
+
+      <h2>7. Pontos de fã e prémios</h2>
       <p>Podes ganhar pontos por veres episódios até ao fim e trocá-los por episódios. Os pontos são diferentes das moedas: <strong>não têm valor em dinheiro</strong>, não podem ser trocados por dinheiro nem transferidos. A {n} não organiza apostas, sorteios pagos nem promete ganhar dinheiro a ver vídeos.</p>
 
-      <h2>7. Planos de membro</h2>
+      <h2>8. Planos de membro</h2>
       <p>Os planos de membro (semanal, mensal e anual) ainda não estão disponíveis. Quando estiverem, as condições e os preços serão mostrados antes de qualquer pagamento.</p>
 
-      <h2>8. Regras de conduta</h2>
+      <h2>9. Regras de conduta</h2>
       <ul>
         <li>É proibido gravar, copiar, descarregar ou republicar os episódios fora da plataforma.</li>
         <li>É proibido tentar contornar o bloqueio de episódios ou usar programas automáticos.</li>
         <li>Podes denunciar conteúdos que violem as regras através do botão "Denunciar".</li>
       </ul>
 
-      <h2>9. Conteúdo</h2>
+      <h2>10. Conteúdo</h2>
       <p>As séries pertencem aos respetivos artistas, que autorizaram a {n} a mostrá-las. Os artistas são responsáveis pelo conteúdo que criam. A {n} pode retirar qualquer conteúdo que viole a lei ou estas regras.</p>
 
-      <h2>10. Suspensão da conta</h2>
+      <h2>11. Suspensão da conta</h2>
       <p>Podemos suspender ou encerrar contas que violem estes Termos. Podes pedir o encerramento da tua conta a qualquer momento através do apoio.</p>
 
-      <h2>11. Responsabilidade</h2>
+      <h2>12. Responsabilidade</h2>
       <p>Fazemos o possível para manter a plataforma disponível, mas não garantimos funcionamento sem interrupções (por exemplo, por falhas de internet ou manutenção).</p>
 
-      <h2>12. Alterações</h2>
+      <h2>13. Alterações</h2>
       <p>Podemos alterar estes Termos. Quando a alteração for importante, pedimos-te que aceites a nova versão.</p>
 
-      <h2>13. Lei aplicável e contactos</h2>
+      <h2>14. Lei aplicável e contactos</h2>
       <p>Estes Termos regem-se pela lei da República de Angola. Contactos: {brand.supportEmail} · WhatsApp {brand.supportWhatsapp}.</p>
     </LegalPage>
   );

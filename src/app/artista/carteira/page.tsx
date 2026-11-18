@@ -28,6 +28,7 @@ const KIND_LABEL: Record<string, string> = {
   COIN_SPEND_EPISODE: "Episódio desbloqueado",
   COIN_SPEND_GIFT: "Presente recebido",
   COIN_SPEND_REVERSED: "Ganho anulado",
+  AD_DISTRIBUTION: "Anúncios do mês",
 };
 
 export default async function WalletPage() {

@@ -11,6 +11,7 @@ import { confirmPayment, rejectPayment, reversePayment } from "@/domain/payments
 import { markPayoutPaid, rejectPayout } from "@/domain/payouts/service";
 import { closeEndedWeeks } from "@/domain/payments/pass";
 import { setSetting } from "@/domain/coins/service";
+import { distributeAdPool, registerAdRevenue } from "@/domain/ads/service";
 import { audit, notify } from "@/domain/notify";
 import { getUploadUrl, newKey, putObject } from "@/domain/storage";
 import { UserFacingError } from "@/domain/errors";
@@ -210,10 +211,15 @@ export async function saveEpisodeAction(_: ActionResult, fd: FormData): Promise<
 }
 
 /** Gera um link para o navegador enviar o vídeo diretamente para o armazenamento. */
-export async function createVideoUploadAction(targetId: string, quality: "low" | "medium" | "trailer", contentType: string) {
+export async function createVideoUploadAction(targetId: string, quality: "low" | "medium" | "trailer" | "ad", contentType: string) {
   await requireAdmin();
   if (!["video/mp4", "video/webm"].includes(contentType)) throw new Error("O vídeo tem de ser MP4.");
   const ext = contentType === "video/webm" ? "webm" : "mp4";
+  if (quality === "ad") {
+    const ad = await db.ad.findUniqueOrThrow({ where: { id: targetId } });
+    const key = newKey(`ads/${ad.id}`, ext);
+    return { key, url: await getUploadUrl("media", key, contentType) };
+  }
   if (quality === "trailer") {
     const series = await db.series.findUniqueOrThrow({ where: { id: targetId } });
     const key = newKey(`trailers/${series.id}`, ext);
@@ -224,8 +230,17 @@ export async function createVideoUploadAction(targetId: string, quality: "low" |
   return { key, url: await getUploadUrl("media", key, contentType) };
 }
 
-export async function attachVideoAction(episodeId: string, quality: "low" | "medium" | "trailer", key: string, durationSec: number) {
+export async function attachVideoAction(episodeId: string, quality: "low" | "medium" | "trailer" | "ad", key: string, durationSec: number) {
   const admin = await requireAdmin();
+  if (quality === "ad") {
+    // Aqui "episodeId" é o id do anúncio
+    if (!key.startsWith("ads/")) throw new Error("Chave inválida");
+    if (!(durationSec > 0)) throw new Error("Não consegui ler a duração do vídeo. Usa um MP4 normal.");
+    await db.ad.update({ where: { id: episodeId }, data: { videoKey: key, durationSec: Math.ceil(durationSec) } });
+    await audit(db, admin.id, "AD_VIDEO_UPLOADED", "Ad", episodeId, { key, durationSec });
+    revalidatePath("/admin/anuncios");
+    return;
+  }
   if (quality === "trailer") {
     // Aqui "episodeId" é o id da série
     if (!key.startsWith("trailers/")) throw new Error("Chave inválida");
@@ -337,5 +352,73 @@ export async function setSuggestedSeriesAction(_: ActionResult, fd: FormData): P
     await audit(db, admin.id, "SUGGESTED_SERIES_SET", "Setting", "suggestedSeriesId", { id: id || null });
     revalidatePath("/admin/series");
     return { ok: id ? "Esta série passa a ser sugerida ao abrir a app." : "Sugestão automática (série em destaque ou a mais vista)." };
+  } catch (e) { return toActionError(e); }
+}
+
+// ---------- Anúncios ----------
+const adSchema = z.object({
+  id: z.string().optional(),
+  sponsor: z.string().trim().min(2, "Indica o patrocinador.").max(60),
+  title: z.string().trim().max(80).optional(),
+  linkUrl: z.union([z.literal(""), z.string().trim().url("Link inválido (começa por https://).").refine((v) => v.startsWith("https://"), "O link tem de começar por https://")]).optional(),
+  startsAt: z.string().optional(),
+  endsAt: z.string().optional(),
+  active: z.literal("on").optional(),
+});
+const day = (v?: string, end = false) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T${end ? "23:59:59" : "00:00:00"}+01:00`) : null);
+
+export async function saveAdAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const d = adSchema.parse(Object.fromEntries(fd));
+    const data = {
+      sponsor: d.sponsor,
+      title: d.title || null,
+      linkUrl: d.linkUrl || null,
+      startsAt: day(d.startsAt),
+      endsAt: day(d.endsAt, true),
+      active: d.id ? !!d.active : true,
+    };
+    const ad = d.id ? await db.ad.update({ where: { id: d.id }, data }) : await db.ad.create({ data });
+    await audit(db, admin.id, d.id ? "AD_UPDATED" : "AD_CREATED", "Ad", ad.id, { sponsor: d.sponsor });
+    revalidatePath("/admin/anuncios");
+    return { ok: d.id ? "Anúncio guardado." : "Anúncio criado. Agora carrega o vídeo." };
+  } catch (e) { return toActionError(e); }
+}
+
+export async function saveAdOfferLimitAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const n = z.coerce.number().int().min(0, "Mínimo 0").max(50).parse(fd.get("adOfferLimit"));
+    await setSetting(db, "adOfferLimit", String(n));
+    await audit(db, admin.id, "AD_OFFER_LIMIT_UPDATED", "Setting", "adOfferLimit", { n });
+    revalidatePath("/admin/anuncios");
+    return { ok: n === 0 ? "Oferta com anúncio desligada." : `Cada conta pode usar a oferta ${n} ${n === 1 ? "vez" : "vezes"} no total.` };
+  } catch (e) { return toActionError(e); }
+}
+
+export async function registerAdRevenueAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const d = z
+      .object({
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Escolhe o mês."),
+        amountKz: z.coerce.number().positive("Indica o valor.").max(100000000),
+        sponsor: z.string().trim().max(60).optional(),
+        description: z.string().trim().max(200).optional(),
+      })
+      .parse(Object.fromEntries(fd));
+    await registerAdRevenue(db, { month: d.month, amountCents: kzToCents(d.amountKz), sponsor: d.sponsor, description: d.description, adminId: admin.id });
+    revalidatePath("/admin/anuncios");
+    return { ok: `Receita registada em ${d.month}.` };
+  } catch (e) { return toActionError(e); }
+}
+
+export async function distributeAdPoolAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const r = await distributeAdPool(db, { month: str(fd, "month"), adminId: admin.id });
+    revalidatePath("/admin/anuncios");
+    return { ok: r.rolloverCents ? `Sem episódios vistos com anúncio em ${r.month}: o fundo passou para o mês seguinte.` : `Fundo de ${r.month} dividido por ${Object.keys(r.allocations).length} artista(s).` };
   } catch (e) { return toActionError(e); }
 }

@@ -27,7 +27,7 @@ export default function ArtistPolicy() {
 
       <h2>O que ganhas com a {n}</h2>
       <ul>
-        <li><strong>{pct}% de tudo o que o público pagar</strong> pelas tuas séries: episódios desbloqueados e presentes.</li>
+        <li><strong>{pct}% de tudo o que o público pagar</strong> pelas tuas séries: episódios desbloqueados e presentes, e ainda uma parte da receita de anúncios.</li>
         <li><strong>Dinheiro na hora:</strong> cada pagamento confirmado aparece logo na tua carteira da app. Vês o saldo a subir.</li>
         <li><strong>Levantamento para o teu IBAN</strong> ou para o teu número Multicaixa Express.</li>
         <li><strong>O teu link pessoal</strong> ({brand.domain}/o-teu-nome) para pores na bio do TikTok e do Instagram. No painel vês quantos fãs vieram por ti.</li>
@@ -62,6 +62,7 @@ export default function ArtistPolicy() {
         <li><strong>Episódios:</strong> quando um fã desbloqueia um episódio teu, ganhas {pct}% do valor real das moedas que ele gastou. O preço de cada episódio em moedas é definido pela {n}, igual para todos.</li>
         <li><strong>Presentes:</strong> quando um fã te oferece um presente, ganhas {pct}% do valor real das moedas gastas.</li>
         <li><strong>Comissões:</strong> se um serviço de pagamento cobrar uma comissão, o valor real das moedas é calculado depois dessa comissão. Hoje, com pagamento por transferência, não há comissões.</li>
+        <li><strong>Anúncios:</strong> cada fã pode desbloquear um episódio grátis vendo um anúncio (oferta única). Todos os meses, {pct}% da receita de anúncios desse mês é dividida pelos artistas, conforme os episódios de cada um desbloqueados com anúncio nesse mês. Entra na tua carteira depois de o mês terminar.</li>
         <li><strong>Pontos de fã:</strong> os fãs ganham pontos por verem episódios até ao fim e podem trocá-los por episódios. Esses episódios não geram pagamento, porque o fã não gastou dinheiro.</li>
         <li><strong>Planos de membro:</strong> quando houver planos com acesso ilimitado, explicamos-te antes como ganhas com eles.</li>
         <li>Só recebes do que o público gasta. Não há mensalidade nem valor mínimo garantido.</li>

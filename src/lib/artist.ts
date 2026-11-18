@@ -15,7 +15,7 @@ export async function requireArtist(opts: { approved?: boolean } = {}) {
 
 export async function artistStats(artistId: string) {
   const pct = business.artistSharePercent;
-  const [views, completions, legacySales, coinSales, watch, legacyGifts, coinGifts, visits, signups, payers, recentSales] = await Promise.all([
+  const [views, completions, legacySales, coinSales, watch, legacyGifts, coinGifts, visits, signups, payers, recentSales, adUnlocks, adEarned] = await Promise.all([
     db.watchProgress.count({ where: { episode: { series: { artistId } } } }),
     db.watchProgress.count({ where: { completed: true, episode: { series: { artistId } } } }),
     db.paymentRequest.count({ where: { artistId, status: "CONFIRMED", kind: "EPISODE" } }),
@@ -37,6 +37,8 @@ export async function artistStats(artistId: string) {
       take: 5,
       include: { episode: { select: { number: true, series: { select: { title: true } } } } },
     }),
+    db.adUnlock.count({ where: { artistId } }),
+    db.ledgerLine.aggregate({ where: { account: { code: `artist:${artistId}:available` }, entry: { kind: "AD_DISTRIBUTION" } }, _sum: { amountCents: true } }),
   ]);
   return {
     views,
@@ -47,6 +49,9 @@ export async function artistStats(artistId: string) {
     /** O que o ARTISTA ganhou com presentes (nunca a parte da plataforma). */
     giftsEarnedCents: Math.floor(((legacyGifts._sum.amountCents ?? 0) * pct) / 100) + (coinGifts._sum.artistCents ?? 0),
     referral: { visits: visits._sum.visits ?? 0, signups, payers },
+    /** Episódios desbloqueados com anúncio e o que o ARTISTA ganhou com anúncios. */
+    adUnlocks,
+    adsEarnedCents: 0 - (adEarned._sum.amountCents ?? 0) || 0,
     recentSales: recentSales.map((s) => ({
       id: s.id,
       date: s.createdAt,

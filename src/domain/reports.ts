@@ -9,7 +9,7 @@ import { monthRange } from "./ranking";
 
 export type StatementLine = {
   date: Date;
-  type: "EPISODE" | "GIFT" | "PASS" | "REVERSAL" | "PAYOUT_REQUEST" | "PAYOUT_RETURNED" | "OTHER";
+  type: "EPISODE" | "GIFT" | "PASS" | "ADS" | "REVERSAL" | "PAYOUT_REQUEST" | "PAYOUT_RETURNED" | "OTHER";
   description: string;
   /** Positivo = entrou na carteira; negativo = saiu. */
   amountCents: number;
@@ -19,6 +19,7 @@ export const STATEMENT_LABELS: Record<StatementLine["type"], string> = {
   EPISODE: "Venda de episódio",
   GIFT: "Presente",
   PASS: "Passe semanal",
+  ADS: "Anúncios",
   REVERSAL: "Pagamento anulado",
   PAYOUT_REQUEST: "Levantamento",
   PAYOUT_RETURNED: "Levantamento devolvido",
@@ -27,6 +28,7 @@ export const STATEMENT_LABELS: Record<StatementLine["type"], string> = {
 
 function classify(entryKind: string, paymentKind: string | null | undefined): StatementLine["type"] {
   if (entryKind === "PAYMENT_CONFIRMED") return paymentKind === "GIFT" ? "GIFT" : paymentKind === "EPISODE" ? "EPISODE" : "OTHER";
+  if (entryKind === "AD_DISTRIBUTION") return "ADS";
   if (entryKind === "COIN_SPEND_EPISODE") return "EPISODE";
   if (entryKind === "COIN_SPEND_GIFT") return "GIFT";
   if (entryKind === "COIN_SPEND_REVERSED") return "REVERSAL";
@@ -59,7 +61,7 @@ export async function artistStatement(db: Tx, artistId: string, month?: string) 
   }));
   const totals = Object.fromEntries(Object.keys(STATEMENT_LABELS).map((k) => [k, 0])) as Record<StatementLine["type"], number>;
   for (const m of movements) totals[m.type] += m.amountCents;
-  const earned = totals.EPISODE + totals.GIFT + totals.PASS + totals.REVERSAL;
+  const earned = totals.EPISODE + totals.GIFT + totals.PASS + totals.ADS + totals.REVERSAL;
   const closing = opening + movements.reduce((a, m) => a + m.amountCents, 0);
   return {
     month: r.key,
@@ -161,7 +163,7 @@ export function periodRange(de?: string, ate?: string) {
  *  - por gastar: saldo atual (independente do período)
  */
 export async function coinFinancialReport(db: Tx, from: Date, to: Date) {
-  const [purchases, spends, outstanding, outstandingLedger, owedAgg, pendingPayouts, pendingCoinPayments] = await Promise.all([
+  const [purchases, spends, outstanding, outstandingLedger, owedAgg, pendingPayouts, pendingCoinPayments, adRevenue, adUnlocks, adDistributed, adPools] = await Promise.all([
     db.paymentRequest.findMany({
       where: { kind: "COINS", status: { in: ["CONFIRMED", "REVERSED"] }, reviewedAt: { gte: from, lt: to } },
       orderBy: { reviewedAt: "asc" },
@@ -173,6 +175,13 @@ export async function coinFinancialReport(db: Tx, from: Date, to: Date) {
     db.ledgerLine.aggregate({ where: { account: { code: { startsWith: "artist:" } } }, _sum: { amountCents: true } }),
     db.payoutRequest.aggregate({ where: { status: "PROCESSING" }, _count: true, _sum: { amountCents: true } }),
     db.paymentRequest.count({ where: { kind: "COINS", status: "PENDING" } }),
+    db.adRevenue.aggregate({ where: { createdAt: { gte: from, lt: to } }, _sum: { amountCents: true }, _count: true }),
+    db.adUnlock.count({ where: { createdAt: { gte: from, lt: to } } }),
+    db.ledgerLine.aggregate({
+      where: { createdAt: { gte: from, lt: to }, entry: { kind: "AD_DISTRIBUTION" }, account: { code: { startsWith: "artist:" } } },
+      _sum: { amountCents: true },
+    }),
+    db.ledgerLine.aggregate({ where: { account: { code: { startsWith: "ad-pool:" } } }, _sum: { amountCents: true } }),
   ]);
   const confirmed = purchases.filter((p) => p.status === "CONFIRMED");
   const sum = <T,>(arr: T[], f: (x: T) => number) => arr.reduce((a, x) => a + f(x), 0);
@@ -199,6 +208,13 @@ export async function coinFinancialReport(db: Tx, from: Date, to: Date) {
       coins: outstanding._sum.coinsRemaining ?? 0,
       valueCents: outstanding._sum.valueRemainingCents ?? 0,
       ledgerCents: 0 - (outstandingLedger._sum.amountCents ?? 0) || 0,
+    },
+    ads: {
+      revenueCents: adRevenue._sum.amountCents ?? 0,
+      revenueEntries: adRevenue._count,
+      unlocks: adUnlocks,
+      distributedToCreatorsCents: 0 - (adDistributed._sum.amountCents ?? 0) || 0,
+      poolsNowCents: 0 - (adPools._sum.amountCents ?? 0) || 0,
     },
     owedToCreatorsCents: 0 - (owedAgg._sum.amountCents ?? 0) || 0,
     pendingPayouts: { count: pendingPayouts._count, cents: pendingPayouts._sum.amountCents ?? 0 },

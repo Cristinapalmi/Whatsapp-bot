@@ -15,6 +15,7 @@ Os primeiros episódios são grátis; os seguintes desbloqueiam-se por pagamento
 | [docs/VIDEOS.md](docs/VIDEOS.md) | Como preparar os vídeos (360p/480p) com o ffmpeg |
 | [docs/TAREFAS-E-CUSTOS.md](docs/TAREFAS-E-CUSTOS.md) | O que tens de fazer, custos, e notas legais (BNA, APD) |
 | [docs/DINHEIRO.md](docs/DINHEIRO.md) | Como funciona o livro-razão e as regras de dinheiro |
+| [docs/ANUNCIOS.md](docs/ANUNCIOS.md) | Oferta única com anúncio, anúncios da casa e fundo dos artistas |
 | [docs/TRAILERS.md](docs/TRAILERS.md) | Gerar os trailers de 30 s para o TikTok/Instagram |
 | [docs/FASE-3.md](docs/FASE-3.md) | Onde entram os pagamentos automáticos no futuro |
 
@@ -24,6 +25,7 @@ Os primeiros episódios são grátis; os seguintes desbloqueiam-se por pagamento
 - **Fase 2 — feita:** passe semanal (300 Kz, 7 dias) com fecho semanal automático, presentes (Cuca, Muamba, Candonga, Grade), pontos de fã e Fã n.º 1, ranking mensal "Disputa dos artistas", link pessoal do artista com "Vieram por ti".
 - **Fase 3 (parte 1) — feita:** trailers automáticos (`npm run trailer`), exportações avançadas (pagamentos, ganhos por artista, livro-razão, séries, aceitações da política) e extrato mensal do artista (imprimir/PDF/CSV).
 - **Moedas — feita:** loja com pacotes, desbloquear episódios e presentes com moedas, 3 episódios grátis, catálogo logo à entrada, A minha lista, página de Membro ("Brevemente"), admin de moedas e relatório financeiro.
+- **Sugestão ao abrir e anúncios — feita:** cartão com uma série sugerida (1 vez por dia), oferta única de 1 episódio grátis com anúncio, anúncios da casa e fundo mensal de anúncios para os artistas.
 - **Fase 3 (parte 2) — quando houver prestador:** pagamentos automáticos (Multicaixa Express, PayPay, Referência) — a estrutura está pronta (ver `docs/FASE-3.md`).
 
 ## Tecnologia
