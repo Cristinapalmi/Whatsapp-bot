@@ -202,7 +202,7 @@ export default async function ManageSeriesPage({ params, searchParams }: { param
 
       {/* Kit de promoção (série publicada) */}
       {s.status === "PUBLISHED" && (
-        <section className="mt-6">
+        <section className="mt-6 scroll-mt-20" id="kit">
           <h2 className="text-lg font-bold">Kit de promoção 📣</h2>
           <p className="text-sm text-muted">Imagem pronta para o teu estado do WhatsApp e stories, com o link e o código QR. {s.trailerKey ? "Usa também o trailer." : ""}</p>
           <div className="card mt-2">

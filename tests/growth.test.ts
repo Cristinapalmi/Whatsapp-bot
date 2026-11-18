@@ -132,3 +132,34 @@ describe("Painel financeiro do artista (dados reais)", () => {
     expect((await topEpisodes(db, artist.id, 3))[0].cents).toBe(10000);
   });
 });
+
+describe("Painel atrativo e ranking (dados reais)", () => {
+  it("ranking por fãs/desbloqueios/seguidores; ganhos só se o artista autorizar; atividade sem identificar o fã", async () => {
+    const { creatorRanking, sortRanking, weekRange, weeklyPosition } = await import("@/domain/creator-ranking");
+    const { recentActivity, starterChecklist } = await import("@/domain/artists/dashboard");
+    const { artist, episodes } = await makeArtistWithSeries(db, { freeEpisodes: 1, episodes: 6 });
+    const other = await makeArtistWithSeries(db, { freeEpisodes: 1, episodes: 6 });
+    const { fan } = await richFan();
+    for (const e of episodes.slice(1, 4)) await unlockEpisodeWithCoins(db, { userId: fan.id, episodeId: e.id });
+    await unlockEpisodeWithCoins(db, { userId: fan.id, episodeId: other.episodes[1].id });
+    await db.follow.create({ data: { userId: fan.id, artistId: other.artist.id } });
+    const rows = await creatorRanking(db, weekRange());
+    const mine = rows.find((r) => r.artistId === artist.id)!;
+    expect(mine.unlocks).toBe(3);
+    expect(mine.earnedCents).toBeNull(); // desligado por defeito
+    expect(sortRanking(rows, "unlocks")[0].unlocks).toBeGreaterThanOrEqual(3);
+    expect(sortRanking(rows, "followers")[0].artistId).toBe(other.artist.id);
+    await db.artistProfile.update({ where: { id: artist.id }, data: { showEarningsInRanking: true } });
+    expect((await creatorRanking(db, weekRange())).find((r) => r.artistId === artist.id)!.earnedCents).toBeGreaterThan(0);
+    expect((await weeklyPosition(db, artist.id)).position).not.toBeNull();
+    const act = await recentActivity(db, artist.id, 5);
+    expect(act[0].text).toMatch(/^Um fã desbloqueou o ep\./);
+    const fanUser = await db.user.findUniqueOrThrow({ where: { id: fan.id } });
+    expect(act.some((a) => a.text.includes(fanUser.name))).toBe(false);
+    const fresh = await db.artistProfile.findUniqueOrThrow({ where: { id: artist.id } });
+    const cl = await starterChecklist(db, fresh);
+    expect(cl.tasks.find((t) => t.key === "serie")!.done).toBe(true);
+    expect(cl.tasks.find((t) => t.key === "fa")!.done).toBe(true);
+    expect(cl.tasks.find((t) => t.key === "perfil")!.done).toBe(false);
+  });
+});

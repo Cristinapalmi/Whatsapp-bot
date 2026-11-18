@@ -162,6 +162,8 @@ model ArtistProfile {
   firstSaleAt     DateTime?
   tiktokUrl       String?
   instagramUrl    String?
+  /// Definições: mostrar os ganhos no ranking público (desligado por defeito).
+  showEarningsInRanking Boolean @default(false)
   /// Definições: avisar a cada desbloqueio (desligado por defeito).
   notifyEachUnlock Boolean     @default(false)
   /// Até quando o artista já viu as conquistas (para mostrar a animação das novas uma vez).

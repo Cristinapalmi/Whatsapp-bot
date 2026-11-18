@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { formatKz, kzToCents } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { episodePriceCoins, paidUnlocks, tierUpgradeUnlocks, TIER_LABELS } from "@/domain/coins/service";
-import { artistShareFor, founderUntil, seriesAudience, topEpisodes, topSpenders } from "@/domain/artists/growth";
+import { artistShareFor, founderUntil, seriesAudience, topEpisodes } from "@/domain/artists/growth";
 import { getInts } from "@/domain/settings";
 import { CopyButton } from "@/components/CopyButton";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
@@ -12,15 +12,14 @@ import { saveArtistLinksAction, setNotifyEachUnlockAction } from "./actions";
 
 type Artist = {
   id: string; slug: string; stageName: string; founderNumber: number | null; createdAt: Date; verifiedAt: Date | null;
-  tiktokUrl: string | null; instagramUrl: string | null; bio: string | null; notifyEachUnlock: boolean;
+  tiktokUrl: string | null; instagramUrl: string | null; bio: string | null; notifyEachUnlock: boolean; photoKey: string | null; showEarningsInRanking: boolean;
 };
 
 /** Painel de crescimento do artista: hoje / mês / total, próximo objetivo, projeção, maiores fãs, convites. */
 export async function ArtistGrowth({ artist }: { artist: Artist }) {
-  const [topEps, audience, fans, cfg, series, share, upgradeAt, invited, cheapest, followers] = await Promise.all([
+  const [topEps, audience, cfg, series, share, upgradeAt, invited, cheapest, followers] = await Promise.all([
     topEpisodes(db, artist.id, 5),
     seriesAudience(db, artist.id),
-    topSpenders(db, artist.id, 10),
     getInts(db, ["founderMonths", "tiktokViewsPerUnlock", "artistReferralBonusKz"]),
     db.series.findMany({ where: { artistId: artist.id, status: "PUBLISHED" }, include: { episodes: { where: { published: true }, select: { number: true } } } }),
     artistShareFor(db, artist),
@@ -49,14 +48,7 @@ export async function ArtistGrowth({ artist }: { artist: Artist }) {
 
   return (
     <>
-      {/* Selos */}
-      <div className="mt-2 flex flex-wrap gap-2">
-        {artist.founderNumber && <span className="badge-free"><IconStar size={12} /> Artista Fundador n.º {artist.founderNumber}</span>}
-        {artist.verifiedAt && <span className="badge-unlocked">✓ Verificado</span>}
-        {series.some((s) => s.crownedAt) && <span className="badge-price"><IconCrown size={12} /> Série coroada</span>}
-        <span className="badge-muted">{followers} {followers === 1 ? "seguidor" : "seguidores"}</span>
-      </div>
-      {fUntil && fUntil > new Date() && <p className="mt-1 text-xs text-accent2">Como Artista Fundador ganhas mais em cada episódio até {formatDate(fUntil)}.</p>}
+      {fUntil && fUntil > new Date() && <p className="mt-3 text-xs text-accent2">Como Artista Fundador ganhas mais em cada episódio até {formatDate(fUntil)}.</p>}
 
       {best && (
         <section className="card mt-3 space-y-3">
@@ -108,20 +100,6 @@ export async function ArtistGrowth({ artist }: { artist: Artist }) {
         </div>
       </section>
 
-      {/* 10 maiores fãs */}
-      <section className="card mt-3">
-        <h2 className="flex items-center gap-2 font-bold"><IconTrophy size={18} className="text-accent2" /> Os teus 10 maiores fãs</h2>
-        {fans.length === 0 ? (
-          <p className="mt-1 text-sm text-muted">Quando os fãs desbloquearem episódios ou te oferecerem presentes, aparecem aqui. Partilha o teu link!</p>
-        ) : (
-          <ol className="mt-2 space-y-1 text-sm">
-            {fans.map((f, i) => (
-              <li key={f.userId} className="flex justify-between"><span>{i + 1}. {f.displayName}{i === 0 ? " 👑" : ""}</span><span className="text-muted">{f.coins.toLocaleString("pt-AO")} moedas</span></li>
-            ))}
-          </ol>
-        )}
-      </section>
-
       {/* Traz um kamba */}
       <section className="card mt-3">
         <h2 className="font-bold">Traz um kamba 🤝</h2>
@@ -150,12 +128,15 @@ export async function ArtistGrowth({ artist }: { artist: Artist }) {
       </section>
 
       {/* Perfil público */}
-      <details className="card mt-3">
+      <details className="card mt-3 scroll-mt-20" id="perfil" open={!artist.photoKey || !artist.bio}>
         <summary className="cursor-pointer font-bold">O teu perfil público (TikTok, Instagram, bio)</summary>
         <ActionForm action={saveArtistLinksAction} className="mt-3 space-y-3">
+          <div><label className="label" htmlFor="photo">Foto de perfil {artist.photoKey ? "(substituir)" : ""}</label><input className="input" id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" /></div>
           <div><label className="label" htmlFor="tiktokUrl">TikTok</label><input className="input" id="tiktokUrl" name="tiktokUrl" type="url" defaultValue={artist.tiktokUrl ?? ""} placeholder="https://www.tiktok.com/@..." /></div>
           <div><label className="label" htmlFor="instagramUrl">Instagram</label><input className="input" id="instagramUrl" name="instagramUrl" type="url" defaultValue={artist.instagramUrl ?? ""} placeholder="https://www.instagram.com/..." /></div>
           <div><label className="label" htmlFor="bio">Sobre ti (curto)</label><textarea className="input" id="bio" name="bio" rows={2} maxLength={300} defaultValue={artist.bio ?? ""} /></div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="showEarnings" defaultChecked={artist.showEarningsInRanking} className="checkbox mt-0" /> Mostrar os meus ganhos no ranking público</label>
+          <p className="text-xs text-muted">Desligado por defeito: no ranking só aparecem fãs, desbloqueios e seguidores.</p>
           <SubmitButton className="btn-secondary w-full">Guardar perfil</SubmitButton>
         </ActionForm>
       </details>

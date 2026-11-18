@@ -29,6 +29,18 @@ function useCountUp(value: number) {
   return shown;
 }
 
+/** Mini gráfico dos últimos 7 dias (o último é hoje, ao vivo). */
+function Spark({ values }: { values: number[] }) {
+  const max = Math.max(...values, 1);
+  return (
+    <div className="flex h-12 shrink-0 items-end gap-1" aria-label="Ganhos dos últimos 7 dias" role="img">
+      {values.map((v, i) => (
+        <span key={i} className={`w-2.5 rounded-t-[3px] ${i === values.length - 1 ? "bg-accent2" : "bg-accent2/50"}`} style={{ height: v > 0 ? `${Math.max(12, (v / max) * 100)}%` : "3px" }} title={fmt(v)} />
+      ))}
+    </div>
+  );
+}
+
 function Bar({ pct }: { pct: number }) {
   return (
     <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-surface2" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
@@ -42,7 +54,7 @@ function Bar({ pct }: { pct: number }) {
  * Ganhos totais · Pendente · Disponível · Levantado. Mais a próxima conquista (bónus de marco),
  * a próxima meta de ganhos e a animação quando uma conquista acontece. Nada é inventado.
  */
-export function ArtistMoneyPanel({ initial }: { initial: ArtistMoneySnapshot }) {
+export function ArtistMoneyPanel({ initial, last7 = [] }: { initial: ArtistMoneySnapshot; last7?: number[] }) {
   const [s, setS] = useState(initial);
   const [gain, setGain] = useState<number | null>(null);
   const [celebrate, setCelebrate] = useState<ArtistMoneySnapshot["achievements"]>(initial.achievements);
@@ -89,14 +101,19 @@ export function ArtistMoneyPanel({ initial }: { initial: ArtistMoneySnapshot }) 
 
   return (
     <section className="mt-4 space-y-3">
-      {/* Ganhos totais */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent/30 via-surface to-surface p-5">
-        <p className="flex items-center gap-2 text-sm text-muted"><IconWallet size={18} /> Ganhos totais</p>
-        <p className="font-display text-4xl font-extrabold text-fg sm:text-5xl" aria-live="polite">{fmt(total)}</p>
-        <p className="mt-1 text-sm">
-          <span className={s.todayCents > 0 ? "font-semibold text-ok" : "text-muted"}>{s.todayCents > 0 ? `▲ +${fmt(today)} hoje` : "Hoje ainda sem ganhos"}</span>
-          <span className="text-muted"> · {fmt(s.monthCents)} este mês</span>
-        </p>
+      {/* Os teus ganhos na KONTA (cartão dourado) */}
+      <div className="relative overflow-hidden rounded-3xl border border-accent2/40 bg-gradient-to-br from-accent2/35 via-accent/15 to-surface p-5 shadow-[0_10px_40px_-15px_rgb(var(--c-accent2)/0.6)]">
+        <p className="flex items-center gap-2 text-sm font-semibold text-accent2"><IconWallet size={18} /> Os teus ganhos na KONTA</p>
+        <div className="mt-1 flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-display text-4xl font-extrabold text-fg sm:text-5xl" aria-live="polite">{fmt(total)}</p>
+            <p className="mt-1 text-sm">
+              <span className={s.todayCents > 0 ? "font-semibold text-ok" : "text-muted"}>{s.todayCents > 0 ? `▲ +${fmt(today)} hoje` : "Hoje ainda sem ganhos"}</span>
+              <span className="text-muted"> · {fmt(s.monthCents)} este mês</span>
+            </p>
+          </div>
+          {last7.length > 0 && <Spark values={[...last7.slice(0, -1), s.todayCents]} />}
+        </div>
         {gain !== null && (
           <span className="absolute right-4 top-4 animate-[giftpop_3.2s_ease-out_forwards] rounded-full bg-ok px-3 py-1 text-sm font-bold text-[#06210F]">+{fmt(gain)}</span>
         )}
