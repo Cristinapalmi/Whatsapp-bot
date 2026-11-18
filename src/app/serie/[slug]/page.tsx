@@ -11,6 +11,7 @@ import { episodeStates, type EpisodeState } from "@/domain/access";
 import { IconCheck, IconClock, IconLock, IconPlay, IconTrophy } from "@/components/icons";
 import { topFans } from "@/domain/points";
 import { ReportForm } from "./ReportForm";
+import { FavoriteButton } from "@/components/FavoriteButton";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
   const cover = await mediaUrl(series.coverKey);
   const [fan1] = await topFans(db, series.artistId, 1);
   const priceCoins = await episodePriceCoins(db, series);
+  const isFav = user ? !!(await db.favorite.findUnique({ where: { userId_seriesId: { userId: user.id, seriesId: series.id } } })) : false;
   const firstWatchable = series.episodes.find((e) => states[e.id] === "free" || states[e.id] === "unlocked");
 
   return (
@@ -62,11 +64,14 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
             </p>
           )}
           <div />
-          {firstWatchable && (
-            <Link href={`/ver/${firstWatchable.id}`} className="btn-primary mt-4">
-              <IconPlay size={20} /> Ver episódio {firstWatchable.number}
-            </Link>
-          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {firstWatchable && (
+              <Link href={`/ver/${firstWatchable.id}`} className="btn-primary">
+                <IconPlay size={20} /> Ver episódio {firstWatchable.number}
+              </Link>
+            )}
+            <FavoriteButton seriesId={series.id} initial={isFav} next={`/serie/${series.slug}`} />
+          </div>
         </div>
       </div>
 

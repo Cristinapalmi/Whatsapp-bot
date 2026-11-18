@@ -17,8 +17,10 @@ export async function Header() {
         </Link>
         <nav className="flex items-center gap-1 text-sm">
           <Link href="/" className="btn-ghost btn-sm hidden md:inline-flex">Início</Link>
-          {user?.role === "ARTIST" && <Link href="/artista" className="btn-ghost btn-sm hidden md:inline-flex">Painel do artista</Link>}
-          {user?.role === "ADMIN" && <Link href="/admin" className="btn-ghost btn-sm hidden md:inline-flex">Administração</Link>}
+          <Link href="/membro" className="btn-ghost btn-sm hidden md:inline-flex">Membro</Link>
+          <Link href="/lista" className="btn-ghost btn-sm hidden md:inline-flex">A minha lista</Link>
+          {user?.role === "ARTIST" && <Link href="/artista" className="btn-secondary btn-sm">Painel<span className="hidden md:inline">&nbsp;do artista</span></Link>}
+          {user?.role === "ADMIN" && <Link href="/admin" className="btn-secondary btn-sm">Admin</Link>}
           <Link href="/loja" className="btn-ghost btn-sm gap-1 font-semibold text-accent2" aria-label={user ? `Loja — tens ${coins} moedas` : "Loja de moedas"}>
             <IconCoin size={20} /> {user ? coins.toLocaleString("pt-AO") : <span className="hidden sm:inline">Loja</span>}
           </Link>
