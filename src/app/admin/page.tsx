@@ -4,6 +4,10 @@ import { formatKz } from "@/lib/money";
 import { startOfMonthUtc } from "@/lib/dates";
 import { balance } from "@/domain/money/ledger";
 import { PLATFORM_CASH, PLATFORM_REVENUE } from "@/domain/money/accounts";
+import { getDemoCleanupStatus } from "@/domain/demo-cleanup";
+import { formatDateTime } from "@/lib/dates";
+import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { forceDemoCleanupAction } from "./actions";
 
 export const metadata: Metadata = { title: "Administração" };
 
@@ -26,6 +30,7 @@ export default async function AdminHome() {
     db.paymentRequest.findMany({ where: { status: "CONFIRMED" }, distinct: ["userId"], select: { userId: true } }),
   ]);
   const owed = 0 - (owedAgg._sum.amountCents ?? 0) || 0;
+  const demo = await getDemoCleanupStatus(db);
   const pools = 0 - (poolAgg._sum.amountCents ?? 0) || 0;
   const coinsOutstanding = 0 - (coinsAgg._sum.amountCents ?? 0) || 0;
   const conversion = watchers.length ? (payers.length / watchers.length) * 100 : 0;
@@ -33,6 +38,24 @@ export default async function AdminHome() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Resumo</h1>
+      {demo?.status === "done" && (
+        <p className="mt-3 rounded-xl bg-ok/10 px-4 py-3 text-sm text-ok">
+          Séries de exemplo apagadas a {formatDateTime(new Date(demo.at))}: {demo.counts.series} séries, {demo.counts.episodes} episódios, {demo.counts.users} contas de teste.
+          {demo.refunds?.length ? ` Devoluções aos fãs: ${demo.refunds.join(", ")}.` : ""}
+        </p>
+      )}
+      {demo?.status === "blocked" && (
+        <section className="card mt-3 border border-warn/40">
+          <p className="font-semibold text-warn">Limpeza das séries de exemplo em pausa</p>
+          <p className="mt-1 text-sm text-muted">Encontrei contas reais ligadas às séries de exemplo ({demo.counts.series} séries, {demo.counts.users} contas de teste). Nada foi apagado.</p>
+          <ul className="mt-2 list-disc pl-5 text-sm">
+            {demo.blockers.map((b, i) => <li key={i}><strong>{b.who}</strong>: {b.what}</li>)}
+          </ul>
+          <ActionForm action={forceDemoCleanupAction} className="mt-3">
+            <SubmitButton className="btn-danger">Apagar o demo e devolver as moedas e os pontos a estes fãs</SubmitButton>
+          </ActionForm>
+        </section>
+      )}
       <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">Dinheiro</h2>
       <div className="mt-2 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Dinheiro recebido (total)" value={formatKz(grossAll._sum.amountCents ?? 0)} sub={`${grossAll._count} pagamentos`} />

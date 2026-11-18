@@ -12,6 +12,7 @@ import { markPayoutPaid, rejectPayout } from "@/domain/payouts/service";
 import { closeEndedWeeks } from "@/domain/payments/pass";
 import { setSetting } from "@/domain/coins/service";
 import { distributeAdPool, registerAdRevenue } from "@/domain/ads/service";
+import { runDemoCleanup } from "@/domain/demo-cleanup";
 import { audit, notify } from "@/domain/notify";
 import { getUploadUrl, newKey, putObject } from "@/domain/storage";
 import { UserFacingError } from "@/domain/errors";
@@ -420,5 +421,18 @@ export async function distributeAdPoolAction(_: ActionResult, fd: FormData): Pro
     const r = await distributeAdPool(db, { month: str(fd, "month"), adminId: admin.id });
     revalidatePath("/admin/anuncios");
     return { ok: r.rolloverCents ? `Sem episódios vistos com anúncio em ${r.month}: o fundo passou para o mês seguinte.` : `Fundo de ${r.month} dividido por ${Object.keys(r.allocations).length} artista(s).` };
+  } catch (e) { return toActionError(e); }
+}
+
+// ---------- Limpeza do demo ----------
+export async function forceDemoCleanupAction(_: ActionResult, _fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const r = await runDemoCleanup(db, { force: true, adminId: admin.id });
+    await audit(db, admin.id, "DEMO_CLEANUP", "Setting", "demoCleanup", { status: r.status });
+    revalidatePath("/admin");
+    if (r.status === "done") return { ok: "Séries de exemplo apagadas. As moedas e os pontos gastos nelas foram devolvidos aos fãs." };
+    if (r.status === "blocked") return { error: "Ainda há pagamentos ou levantamentos ligados ao demo que precisam de decisão manual. Fala com o suporte técnico." };
+    return { ok: "Não havia nada para apagar." };
   } catch (e) { return toActionError(e); }
 }

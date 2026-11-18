@@ -91,6 +91,11 @@ async function main() {
   console.log(admin.status === "skipped" ? `Admin não criado: ${admin.reason}` : `Admin: ${admin.phone} (${admin.status})`);
 
   if (process.env.SEED_DEMO === "false") return;
+  // Online (Vercel) nunca se criam séries de exemplo.
+  if (process.env.VERCEL) {
+    console.log("Online: séries de exemplo desativadas.");
+    return;
+  }
 
   // ---------- Fã de teste ----------
   await db.user.upsert({
