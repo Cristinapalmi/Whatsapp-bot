@@ -163,3 +163,17 @@ describe("Painel atrativo e ranking (dados reais)", () => {
     expect(cl.tasks.find((t) => t.key === "perfil")!.done).toBe(false);
   });
 });
+
+describe("Rei/Rainha da KONTA", () => {
+  it("é o 1.º do mês passado por fãs (nunca por dinheiro)", async () => {
+    const { monthlyKing, monthRangeLuanda } = await import("@/domain/creator-ranking");
+    const { artist, episodes } = await makeArtistWithSeries(db);
+    const r = monthRangeLuanda(new Date(), -1);
+    const day = new Date(r.from.getTime() + 5 * 86400000);
+    for (let i = 0; i < 3; i++) {
+      const u = await makeUser(db);
+      await db.watchLog.create({ data: { day, userId: u.id, episodeId: episodes[0].id, artistId: artist.id, seconds: 60, viaPass: false } });
+    }
+    expect((await monthlyKing(db))?.artistId).toBe(artist.id);
+  });
+});

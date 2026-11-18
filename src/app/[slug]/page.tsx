@@ -9,6 +9,7 @@ import { SeriesCard } from "@/components/SeriesCard";
 import { RefTracker } from "@/components/RefTracker";
 import { IconTrophy } from "@/components/icons";
 import { topSpenders } from "@/domain/artists/growth";
+import { monthlyKing } from "@/domain/creator-ranking";
 import { getCurrentUser } from "@/lib/auth";
 import { FollowButton } from "@/components/FollowButton";
 
@@ -39,6 +40,8 @@ export default async function ArtistPublicPage({ params }: { params: Promise<{ s
     user ? db.follow.findUnique({ where: { userId_artistId: { userId: user.id, artistId: artist.id } } }).then(Boolean) : false,
   ]);
   const crowned = artist.series.some((s) => s.crownedAt);
+  const king = await monthlyKing(db);
+  const isKing = king?.artistId === artist.id;
   const cards = await Promise.all(
     artist.series.map(async (s) => ({
       slug: s.slug, title: s.title, category: s.category, coverUrl: await mediaUrl(s.coverKey),
@@ -58,6 +61,7 @@ export default async function ArtistPublicPage({ params }: { params: Promise<{ s
           <h1 className="text-3xl font-extrabold">{artist.stageName}{crowned ? " 👑" : ""}</h1>
           <p className="text-muted">{CATEGORY_LABELS[artist.category]} · {artist.series.length} {artist.series.length === 1 ? "série" : "séries"}</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
+            {isKing && <span className="badge-price">👑 Rei/Rainha da KONTA</span>}
             {artist.founderNumber && <span className="badge-free">⭐ Artista Fundador</span>}
             {artist.verifiedAt && <span className="badge-unlocked">✓ Verificado</span>}
           </div>

@@ -9,9 +9,8 @@ import { IconCalendar, IconChevronRight, IconFire, IconPlay, IconStar, IconTroph
 import { BannerCarousel, BrandBackdrop, type BannerSlideView } from "@/components/BannerCarousel";
 import { activeSlides, ctaHref } from "@/domain/banner";
 import { featuredCreators, hotSeries, recentEpisodes } from "@/domain/catalog";
-import { RankingList } from "@/components/RankingList";
 import { EmptyState } from "@/components/EmptyState";
-import { monthlyRanking, sortByViews } from "@/domain/ranking";
+import { creatorRanking, monthlyKing, sortRanking, weekRange } from "@/domain/creator-ranking";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +28,9 @@ export default async function Home() {
 
   // Visualizações (total) e "Em alta" (tempo visto nos últimos 7 dias)
   const since = new Date(Date.now() - 7 * 24 * 3600 * 1000);
-  const [viewsByEp, trending, ranking] = await Promise.all([
+  const [viewsByEp, trending] = await Promise.all([
     db.watchProgress.groupBy({ by: ["episodeId"], _count: { _all: true } }),
     db.watchLog.groupBy({ by: ["episodeId"], where: { day: { gte: since } }, _sum: { seconds: true } }),
-    monthlyRanking(db),
   ]);
   const views = new Map<string, number>();
   for (const v of viewsByEp) {
@@ -55,7 +53,8 @@ export default async function Home() {
     });
   }
   const card = (id: string) => cards.get(id)!;
-  const topRanking = sortByViews(ranking).filter((r) => r.views > 0).slice(0, 5);
+  const [king, weekRows] = await Promise.all([monthlyKing(db), creatorRanking(db, weekRange())]);
+  const topCreators = sortRanking(weekRows, "fans").slice(0, 5);
 
   // "Continuar a ver": últimas séries que a pessoa estava a ver
   let continueWatching: { href: string; title: string; label: string; cover: string | null; pct: number }[] = [];
@@ -198,7 +197,7 @@ export default async function Home() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {creatorPhotos[k] ? <img src={creatorPhotos[k]!} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center font-display text-2xl font-bold text-accent">{c.stageName[0]}</span>}
               </div>
-              <p className="mt-1 line-clamp-1 text-sm font-semibold text-fg">{c.stageName}</p>
+              <p className="mt-1 line-clamp-1 text-sm font-semibold text-fg">{king?.artistId === c.id ? "👑 " : ""}{c.stageName}</p>
               {c.founderNumber && <span className="text-[10px] font-semibold text-accent2">⭐ Fundador</span>}
               <span className="text-[11px] text-muted">{c._count.series} {c._count.series === 1 ? "série" : "séries"}</span>
             </Link>
@@ -243,13 +242,24 @@ export default async function Home() {
         <SeriesRow key={cat} title={CATEGORY_LABELS[cat]} items={series.filter((s) => s.category === cat).map((s) => card(s.id))} />
       ))}
 
-      {topRanking.length > 0 && (
+      {/* Ranking dos criadores (por fãs — nunca por dinheiro) e Rei/Rainha da KONTA */}
+      {(king || topCreators.length > 0) && (
         <section className="container-app mt-8">
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-xl font-bold"><IconTrophy className="text-accent2" /> Disputa dos artistas</h2>
+            <h2 className="flex items-center gap-2 text-xl font-bold"><IconTrophy className="text-accent2" /> Ranking dos criadores</h2>
             <Link href="/ranking" className="text-sm font-semibold text-accent2 underline">Ver tudo</Link>
           </div>
-          <div className="mt-3"><RankingList rows={topRanking} by="views" /></div>
+          {king && (
+            <Link href={`/${king.slug}`} className="mt-3 flex items-center gap-3 rounded-2xl border border-accent2/50 bg-gradient-to-r from-accent2/25 to-surface p-3 no-underline">
+              <span className="text-3xl" aria-hidden>👑</span>
+              <div><p className="text-[11px] font-bold uppercase tracking-wide text-accent2">Rei/Rainha da KONTA do mês</p><p className="font-display text-lg font-extrabold text-fg">{king.stageName}</p></div>
+            </Link>
+          )}
+          <ol className="mt-2 space-y-1.5">
+            {topCreators.map((r, i) => (
+              <li key={r.artistId}><Link href={`/${r.slug}`} className="card flex items-center justify-between py-2 no-underline hover:bg-surface2"><span className="text-fg"><strong className="mr-2 text-accent">{i + 1}</strong>{r.stageName}</span><span className="text-xs text-muted">{r.fans.toLocaleString("pt-AO")} {r.fans === 1 ? "fã" : "fãs"} esta semana</span></Link></li>
+            ))}
+          </ol>
         </section>
       )}
 
