@@ -44,12 +44,26 @@ const securityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
+const ocrFiles = [
+  "./node_modules/tesseract.js/**/*",
+  "./node_modules/tesseract.js-core/*",
+  ...["bmp-js", "idb-keyval", "is-electron", "is-url", "node-fetch", "regenerator-runtime", "wasm-feature-detect", "zlibjs", "whatwg-url", "tr46", "webidl-conversions"].map((m) => `./node_modules/${m}/**/*`),
+  "./node_modules/@tesseract.js-data/por/4.0.0_best_int/**/*",
+];
+
 const nextConfig = {
   poweredByHeader: false,
   experimental: {
     serverActions: { bodySizeLimit: "5mb" }, // comprovativos e capas até 5 MB
   },
   images: { unoptimized: true }, // poupa custos de otimização de imagens na Vercel
+  // Leitura de texto dos comprovativos (OCR): corre no servidor com os ficheiros do pacote
+  serverExternalPackages: ["tesseract.js", "tesseract.js-core"],
+  outputFileTracingIncludes: {
+    "/pagar": ocrFiles,
+    "/ver/[id]": ocrFiles,
+    "/admin/pagamentos": ocrFiles,
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

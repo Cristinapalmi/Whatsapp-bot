@@ -1,6 +1,7 @@
 const MESSAGES: Record<string, string> = {
-  confirmado: "Pagamento confirmado: episódio desbloqueado, fã notificado e 50% creditado ao artista.",
+  confirmado: "Pagamento confirmado. O fã foi avisado e as moedas já estão na carteira dele.",
   rejeitado: "Rejeitado. A pessoa foi avisada com o motivo.",
+  bloqueado: "Rejeitado e bloqueado: esta pessoa já não pode enviar comprovativos.",
   anulado: "Pagamento anulado e lançamento inverso registado.",
   pago: "Levantamento marcado como pago. O artista foi notificado.",
 };

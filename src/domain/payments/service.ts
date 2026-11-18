@@ -43,6 +43,9 @@ export type CreateCoinPaymentInput = ProofInput & { packId: string };
 
 /** Verificações comuns: limite de pendentes e comprovativo repetido. */
 async function checkProof(db: PrismaClient, input: ProofInput) {
+  // Lista negra: quem foi bloqueado não pode enviar comprovativos
+  const u = await db.user.findUnique({ where: { id: input.userId }, select: { paymentsBlockedAt: true } });
+  if (u?.paymentsBlockedAt) throw new UserFacingError("A tua conta não pode enviar comprovativos. Fala com o apoio.", "PAYMENTS_BLOCKED");
   const ref = normalizeTransactionRef(input.transactionRef);
   if (ref.length < 4) throw new UserFacingError("Indica o número da operação que aparece no comprovativo.");
   const pending = await db.paymentRequest.findMany({ where: { userId: input.userId, status: "PENDING" } });

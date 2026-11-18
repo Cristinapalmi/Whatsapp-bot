@@ -1,5 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { checkPaymentProof } from "@/domain/payments/proof-check";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -33,7 +35,7 @@ async function processCoinPurchase(fd: FormData): Promise<{ error: string } | { 
   const bytes = checked.bytes;
   const ext = checked.type === "jpeg" ? "jpg" : checked.type!;
   const mime = checked.type === "pdf" ? "application/pdf" : `image/${checked.type}`;
-  await createCoinPaymentRequest(db, {
+  const created = await createCoinPaymentRequest(db, {
     userId: user.id,
     packId: data.packId,
     method: data.method,
@@ -46,6 +48,9 @@ async function processCoinPurchase(fd: FormData): Promise<{ error: string } | { 
       return key;
     },
   });
+  // Verificação do comprovativo DEPOIS de responder ao fã (só marca suspeito; nunca decide sozinha)
+  const proofType = checked.type!;
+  after(() => checkPaymentProof(db, created.id, bytes, proofType).catch((e) => console.error("[comprovativo]", e)));
   return { voltar: data.voltar };
 }
 

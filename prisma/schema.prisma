@@ -42,6 +42,9 @@ model User {
   inviteCode         String?   @unique
   /// Bloqueado nos pontos (batota nos convites): não ganha pontos de convites nem de presença.
   pointsBlocked      Boolean   @default(false)
+  /// Lista negra de pagamentos: não pode enviar comprovativos ("Rejeitar e bloquear").
+  paymentsBlockedAt  DateTime?
+  paymentsBlockedReason String?
   /// Aparelho e ligação usados no registo (só para detetar contas repetidas nos convites).
   signupDeviceId     String?
   signupIp           String?
@@ -342,6 +345,12 @@ model PaymentRequest {
   proofKey        String?
   /// Impressão digital (SHA-256) do ficheiro do comprovativo. Única.
   proofHash       String?        @unique
+  /// Verificação automática do comprovativo: só MARCA como suspeito (nunca confirma nem recusa sozinha).
+  suspicious      Boolean        @default(false)
+  suspicionReasons String[]      @default([])
+  /// Texto lido do comprovativo (OCR) e quando foi verificado.
+  ocrText         String?
+  proofCheckedAt  DateTime?
   status          PaymentStatus  @default(PENDING)
   rejectionReason String?
   reviewedById    String?

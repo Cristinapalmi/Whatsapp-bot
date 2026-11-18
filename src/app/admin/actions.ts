@@ -33,11 +33,19 @@ export async function confirmPaymentAction(_: ActionResult, fd: FormData): Promi
   redirect("/admin/pagamentos?feito=confirmado");
 }
 export async function rejectPaymentAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  let blocked = false;
   try {
     const admin = await requireAdmin();
-    await rejectPayment(db, { paymentId: str(fd, "id"), adminId: admin.id, reason: str(fd, "reason") });
+    const reason = str(fd, "reason");
+    const p = await rejectPayment(db, { paymentId: str(fd, "id"), adminId: admin.id, reason });
+    // "Rejeitar e bloquear": lista negra — a pessoa deixa de poder enviar comprovativos
+    if (fd.get("block") === "1") {
+      await db.user.update({ where: { id: p.userId }, data: { paymentsBlockedAt: new Date(), paymentsBlockedReason: reason.slice(0, 300) } });
+      await audit(db, admin.id, "PAYMENTS_BLOCKED", "User", p.userId, { paymentId: p.id, reason });
+      blocked = true;
+    }
   } catch (e) { return toActionError(e); }
-  redirect("/admin/pagamentos?feito=rejeitado");
+  redirect(`/admin/pagamentos?feito=${blocked ? "bloqueado" : "rejeitado"}`);
 }
 export async function reversePaymentAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
@@ -458,5 +466,16 @@ export async function blockFromPointsAction(_: ActionResult, fd: FormData): Prom
     await blockFromPoints(db, admin.id, str(fd, "userId"));
     revalidatePath("/admin/convites");
     return { ok: "Bloqueado: já não ganha pontos de convites nem de presença." };
+  } catch (e) { return toActionError(e); }
+}
+
+export async function unblockPaymentsAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const userId = str(fd, "userId");
+    await db.user.update({ where: { id: userId }, data: { paymentsBlockedAt: null, paymentsBlockedReason: null } });
+    await audit(db, admin.id, "PAYMENTS_UNBLOCKED", "User", userId, {});
+    revalidatePath("/admin/pagamentos");
+    return { ok: "Desbloqueado: já pode voltar a enviar comprovativos." };
   } catch (e) { return toActionError(e); }
 }
