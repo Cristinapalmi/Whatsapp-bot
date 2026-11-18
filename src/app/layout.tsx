@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { CSSProperties } from "react";
-import { Bricolage_Grotesque, Inter } from "next/font/google";
+import { Bricolage_Grotesque, Inter, Montserrat } from "next/font/google";
 import { brand, siteUrl } from "@config/brand";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
@@ -12,6 +12,8 @@ import "./globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 const text = Inter({ subsets: ["latin"], variable: "--font-text", display: "swap" });
+/** Títulos do banner ("MINISSÉRIES ANGOLANAS"): Montserrat 900, normal e itálico. */
+const hero = Montserrat({ subsets: ["latin"], weight: ["800", "900"], style: ["normal", "italic"], variable: "--font-hero", display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
@@ -49,7 +51,7 @@ const vars = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-AO" style={vars} className={`${display.variable} ${text.variable}`}>
+    <html lang="pt-AO" style={vars} className={`${display.variable} ${text.variable} ${hero.variable}`}>
       <body>
         <a href="#conteudo" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-3">
           Saltar para o conteúdo

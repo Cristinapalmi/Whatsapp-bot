@@ -20,6 +20,7 @@ export default {
       fontFamily: {
         display: ["var(--font-display)", "system-ui", "sans-serif"],
         sans: ["var(--font-text)", "system-ui", "sans-serif"],
+        hero: ["var(--font-hero)", "var(--font-display)", "system-ui", "sans-serif"],
       },
       minHeight: { tap: "44px" },
       minWidth: { tap: "44px" },

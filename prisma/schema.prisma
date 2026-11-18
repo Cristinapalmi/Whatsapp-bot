@@ -882,6 +882,8 @@ model ArtistGoal {
 model BannerSlide {
   id         String    @id @default(cuid())
   title      String
+  /// Palavra do título em dourado itálico (vazio = a última palavra).
+  highlightWord String?
   subtitle   String?
   ctaText    String?
   /// "SERIES" (uma série) | "CREATORS" (página de criadores) | "STORE" (Loja) | "LINK" (link interno) | "NONE"

@@ -4,13 +4,6 @@ import { useEffect, useRef, useState } from "react";
 
 export type BannerSlideView = { id: string; title: string; subtitle: string | null; ctaText: string | null; href: string | null; imageUrl: string | null; videoUrl: string | null; highlight?: string };
 
-/** Título com uma palavra em dourado (ex.: "MINISSÉRIES ANGOLANAS"). */
-function Title({ text, highlight }: { text: string; highlight?: string }) {
-  if (!highlight || !text.includes(highlight)) return <>{text}</>;
-  const [a, b] = text.split(highlight);
-  return <>{a}<span className="bg-gradient-to-r from-accent2 to-[#FFE08A] bg-clip-text text-transparent">{highlight}</span>{b}</>;
-}
-
 const INTERVAL = 6000;
 
 /** Vídeos só com boa ligação e sem "Poupar dados". */
@@ -24,19 +17,44 @@ function canPlayVideo() {
   return true;
 }
 
-/** Fundo gráfico da marca (sem pessoas), para o slide padrão. */
+/** Fundo gráfico da marca (sem pessoas), para o slide padrão e a Área dos criadores. */
 export function BrandBackdrop() {
   return (
-    <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(120%_90%_at_80%_10%,rgb(var(--c-accent)/0.45),transparent_55%),radial-gradient(90%_80%_at_10%_90%,rgb(var(--c-accent2)/0.30),transparent_60%)] bg-surface" aria-hidden>
-      <div className="absolute -right-16 -top-10 h-64 w-64 rounded-full border-[18px] border-accent/30" />
-      <div className="absolute -bottom-20 left-10 h-56 w-56 rounded-full border-[10px] border-accent2/25" />
-      <div className="absolute right-10 bottom-16 h-24 w-24 rotate-12 rounded-3xl bg-accent/20" />
-      <svg className="absolute inset-0 h-full w-full opacity-[0.07]" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0 70 Q25 50 50 65 T100 55 V100 H0Z" fill="currentColor" /></svg>
+    <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(70%_90%_at_85%_40%,rgb(var(--c-accent)/0.55),transparent_60%),radial-gradient(50%_60%_at_70%_100%,rgb(var(--c-accent2)/0.35),transparent_65%),linear-gradient(120deg,#120b06,#2a160a)]" aria-hidden>
+      <div className="absolute -right-10 top-6 h-64 w-64 rounded-full border-[16px] border-accent/30 sm:right-16 sm:h-80 sm:w-80" />
+      <div className="absolute bottom-[-40px] right-28 h-40 w-40 rounded-full border-[8px] border-accent2/30 sm:right-80" />
+      <div className="absolute right-6 bottom-10 h-16 w-16 rotate-12 rounded-2xl bg-accent2/25 sm:right-24" />
     </div>
   );
 }
 
-/** Banner da página inicial: passa sozinho a cada 6 s, bolinhas em baixo, deslizar com o dedo. */
+/** Divide a frase: a 1.ª frase em destaque, o resto mais pequeno. */
+function splitSubtitle(s: string | null) {
+  if (!s) return { lead: null, rest: null };
+  const m = /^(.+?[.!?])\s+(.+)$/.exec(s.trim());
+  return m ? { lead: m[1], rest: m[2] } : { lead: s, rest: null };
+}
+
+/** Título em duas linhas: o resto em branco e a palavra dourada (por defeito a última) maior, em itálico. */
+function Title({ text, highlight }: { text: string; highlight?: string }) {
+  const words = text.trim().split(/\s+/);
+  let gold = highlight?.trim() || words[words.length - 1];
+  const idx = text.toLocaleUpperCase("pt").lastIndexOf(gold.toLocaleUpperCase("pt"));
+  if (idx < 0) gold = words[words.length - 1];
+  const at = idx < 0 ? text.lastIndexOf(gold) : idx;
+  const before = text.slice(0, at).trim();
+  const goldText = text.slice(at, at + gold.length);
+  const after = text.slice(at + gold.length).trim();
+  return (
+    <h2 className="font-hero uppercase leading-[0.95]">
+      {before && <span className="block w-max whitespace-nowrap bg-gradient-to-b from-white to-[#d9d2cb] bg-clip-text text-[clamp(21px,6.6vw,30px)] font-black text-transparent sm:text-[56px]">{before}</span>}
+      <span className="block w-max whitespace-nowrap bg-gradient-to-r from-[#FFD36B] via-accent2 to-accent bg-clip-text pr-[0.12em] text-[clamp(26px,8.2vw,38px)] font-black italic text-transparent drop-shadow-[0_2px_14px_rgb(var(--c-accent)/0.55)] sm:text-[72px]">{goldText}</span>
+      {after && <span className="block text-[clamp(18px,5.5vw,22px)] font-black text-white sm:text-[40px]">{after}</span>}
+    </h2>
+  );
+}
+
+/** Banner da página inicial: passa sozinho a cada 6 s, bolinhas na faixa de baixo, deslizar com o dedo. */
 export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
   const [i, setI] = useState(0);
   const [video, setVideo] = useState(false);
@@ -58,46 +76,66 @@ export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
 
   return (
     <section className="container-app" aria-roledescription="carrossel" aria-label="Destaques">
-      <div
-        className="glow-accent relative h-[min(58vh,460px)] overflow-hidden rounded-3xl border border-accent/25 bg-surface"
-        onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
-        onTouchEnd={(e) => {
-          if (touch.current === null) return;
-          const dx = e.changedTouches[0].clientX - touch.current;
-          touch.current = null;
-          if (Math.abs(dx) > 40) go(i + (dx < 0 ? 1 : -1));
-        }}
-      >
-        {slides.map((s, k) => (
-          <div key={s.id} className={`absolute inset-0 transition-opacity duration-700 ${k === i ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={k !== i}>
-            {s.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={s.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" loading={k === 0 ? "eager" : "lazy"} />
-            ) : (
-              <BrandBackdrop />
-            )}
-            {video && s.videoUrl && k === i && (
-              <video src={s.videoUrl} poster={s.imageUrl ?? undefined} muted loop playsInline autoPlay preload="none" className="absolute inset-0 h-full w-full object-cover" />
-            )}
-            {/* Gradiente forte por trás do texto (escuro em baixo + brilho laranja) */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0d0805] via-[#0d0805]/60 to-transparent" />
-            <div className="absolute inset-0 bg-[radial-gradient(80%_60%_at_15%_85%,rgb(var(--c-accent)/0.35),transparent_70%)]" />
-            <div className="absolute inset-x-0 bottom-0 p-5 pb-10 sm:p-8 sm:pb-12">
-              <h2 className={`max-w-xl font-display font-extrabold leading-[1.05] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] ${s.highlight ? "text-4xl sm:text-6xl" : "text-3xl sm:text-4xl"}`}><Title text={s.title} highlight={s.highlight} /></h2>
-              {s.subtitle && <p className="mt-2 max-w-lg text-sm text-white/90 sm:text-base">{s.subtitle}</p>}
-              {s.ctaText && s.href && <Link href={s.href} className="btn-glow mt-4 no-underline" tabIndex={k === i ? 0 : -1}>{s.ctaText}</Link>}
+      <div className="overflow-hidden rounded-3xl border border-accent/25 shadow-[0_12px_40px_-14px_rgb(var(--c-accent)/0.55)]">
+        <div
+          className="relative h-[340px] bg-[#0d0805] sm:h-[460px]"
+          onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
+          onTouchEnd={(e) => {
+            if (touch.current === null) return;
+            const dx = e.changedTouches[0].clientX - touch.current;
+            touch.current = null;
+            if (Math.abs(dx) > 40) go(i + (dx < 0 ? 1 : -1));
+          }}
+        >
+          {slides.map((s, k) => {
+            const { lead, rest } = splitSubtitle(s.subtitle);
+            return (
+              <div key={s.id} className={`absolute inset-0 transition-opacity duration-700 ${k === i ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={k !== i}>
+                {/* Imagem encostada à direita, sem filtros de cor */}
+                {s.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-[right_center]" loading={k === 0 ? "eager" : "lazy"} />
+                ) : (
+                  <BrandBackdrop />
+                )}
+                {video && s.videoUrl && k === i && (
+                  <video src={s.videoUrl} poster={s.imageUrl ?? undefined} muted loop playsInline autoPlay preload="none" className="absolute inset-0 h-full w-full object-cover object-[right_center]" />
+                )}
+                {/* Só um gradiente escuro do lado esquerdo, para o texto se ler */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(0_0_0/0.9)_0%,rgb(0_0_0/0.55)_35%,transparent_60%)]" />
+                <div className="absolute inset-y-0 left-0 flex w-[66%] flex-col justify-center p-4 sm:w-[55%] sm:p-10">
+                  <Title text={s.title} highlight={s.highlight} />
+                  {lead && <p className="mt-2 text-[16px] font-bold leading-tight text-white sm:mt-4 sm:text-[26px] sm:leading-snug">{lead}</p>}
+                  {rest && <p className="mt-1.5 text-[12.5px] leading-snug text-white/85 sm:mt-2 sm:text-[17px]">{rest}</p>}
+                  {s.ctaText && s.href && (
+                    <Link
+                      href={s.href}
+                      tabIndex={k === i ? 0 : -1}
+                      className="btn-glow mt-3 self-start rounded-full px-5 py-2.5 text-sm font-extrabold no-underline sm:mt-6 sm:px-7 sm:py-3 sm:text-lg"
+                    >
+                      {s.ctaText}
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Faixa por baixo do banner: estrela dourada, frase e bolinhas */}
+        <div className="flex items-center gap-2 bg-gradient-to-r from-[#1c120a] via-[#140d08] to-[#1c120a] px-3 py-2.5 sm:px-5">
+          <svg width="20" height="20" viewBox="0 0 24 24" className="shrink-0 text-accent2 drop-shadow-[0_0_6px_rgb(var(--c-accent2)/0.7)]" aria-hidden><path d="M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8L12 2.5z" fill="currentColor" /></svg>
+          <p className="min-w-0 flex-1 text-[12px] font-semibold leading-tight text-white sm:text-sm">Histórias angolanas. Criadores locais. Entretenimento de qualidade.</p>
+          {n > 1 && (
+            <div className="flex shrink-0 gap-1.5">
+              {slides.map((s, k) => (
+                <button key={s.id} type="button" onClick={() => go(k)} aria-label={`Destaque ${k + 1} de ${n}`} aria-current={k === i} className="flex h-6 w-5 items-center justify-center">
+                  <span className={`h-2.5 w-2.5 rounded-full border transition ${k === i ? "border-accent2 bg-accent2" : "border-white/60 bg-transparent"}`} />
+                </button>
+              ))}
             </div>
-          </div>
-        ))}
-        {n > 1 && (
-          <div className="absolute inset-x-0 bottom-3 flex justify-center gap-2">
-            {slides.map((s, k) => (
-              <button key={s.id} type="button" onClick={() => go(k)} aria-label={`Destaque ${k + 1} de ${n}`} aria-current={k === i} className={`h-2 rounded-full transition-all ${k === i ? "w-6 bg-accent" : "w-2 bg-white/50"}`} />
-            ))}
-          </div>
-        )}
+          )}
+        </div>
       </div>
-      <p className="mt-3 text-center text-sm font-semibold text-accent2">Histórias angolanas. <span className="text-accent">Criadores locais.</span> Entretenimento de qualidade.</p>
     </section>
   );
 }

@@ -93,12 +93,12 @@ export default async function Home() {
     user ? db.artistProfile.findUnique({ where: { userId: user.id }, select: { id: true } }).then(Boolean) : false,
   ]);
   const slides: BannerSlideView[] = slidesRaw.length
-    ? await Promise.all(slidesRaw.map(async (x) => ({ id: x.id, title: x.title, subtitle: x.subtitle, ctaText: x.ctaText, href: ctaHref(x), imageUrl: await mediaUrl(x.imageKey), videoUrl: await mediaUrl(x.videoKey) })))
+    ? await Promise.all(slidesRaw.map(async (x) => ({ id: x.id, title: x.title, highlight: x.highlightWord ?? undefined, subtitle: x.subtitle, ctaText: x.ctaText, href: ctaHref(x), imageUrl: await mediaUrl(x.imageKey), videoUrl: await mediaUrl(x.videoKey) })))
     : [{
         id: "padrao",
         title: "MINISSÉRIES ANGOLANAS",
         subtitle: "As histórias que vais querer ver até ao fim. Descobre minisséries angolanas, acompanha os teus criadores favoritos e não percas nenhum episódio.",
-        ctaText: "Descobrir séries",
+        ctaText: "Descobrir séries →",
         href: "/explorar?ver=em-alta",
         imageUrl: null,
         videoUrl: null,
@@ -119,23 +119,39 @@ export default async function Home() {
       <BannerCarousel slides={slides} />
 
       {/* 2. Escolhe a tua entrada */}
-      <section className="container-app mt-6">
-        <h2 className="text-sm font-extrabold uppercase tracking-wider text-accent2">Escolhe a tua entrada</h2>
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <Link href="/explorar?ver=em-alta" className="glow-accent group relative flex min-h-[150px] flex-col overflow-hidden rounded-3xl bg-gradient-to-br from-[#FF8A3D] via-accent to-[#C9461A] p-4 no-underline">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1A0E05]/85 text-accent shadow-lg"><IconPlay size={24} /></span>
-            <p className="mt-3 font-display text-lg font-extrabold leading-tight text-[#1A0E05]">Quero assistir</p>
-            <p className="mt-0.5 text-xs font-semibold text-[#2A1508]">Descobre minisséries angolanas</p>
-            <IconChevronRight size={22} className="absolute bottom-3 right-3 text-[#1A0E05] transition group-hover:translate-x-1" />
-          </Link>
-          <Link href={isArtist ? "/artista" : "/criadores"} className="glow-gold group relative flex min-h-[150px] flex-col overflow-hidden rounded-3xl bg-gradient-to-br from-[#FFE08A] via-accent2 to-[#D98A1E] p-4 no-underline">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1A0E05]/85 text-accent2 shadow-lg">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" /></svg>
-            </span>
-            <p className="mt-3 font-display text-lg font-extrabold leading-tight text-[#1A0E05]">{isArtist ? "Ir para o meu painel" : "Quero ganhar com as minhas séries"}</p>
-            <p className="mt-0.5 text-xs font-semibold text-[#2A1508]">{isArtist ? "Os teus ganhos, séries e fãs" : "Publica, conquista e monetiza"}</p>
-            <IconChevronRight size={22} className="absolute bottom-3 right-3 text-[#1A0E05] transition group-hover:translate-x-1" />
-          </Link>
+      <section className="container-app mt-5">
+        <div className="rounded-3xl border border-accent/40 bg-[radial-gradient(80%_100%_at_100%_0%,rgb(var(--c-accent)/0.22),transparent_60%),linear-gradient(160deg,#21140b,#130c07)] p-3 shadow-[0_0_34px_-8px_rgb(var(--c-accent)/0.6)] sm:p-4">
+          <h2 className="flex items-center gap-2 px-1 font-display text-lg font-extrabold text-white sm:text-xl">
+            <svg width="26" height="26" viewBox="0 0 24 24" className="text-accent2 drop-shadow-[0_0_8px_rgb(var(--c-accent2)/0.7)]" aria-hidden>
+              <path d="M14.5 3.5c3-1 5.5-.5 6 0s1 3-0 6c-1 3-4 5.8-6.8 7.3l-3.5-3.5C11.7 10.5 11.5 4.5 14.5 3.5z" fill="currentColor" />
+              <circle cx="15.8" cy="8.2" r="1.7" fill="#1A0E05" />
+              <path d="M9.5 10.5L6 11l-2.5 3 4 .5M13.5 14.5L13 18l-3 2.5-.5-4" fill="rgb(var(--c-accent))" />
+              <path d="M7 17c-1.5.3-2.5 1.5-3 3.5 2-.5 3.2-1.5 3.5-3" fill="#FFD36B" />
+            </svg>
+            Escolhe a tua entrada
+          </h2>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <Link href="/explorar?ver=em-alta" className="group relative flex min-h-[120px] flex-col items-start gap-2 overflow-hidden rounded-2xl border-2 border-accent bg-gradient-to-br from-[#2b1a10] via-[#1d120b] to-[#3a1d0c] p-3 no-underline shadow-[0_0_22px_-4px_rgb(var(--c-accent)/0.75)] sm:flex-row sm:items-center sm:gap-3 sm:p-4">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#1A0E05] shadow-lg sm:h-16 sm:w-16"><IconPlay size={24} /></span>
+              <span className="min-w-0 pb-6">
+                <span className="block font-display text-[15px] font-extrabold leading-tight text-white sm:text-lg">Quero assistir</span>
+                <span className="mt-1 block text-[11px] leading-snug text-white/80 sm:text-sm">Descobre minisséries angolanas</span>
+              </span>
+              <span className="absolute bottom-2.5 right-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-accent text-[#1A0E05] transition group-hover:translate-x-0.5"><IconChevronRight size={18} /></span>
+            </Link>
+            <Link href={isArtist ? "/artista" : "/criadores"} className="group relative flex min-h-[120px] flex-col items-start gap-2 overflow-hidden rounded-2xl bg-gradient-to-br from-accent via-[#FF9A3D] to-accent2 p-3 no-underline shadow-[0_0_24px_-4px_rgb(var(--c-accent2)/0.8)] sm:flex-row sm:items-center sm:gap-3 sm:p-4">
+              <svg className="h-10 w-10 shrink-0 text-[#1A0E05] sm:h-16 sm:w-16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M4 20V14M8.5 20v-8M13 20v-5M17.5 20v-9" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+                <path d="M3.5 11.5l5-4.5 4 3 7-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M15.5 4h4.5v4.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="min-w-0 pb-6">
+                <span className="block font-display text-[15px] font-extrabold leading-tight text-[#1A0E05] sm:text-lg">{isArtist ? "Ir para o meu painel" : "Quero ganhar com as minhas séries"}</span>
+                <span className="mt-1 block text-[11px] font-semibold leading-snug text-[#2A1508] sm:text-sm">{isArtist ? "Os teus ganhos, séries e fãs" : "Publica, conquista e monetiza"}</span>
+              </span>
+              <span className="absolute bottom-2.5 right-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#1A0E05] text-accent2 transition group-hover:translate-x-0.5"><IconChevronRight size={18} /></span>
+            </Link>
+          </div>
         </div>
       </section>
 

@@ -21,6 +21,7 @@ const schema = z.object({
   id: z.string().optional(),
   title: z.string().trim().min(2, "Escreve o título.").max(60),
   subtitle: z.string().trim().max(160).optional(),
+  highlightWord: z.string().trim().max(40).optional(),
   ctaText: z.string().trim().max(30).optional(),
   ctaKind: z.enum(CTA_KINDS),
   ctaTarget: z.string().trim().max(200).optional(),
@@ -43,6 +44,7 @@ export async function saveSlideAction(_: ActionResult, fd: FormData): Promise<Ac
     }
     if (d.ctaKind === "LINK" && (!ctaTarget || !ctaTarget.startsWith("/") || ctaTarget.startsWith("//"))) return { error: "O link do botão tem de ser interno (começar por /, ex.: /ranking)." };
     if (d.ctaKind !== "NONE" && !d.ctaText) return { error: "Escreve o texto do botão." };
+    if (d.highlightWord && !d.title.toLocaleUpperCase("pt").includes(d.highlightWord.toLocaleUpperCase("pt"))) return { error: "A palavra em dourado tem de estar no título." };
     let imageKey: string | undefined;
     const img = fd.get("image");
     if (img instanceof File && img.size > 0) {
@@ -52,7 +54,7 @@ export async function saveSlideAction(_: ActionResult, fd: FormData): Promise<Ac
       await putObject("media", imageKey, f.bytes, `image/${f.type}`);
     }
     const data = {
-      title: d.title, subtitle: d.subtitle || null, ctaText: d.ctaText || null, ctaKind: d.ctaKind, ctaTarget,
+      title: d.title, subtitle: d.subtitle || null, highlightWord: d.highlightWord || null, ctaText: d.ctaText || null, ctaKind: d.ctaKind, ctaTarget,
       sortOrder: d.sortOrder, active: !!d.active, startsAt: day(d.startsAt), endsAt: day(d.endsAt, true),
       ...(imageKey ? { imageKey } : {}),
     };

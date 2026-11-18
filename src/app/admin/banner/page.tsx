@@ -18,7 +18,8 @@ function SlideFields({ s, series }: { s?: BannerSlide; series: { slug: string; t
     <>
       {s && <input type="hidden" name="id" value={s.id} />}
       <div className="sm:col-span-2"><label className="label" htmlFor={`t-${s?.id ?? "n"}`}>Título (texto por cima da imagem)</label><input className="input" id={`t-${s?.id ?? "n"}`} name="title" defaultValue={s?.title} required maxLength={60} /></div>
-      <div className="sm:col-span-2"><label className="label" htmlFor={`f-${s?.id ?? "n"}`}>Frase</label><input className="input" id={`f-${s?.id ?? "n"}`} name="subtitle" defaultValue={s?.subtitle ?? ""} maxLength={160} /></div>
+      <div className="sm:col-span-2"><label className="label" htmlFor={`w-${s?.id ?? "n"}`}>Palavra do título em dourado itálico (vazio = a última palavra)</label><input className="input" id={`w-${s?.id ?? "n"}`} name="highlightWord" defaultValue={s?.highlightWord ?? ""} maxLength={40} placeholder="Ex.: ANGOLANAS" /></div>
+      <div className="sm:col-span-2"><label className="label" htmlFor={`f-${s?.id ?? "n"}`}>Frase (a 1.ª frase fica em destaque; o resto por baixo, mais pequeno)</label><input className="input" id={`f-${s?.id ?? "n"}`} name="subtitle" defaultValue={s?.subtitle ?? ""} maxLength={160} /></div>
       <div><label className="label" htmlFor={`b-${s?.id ?? "n"}`}>Texto do botão</label><input className="input" id={`b-${s?.id ?? "n"}`} name="ctaText" defaultValue={s?.ctaText ?? ""} maxLength={30} placeholder="Ex.: Ver grátis" /></div>
       <div>
         <label className="label" htmlFor={`k-${s?.id ?? "n"}`}>O botão leva a</label>
