@@ -129,9 +129,7 @@ export async function afterArtistSale(db: PrismaClient, { artistId, seriesId }: 
           if (mark.count !== 1) return;
           await payBonus(tx, inviter.id, kzToCents(bonusKz), `artist-referral:${artistId}`, `Bónus "Traz um kamba": ${artist.stageName} fez a 1.ª venda`);
         });
-        const bt = blockText(kzToCents(bonusKz), await blockCentsOf(db));
-        await notify(db, inviter.userId, "Bónus de convite 🤝", `O teu kamba ${artist.stageName} fez a primeira venda. Ganhaste um bónus${bt ? ` de ${bt}` : ""}! 🤝`, "/artista/carteira");
-        await checkAvailableBlocks(db, inviter.id);
+        await notify(db, inviter.userId, "Bónus de convite 🤝", `O teu kamba ${artist.stageName} fez a primeira venda. Ganhaste um bónus de ${formatKz(kzToCents(bonusKz))}!`, "/artista/carteira");
       }
     }
   }
@@ -157,15 +155,11 @@ export async function afterArtistSale(db: PrismaClient, { artistId, seriesId }: 
       if (m.crown) await tx.series.update({ where: { id: seriesId }, data: { crownedAt: new Date() } });
       return true;
     }).catch(() => false); // dois pedidos ao mesmo tempo: a chave única garante um só bónus
-    if (paid) {
-      const bt = blockText(m.bonusCents, await blockCentsOf(db));
+    if (paid)
       await notify(db, artist.userId, m.crown ? "Série coroada 👑" : "Marco atingido 🏆",
-        `A tua série "${series.title}" chegou a ${m.unlocks.toLocaleString("pt-AO")} desbloqueios!${m.bonusCents ? ` Ganhaste um bónus${bt ? ` de ${bt}` : ""}.` : ""}${m.crown ? " Agora tem a coroa 👑." : ""}`,
+        `A tua série "${series.title}" chegou a ${m.unlocks.toLocaleString("pt-AO")} desbloqueios!${m.bonusCents ? ` Ganhaste um bónus de ${formatKz(m.bonusCents)}.` : ""}${m.crown ? " Agora tem a coroa 👑." : ""}`,
         "/artista/carteira");
-    }
   }
-
-  await checkAvailableBlocks(db, artistId).catch(() => {});
 
   // Marcos de ganhos (só aviso)
   const earned = await db.coinSpend.aggregate({ where: { artistId, reversedAt: null, OR: [{ seriesId }, { episode: { seriesId } }] }, _sum: { artistCents: true } });
@@ -219,13 +213,10 @@ export async function sendDailySummaries(db: PrismaClient, now = new Date()) {
     per.set(s.artistId, x);
   }
   const artists = await db.artistProfile.findMany({ where: { id: { in: [...per.keys()] } }, select: { id: true, userId: true } });
-  const block = await blockCentsOf(db);
   for (const a of artists) {
     const x = per.get(a.id)!;
     if (x.cents <= 0) continue;
-    const bt = blockText(x.cents, block);
-    const n = `${x.unlocks} ${x.unlocks === 1 ? "desbloqueio" : "desbloqueios"}`;
-    await notify(db, a.userId, "Resumo do dia 🔥", bt ? `Hoje a tua série gerou mais de ${bt}! (${n}) 🔥` : `Hoje tiveste ${n} 🔥 O teu próximo bloco de ganhos está mais perto.`, "/artista");
+    await notify(db, a.userId, "Resumo do dia 🔥", `Hoje a tua série gerou ${formatKz(x.cents)}! (${x.unlocks} ${x.unlocks === 1 ? "desbloqueio" : "desbloqueios"}) 🔥`, "/artista");
   }
   return artists.length;
 }

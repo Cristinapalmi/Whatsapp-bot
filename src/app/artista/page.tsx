@@ -11,7 +11,7 @@ import { getObjectUrl } from "@/domain/storage";
 import { trailerCaption } from "@/domain/trailer";
 import { monthlyRanking, sortByRevenue, sortByViews } from "@/domain/ranking";
 import { ArtistGrowth } from "./ArtistGrowth";
-import { artistMoneySnapshot, artistShareFor, blockCentsOf, checkAvailableBlocks, earningsHistory, founderUntil, seriesAudience, toMoneyDisplay, topSpenders } from "@/domain/artists/growth";
+import { artistMoneySnapshot, artistShareFor, earningsHistory, founderUntil, seriesAudience, topSpenders } from "@/domain/artists/growth";
 import { getInts } from "@/domain/settings";
 import { artistLevel, recentActivity, seriesTodayCents, starterChecklist } from "@/domain/artists/dashboard";
 import { weeklyPosition } from "@/domain/creator-ranking";
@@ -95,14 +95,7 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
   const newEpisodeHref = editable ? `/artista/series/${editable.id}#novo-episodio` : "/artista/series/nova";
   const kitHref = published[0] ? `/artista/series/${published[0].id}#kit` : null;
   const isNew = checklist.percent < 100 && money.totalCents === 0;
-  const block = await blockCentsOf(db);
-  await checkAvailableBlocks(db, artist.id);
-  // mini gráfico: só alturas relativas (sem valores)
-  const last7 = history.days.slice(-7).map((d) => d.cents);
-  const maxDay = Math.max(...last7, 1);
-  const spark = last7.map((c) => (c > 0 ? c / maxDay : 0));
-  // histórico: só alturas relativas (sem valores)
-  const rel = (arr: { start: string; cents: number }[]) => { const m = Math.max(...arr.map((x) => x.cents), 1); return arr.map((x) => ({ start: x.start, level: x.cents > 0 ? x.cents / m : 0 })); };
+
   const audience = new Map(audienceList.map((x) => [x.id, x.viewers]));
   // ajusta o destino de "Conseguir o 1.º fã" para o kit da série publicada
   const tasks = checklist.tasks.map((t) => (t.key === "fa" ? { ...t, href: kitHref ?? newEpisodeHref } : t));
@@ -114,7 +107,7 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
 
       {isNew && <StarterChecklist tasks={tasks} percent={checklist.percent} />}
 
-      <ArtistMoneyPanel initial={toMoneyDisplay(money, block)} spark={spark} />
+      <ArtistMoneyPanel initial={money} last7={history.days.slice(-7).map((d) => d.cents)} />
       <QuickActions newEpisodeHref={newEpisodeHref} kitHref={kitHref} />
       <RankingCard position={rank.position} previous={rank.previous} total={rank.total} />
       <ActivityFeed items={activity} />
@@ -133,7 +126,7 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
         )}
       </section>
 
-      <div className="mt-6"><EarningsChart days={rel(history.days)} weeks={rel(history.weeks)} /></div>
+      <div className="mt-6"><EarningsChart days={history.days} weeks={history.weeks} /></div>
       <ArtistGrowth artist={artist} />
 
       {/* Números */}
@@ -143,7 +136,7 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
         <Stat icon={<IconGift size={16} />} label="Presentes" value={stats.gifts} />
         <Stat icon={<IconClock size={16} />} label="Minutos vistos" value={stats.minutes} />
       </section>
-      {stats.adUnlocks > 0 && <p className="mt-2 text-xs text-muted">{stats.adUnlocks} episódios teus desbloqueados com anúncio (os ganhos de anúncios entram uma vez por mês).</p>}
+      {stats.adUnlocks > 0 && <p className="mt-2 text-xs text-muted">{stats.adUnlocks} episódios teus desbloqueados com anúncio · ganhaste {formatKz(stats.adsEarnedCents)} com anúncios (entra uma vez por mês).</p>}
 
       {/* Link pessoal */}
       <section className="card mt-6 scroll-mt-20" id="link">

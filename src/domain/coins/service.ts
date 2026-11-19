@@ -288,7 +288,7 @@ export async function sendGiftWithCoins(db: PrismaClient, { userId, artistId, gi
     });
     return { spend, gift, artist };
   });
-  await notify(db, result.artist.userId, "Recebeste um presente", `${result.gift.emoji} Um fã enviou-te ${result.gift.label}! Os teus ganhos continuam a crescer.`, "/artista/carteira");
+  await notify(db, result.artist.userId, "Recebeste um presente", `${result.gift.emoji} ${result.gift.label}: +${formatKz(result.spend.artistCents)} na tua carteira.`, "/artista/carteira");
   return result.spend;
 }
 

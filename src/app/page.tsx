@@ -104,8 +104,8 @@ export default async function Home() {
           subtitle: "Entra na KONTA e transforma o teu conteúdo em ganhos.",
           ctaText: isArtist ? "Ir para o meu painel →" : "Quero ganhar dinheiro →",
           href: isArtist ? "/artista" : "/criadores",
-          imageUrl: await mediaUrl(creatorsImgSetting?.value),
-          imageFit: "contain",
+          // Slides padrão: sem fotos (só o fundo gráfico da marca). As imagens do banner são só as do Admin → Banner.
+          imageUrl: null,
           videoUrl: null,
         },
         // Slide 2 (padrão): para fãs

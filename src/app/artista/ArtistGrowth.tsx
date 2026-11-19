@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { formatKz, kzToCents } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { episodePriceCoins, paidUnlocks, tierUpgradeUnlocks, TIER_LABELS } from "@/domain/coins/service";
-import { artistShareFor, floorBlock, founderUntil, seriesAudience, topEpisodes } from "@/domain/artists/growth";
+import { artistShareFor, founderUntil, seriesAudience, topEpisodes } from "@/domain/artists/growth";
 import { getInts } from "@/domain/settings";
 import { CopyButton } from "@/components/CopyButton";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
@@ -20,7 +20,7 @@ export async function ArtistGrowth({ artist }: { artist: Artist }) {
   const [topEps, audience, cfg, series, share, upgradeAt, invited, cheapest, followers] = await Promise.all([
     topEpisodes(db, artist.id, 5),
     seriesAudience(db, artist.id),
-    getInts(db, ["founderMonths", "tiktokViewsPerUnlock", "artistReferralBonusKz", "earningsBlockKz"]),
+    getInts(db, ["founderMonths", "tiktokViewsPerUnlock", "artistReferralBonusKz"]),
     db.series.findMany({ where: { artistId: artist.id, status: "PUBLISHED" }, include: { episodes: { where: { published: true }, select: { number: true } } } }),
     artistShareFor(db, artist),
     tierUpgradeUnlocks(db),
@@ -43,13 +43,12 @@ export async function ArtistGrowth({ artist }: { artist: Artist }) {
   }
   // Subida de nível da série principal (Entrada → Normal)
   const goal = best && best.tier === "ENTRY" ? { text: "Subir a Normal ⭐ (ganhas mais por episódio)", now: bestUnlocks, target: upgradeAt } : null;
-  const block = cfg.earningsBlockKz * 100;
   const inviteLink = `${siteUrl()}/artista/registar?convite=${artist.slug}`;
   const fUntil = artist.founderNumber ? founderUntil(artist.createdAt, cfg.founderMonths) : null;
 
   return (
     <>
-      {fUntil && fUntil > new Date() && <p className="mt-3 text-xs text-accent2">Bónus de Fundador ativo até {formatDate(fUntil)}.</p>}
+      {fUntil && fUntil > new Date() && <p className="mt-3 text-xs text-accent2">Bónus de Fundador ativo até {formatDate(fUntil)}: ganhas mais em cada desbloqueio.</p>}
 
       {best && (
         <section className="card mt-3 space-y-3">
@@ -61,7 +60,7 @@ export async function ArtistGrowth({ artist }: { artist: Artist }) {
               <p className="mt-0.5 text-right text-xs text-muted">{goal.now.toLocaleString("pt-AO")} / {goal.target.toLocaleString("pt-AO")} desbloqueios pagos</p>
             </div>
           )}
-          {kzToCents(projection) >= block && <p className="rounded-xl bg-accent/10 px-3 py-2 text-sm">Se 500 fãs acabarem a tua série, ganhas mais de <strong className="text-accent">{formatKz(floorBlock(kzToCents(projection), block))}</strong>.</p>}
+          {projection > 0 && <p className="rounded-xl bg-accent/10 px-3 py-2 text-sm">Se 500 fãs acabarem a tua série, ganhas <strong className="text-accent">{formatKz(kzToCents(projection))}</strong>.</p>}
           <p className="text-sm text-muted">Os teus {totalUnlocks.toLocaleString("pt-AO")} desbloqueios equivalem aproximadamente a <strong className="text-fg">{(totalUnlocks * cfg.tiktokViewsPerUnlock).toLocaleString("pt-AO")} visualizações</strong> no TikTok.</p>
         </section>
       )}
@@ -77,7 +76,7 @@ export async function ArtistGrowth({ artist }: { artist: Artist }) {
               {topEps.map((t, i) => (
                 <li key={t.episode.id} className="flex justify-between gap-2">
                   <span className="min-w-0 truncate">{i + 1}. {t.episode.series.title} — Ep. {t.episode.number}</span>
-                  <span className="shrink-0 text-xs text-muted">{t.unlocks.toLocaleString("pt-AO")} {t.unlocks === 1 ? "desbloqueio" : "desbloqueios"}</span>
+                  <span className="shrink-0 font-semibold text-ok">{formatKz(t.cents)}</span>
                 </li>
               ))}
             </ol>
@@ -104,7 +103,7 @@ export async function ArtistGrowth({ artist }: { artist: Artist }) {
       {/* Traz um kamba */}
       <section className="card mt-3">
         <h2 className="font-bold">Traz um kamba 🤝</h2>
-        <p className="text-sm text-muted">Convida outro artista. Quando ele publicar uma série e fizer a primeira venda, ganhas um bónus{cfg.artistReferralBonusKz * 100 >= block ? ` de ${formatKz(kzToCents(cfg.artistReferralBonusKz))}` : ""}.</p>
+        <p className="text-sm text-muted">Convida outro artista. Quando ele fizer a primeira venda, ganhas {formatKz(kzToCents(cfg.artistReferralBonusKz))}.</p>
         <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-surface2 px-3 py-2">
           <span className="truncate text-sm text-accent2">{inviteLink}</span>
           <CopyButton text={inviteLink} label="Copiar convite" showText />

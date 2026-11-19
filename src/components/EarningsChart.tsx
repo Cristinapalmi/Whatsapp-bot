@@ -1,23 +1,21 @@
 "use client";
 import { useState } from "react";
 
-type Bucket = { start: string; level: number };
+type Bucket = { start: string; cents: number };
 
+const kz = (c: number) => `${new Intl.NumberFormat("pt-AO", { maximumFractionDigits: 0 }).format(c / 100)} Kz`;
 const label = (iso: string, by: "day" | "week") =>
   new Intl.DateTimeFormat("pt-AO", { day: "2-digit", month: "short", timeZone: "Africa/Luanda" }).format(new Date(iso)) + (by === "week" ? " (semana)" : "");
 
-/**
- * Histórico de ganhos: barras por dia (30 dias) ou por semana (12 semanas).
- * Mostra só a forma do crescimento (alturas relativas), sem valores — os valores exatos estão no extrato.
- */
+/** Histórico de ganhos: barras por dia (30 dias) ou por semana (12 semanas). Uma só série, dados reais. */
 export function EarningsChart({ days, weeks }: { days: Bucket[]; weeks: Bucket[] }) {
   const [by, setBy] = useState<"day" | "week">("day");
   const [hover, setHover] = useState<number | null>(null);
   const data = by === "day" ? days : weeks;
+  const max = Math.max(...data.map((d) => d.cents), 1);
+  const sum = data.reduce((a, d) => a + d.cents, 0);
   const W = 100 / data.length;
-  const active = data.filter((d) => d.level > 0).length;
   const h = hover !== null ? data[hover] : null;
-  const best = data.reduce((a, d, i) => (d.level > (data[a]?.level ?? 0) ? i : a), 0);
 
   return (
     <div className="card">
@@ -31,17 +29,27 @@ export function EarningsChart({ days, weeks }: { days: Bucket[]; weeks: Bucket[]
           ))}
         </div>
       </div>
-      <p className="mt-1 text-sm text-muted">
-        {by === "day" ? `Ganhaste em ${active} dos últimos 30 dias` : `Ganhaste em ${active} das últimas 12 semanas`}
-        {active > 0 && data[best] ? ` · melhor: ${label(data[best].start, by)}` : ""}
-      </p>
-      <p className="mt-1 h-5 text-sm" aria-live="polite">{h ? <><span className="text-muted">{label(h.start, by)}:</span> <strong>{h.level > 0 ? (h.level >= 0.66 ? "dia forte 🔥" : h.level >= 0.33 ? "bom dia" : "com ganhos") : "sem ganhos"}</strong></> : <span className="text-xs text-muted">Toca numa barra para ver o dia.</span>}</p>
+      <p className="mt-1 text-sm text-muted">{by === "day" ? "Últimos 30 dias" : "Últimas 12 semanas"}: <strong className="text-fg">{kz(sum)}</strong></p>
+      <p className="mt-1 h-5 text-sm" aria-live="polite">{h ? <><span className="text-muted">{label(h.start, by)}:</span> <strong>{kz(h.cents)}</strong></> : <span className="text-xs text-muted">Toca numa barra para ver o valor.</span>}</p>
       <div className="relative mt-1 h-36" onMouseLeave={() => setHover(null)}>
+        {/* linha de base discreta */}
         <div className="absolute inset-x-0 bottom-0 h-px bg-white/10" />
         <div className="absolute inset-0 flex items-end">
           {data.map((d, i) => (
-            <button key={d.start} type="button" className="flex h-full items-end justify-center px-[1px]" style={{ width: `${W}%` }} onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)} onClick={() => setHover(i)} aria-label={`${label(d.start, by)}: ${d.level > 0 ? "com ganhos" : "sem ganhos"}`}>
-              <span className={`block w-full max-w-[14px] rounded-t-[4px] transition-colors ${d.level > 0 ? (hover === i ? "bg-accent2" : "bg-accent") : "bg-white/10"}`} style={{ height: d.level > 0 ? `${Math.max(4, d.level * 100)}%` : "2px" }} />
+            <button
+              key={d.start}
+              type="button"
+              className="group flex h-full items-end justify-center px-[1px]"
+              style={{ width: `${W}%` }}
+              onMouseEnter={() => setHover(i)}
+              onFocus={() => setHover(i)}
+              onClick={() => setHover(i)}
+              aria-label={`${label(d.start, by)}: ${kz(d.cents)}`}
+            >
+              <span
+                className={`block w-full max-w-[14px] rounded-t-[4px] transition-colors ${d.cents > 0 ? (hover === i ? "bg-accent2" : "bg-accent") : "bg-white/10"}`}
+                style={{ height: d.cents > 0 ? `${Math.max(4, (d.cents / max) * 100)}%` : "2px" }}
+              />
             </button>
           ))}
         </div>
@@ -50,7 +58,11 @@ export function EarningsChart({ days, weeks }: { days: Bucket[]; weeks: Bucket[]
         <span>{label(data[0].start, by)}</span>
         <span>{by === "day" ? "hoje" : "esta semana"}</span>
       </div>
-      {active === 0 && <p className="mt-2 text-xs text-muted">Ainda sem ganhos neste período. Quando os fãs desbloquearem episódios, as barras crescem aqui.</p>}
+      {sum === 0 && <p className="mt-2 text-xs text-muted">Ainda sem ganhos neste período. Quando os fãs desbloquearem episódios, as barras crescem aqui.</p>}
+      <table className="sr-only">
+        <caption>Ganhos por {by === "day" ? "dia" : "semana"}</caption>
+        <tbody>{data.map((d) => <tr key={d.start}><th>{label(d.start, by)}</th><td>{kz(d.cents)}</td></tr>)}</tbody>
+      </table>
     </div>
   );
 }

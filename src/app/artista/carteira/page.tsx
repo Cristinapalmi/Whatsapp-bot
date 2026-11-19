@@ -74,7 +74,7 @@ export default async function WalletPage() {
         {!acc ? (
           <p className="mt-2 text-sm text-muted">Primeiro liga a conta onde queres receber (em baixo).</p>
         ) : wallet.availableCents < min ? (
-          <p className="mt-2 text-sm text-muted">Podes levantar a partir de {formatKz(min)}. O teu próximo bloco está a caminho 🔥</p>
+          <p className="mt-2 text-sm text-muted">{firstPayout ? "O teu primeiro levantamento pode ser a partir de" : "O levantamento mínimo é"} {formatKz(min)}. Faltam {formatKz(min - Math.max(0, wallet.availableCents))}.</p>
         ) : (
           <ActionForm action={requestPayoutAction} className="card mt-2 space-y-3" resetOnSuccess>
             <label className="label" htmlFor="amount">Valor (Kz)</label>
