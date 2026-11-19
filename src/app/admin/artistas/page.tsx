@@ -8,17 +8,18 @@ import { formatDateTime } from "@/lib/dates";
 import { formatPhone } from "@/lib/phone";
 import { CATEGORY_LABELS } from "@/lib/categories";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
-import { resetFoundersAction, reviewArtistAction } from "../actions";
+import { deleteArtistAction, resetFoundersAction, reviewArtistAction } from "../actions";
 
 export const metadata: Metadata = { title: "Artistas" };
 
 const TABS: [ArtistStatus, string][] = [["APPROVED", "Ativos"], ["SUSPENDED", "Suspensos"], ["PENDING", "Pendentes (antigos)"], ["REJECTED", "Rejeitados"]];
 
-export default async function AdminArtists({ searchParams }: { searchParams: Promise<{ estado?: string }> }) {
-  const { estado } = await searchParams;
+export default async function AdminArtists({ searchParams }: { searchParams: Promise<{ estado?: string; q?: string }> }) {
+  const { estado, q } = await searchParams;
+  const search = (q ?? "").trim().slice(0, 60);
   const status = (TABS.find(([s]) => s === estado)?.[0] ?? "APPROVED") as ArtistStatus;
   const artists = await db.artistProfile.findMany({
-    where: { status },
+    where: search ? { OR: [{ stageName: { contains: search, mode: "insensitive" } }, { fullName: { contains: search, mode: "insensitive" } }, { slug: { contains: search.toLowerCase() } }] } : { status },
     orderBy: { createdAt: "asc" },
     include: { user: { select: { phone: true, birthDate: true, consents: { where: { document: { in: ["ARTIST_SHOW_SERIES", "ARTIST_FREE_EPISODES", "ARTIST_REVENUE_SPLIT", "ARTIST_CONTENT_RULES", "ARTIST_WITHDRAWAL_RULES"] } } } } } },
   });
@@ -46,6 +47,10 @@ export default async function AdminArtists({ searchParams }: { searchParams: Pro
           <Link key={s} href={`/admin/artistas?estado=${s}`} className={s === status ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>{label}</Link>
         ))}
       </div>
+      <form className="mt-3 flex gap-2" action="/admin/artistas">
+        <input name="q" defaultValue={search} className="input" placeholder="Procurar artista pelo nome (todos os estados)" aria-label="Procurar artista" />
+        <button type="submit" className="btn-secondary">Procurar</button>
+      </form>
       {artists.length === 0 && <p className="mt-6 text-muted">Nada por aqui.</p>}
       <ul className="mt-4 space-y-4">
         {artists.map((a, i) => (
@@ -55,7 +60,7 @@ export default async function AdminArtists({ searchParams }: { searchParams: Pro
               {photos[i] && <img src={photos[i]!} alt="" className="h-full w-full object-cover" />}
             </div>
             <div>
-              <p className="text-lg font-bold">{a.stageName}{a.founderNumber ? <span className="badge-free ml-2 align-middle">⭐ Fundador n.º {a.founderNumber}</span> : null}</p>
+              <p className="text-lg font-bold">{a.stageName}{search ? <span className="badge-muted ml-2 align-middle">{a.status}</span> : null}{a.founderNumber ? <span className="badge-free ml-2 align-middle">⭐ Fundador n.º {a.founderNumber}</span> : null}</p>
               <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                 <dt className="text-muted">Nome</dt><dd>{a.fullName}</dd>
                 <dt className="text-muted">BI</dt><dd className="font-mono">{a.biNumber}</dd>
@@ -85,6 +90,15 @@ export default async function AdminArtists({ searchParams }: { searchParams: Pro
                   <SubmitButton className="btn-danger">{a.status === "APPROVED" ? "Suspender" : "Rejeitar"}</SubmitButton>
                 </ActionForm>
               </div>
+              <details className="mt-3 rounded-xl border border-danger/30 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-danger">Apagar artista</summary>
+                <p className="mt-2 text-xs text-muted">Apaga o artista, as séries e os ficheiros. Só é possível se não tiver levantamentos pagos (nem em processamento). Se tiver vendas ou outros registos de dinheiro, esses registos ficam guardados: as séries saem, os ficheiros são apagados e a conta fica suspensa.</p>
+                <ActionForm action={deleteArtistAction} className="mt-2 space-y-2">
+                  <input type="hidden" name="artistId" value={a.id} />
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="confirm" required className="checkbox mt-0" /> Confirmo que quero apagar “{a.stageName}”</label>
+                  <SubmitButton className="btn-danger btn-sm">Apagar artista</SubmitButton>
+                </ActionForm>
+              </details>
             </div>
           </li>
         ))}

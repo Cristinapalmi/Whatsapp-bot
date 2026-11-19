@@ -44,7 +44,8 @@ export async function saveSlideAction(_: ActionResult, fd: FormData): Promise<Ac
     }
     if (d.ctaKind === "LINK" && (!ctaTarget || !ctaTarget.startsWith("/") || ctaTarget.startsWith("//"))) return { error: "O link do botão tem de ser interno (começar por /, ex.: /ranking)." };
     if (d.ctaKind !== "NONE" && !d.ctaText) return { error: "Escreve o texto do botão." };
-    if (d.highlightWord && !d.title.toLocaleUpperCase("pt").includes(d.highlightWord.toLocaleUpperCase("pt"))) return { error: "A palavra em dourado tem de estar no título." };
+    // Palavra em dourado que não está no título: ignora-se (usa-se a última palavra), sem dar erro
+    if (d.highlightWord && !d.title.toLocaleUpperCase("pt").includes(d.highlightWord.toLocaleUpperCase("pt"))) d.highlightWord = undefined;
     let imageKey: string | undefined;
     const img = fd.get("image");
     if (img instanceof File && img.size > 0) {

@@ -18,6 +18,7 @@ import { audit, notify } from "@/domain/notify";
 import { saveIntGroup } from "@/domain/settings";
 import { blockFromPoints, voidInvite } from "@/domain/fans/invites";
 import { resetFounders } from "@/domain/artists/growth";
+import { deleteArtist } from "@/domain/artists/delete";
 import { deleteObject, getUploadUrl, inspectObject, newKey, putObject } from "@/domain/storage";
 import { MAX_VIDEO_BYTES, readValidatedFile, sniff } from "@/lib/filetype";
 import { UserFacingError } from "@/domain/errors";
@@ -491,5 +492,21 @@ export async function resetFoundersAction(_: ActionResult, fd: FormData): Promis
     revalidatePath("/admin/artistas");
     revalidatePath("/criadores");
     return { ok: `Contador reposto: ${r.founders} artista(s) ficaram como Fundadores; restam ${r.left} vagas.` };
+  } catch (e) { return toActionError(e); }
+}
+
+// ---------- Apagar artista ----------
+export async function deleteArtistAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    if (fd.get("confirm") !== "on") return { error: "Marca a caixa para confirmar." };
+    const r = await deleteArtist(db, admin.id, str(fd, "artistId"), (k) => deleteObject("media", k));
+    revalidatePath("/admin/artistas");
+    revalidatePath("/");
+    return {
+      ok: r.mode === "deleted"
+        ? `Artista apagado (${r.series} série(s) e ficheiros).`
+        : `Este artista tinha registos de dinheiro, que nunca se apagam. As ${r.series} série(s) foram retiradas e os ficheiros apagados; a conta ficou suspensa e o login desativado.`,
+    };
   } catch (e) { return toActionError(e); }
 }
