@@ -2,7 +2,13 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-export type BannerSlideView = { id: string; title: string; subtitle: string | null; ctaText: string | null; href: string | null; imageUrl: string | null; videoUrl: string | null; highlight?: string };
+export type BannerSlideView = {
+  id: string; title: string; subtitle: string | null; ctaText: string | null; href: string | null; imageUrl: string | null; videoUrl: string | null; highlight?: string;
+  /** Títulos compridos: letras mais pequenas e a parte dourada pode partir em várias linhas. */
+  compact?: boolean;
+  /** "contain" = imagem inteira encostada em baixo (ex.: foto de uma pessoa com fundo escuro). */
+  imageFit?: "cover" | "contain";
+};
 
 const INTERVAL = 6000;
 
@@ -42,7 +48,7 @@ function splitSubtitle(s: string | null) {
 }
 
 /** Título em duas linhas: o resto em branco e a palavra dourada (por defeito a última) maior, em itálico. */
-function Title({ text, highlight }: { text: string; highlight?: string }) {
+function Title({ text, highlight, compact }: { text: string; highlight?: string; compact?: boolean }) {
   const words = text.trim().split(/\s+/);
   let gold = highlight?.trim() || words[words.length - 1];
   const idx = text.toLocaleUpperCase("pt").lastIndexOf(gold.toLocaleUpperCase("pt"));
@@ -51,6 +57,14 @@ function Title({ text, highlight }: { text: string; highlight?: string }) {
   const before = text.slice(0, at).trim();
   const goldText = text.slice(at, at + gold.length);
   const after = text.slice(at + gold.length).trim();
+  if (compact)
+    return (
+      <h2 className="font-hero uppercase leading-[1.02]">
+        {before && <span className="block max-w-full text-[clamp(11px,3.9vw,16px)] font-black text-white sm:text-[26px] lg:text-[36px]">{before}</span>}
+        <span className="mt-0.5 block max-w-full bg-gradient-to-r from-[#FFD36B] via-accent2 to-accent bg-clip-text pr-[0.12em] text-[clamp(12.5px,4.6vw,19px)] font-black italic text-transparent drop-shadow-[0_2px_10px_rgb(var(--c-accent)/0.55)] sm:text-[32px] lg:text-[46px]">{goldText}</span>
+        {after && <span className="block text-[clamp(13px,3.9vw,16px)] font-black text-white sm:text-[24px] lg:text-[32px]">{after}</span>}
+      </h2>
+    );
   return (
     <h2 className="font-hero uppercase leading-[0.95]">
       {before && <span className="block max-w-full bg-gradient-to-b from-white to-[#d9d2cb] bg-clip-text text-[clamp(14px,4.4vw,18px)] font-black text-transparent sm:text-[30px] lg:text-[42px]">{before}</span>}
@@ -100,10 +114,10 @@ export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
               <div key={s.id} className={`absolute inset-0 transition-opacity duration-700 ${k === i ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={k !== i}>
                 {/* ESQUERDA (46%): o fundo escuro quente é o do próprio banner (sem emendas) */}
                 {/* DIREITA (54%): imagem ou vídeo, sem filtros; a borda esquerda desvanece para o escuro */}
-                <div className="absolute inset-y-0 right-0 w-[54%]" style={FADE_LEFT}>
+                <div className={`absolute inset-y-0 right-0 w-[54%] ${s.imageFit === "contain" && s.imageUrl ? "bg-black" : ""}`} style={FADE_LEFT}>
                   {s.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={s.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" loading={k === 0 ? "eager" : "lazy"} />
+                    <img src={s.imageUrl} alt="" className={`absolute inset-0 h-full w-full ${s.imageFit === "contain" ? "object-contain object-bottom" : "object-cover"}`} loading={k === 0 ? "eager" : "lazy"} />
                   ) : (
                     <BrandBackdrop />
                   )}
@@ -113,14 +127,14 @@ export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
                 </div>
                 {/* Texto só na zona da esquerda */}
                 <div className="absolute inset-y-0 left-0 flex w-[46%] flex-col justify-center py-2 pl-3 pr-1 sm:pl-8 sm:pr-4 lg:pl-12">
-                  <Title text={s.title} highlight={s.highlight} />
-                  {lead && <p className="mt-1 text-[12px] font-bold leading-tight text-white sm:mt-3 sm:text-[18px] lg:text-[22px]">{lead}</p>}
+                  <Title text={s.title} highlight={s.highlight} compact={s.compact} />
+                  {lead && <p className="mt-1 text-[12px] font-bold leading-tight text-white max-[359px]:text-[10px] sm:mt-3 sm:text-[18px] lg:text-[22px]">{lead}</p>}
                   {rest && <p className="mt-0.5 line-clamp-2 text-[9px] leading-snug text-white/85 sm:mt-1.5 sm:text-[13px] lg:text-[15px]">{rest}</p>}
                   {s.ctaText && s.href && (
                     <Link
                       href={s.href}
                       tabIndex={k === i ? 0 : -1}
-                      className="btn-glow mt-2 min-h-[44px] self-start whitespace-nowrap rounded-full px-4 py-0 text-[12px] font-extrabold no-underline sm:mt-4 sm:px-6 sm:text-base"
+                      className="btn-glow mt-2 min-h-[44px] self-start whitespace-nowrap rounded-full px-3 py-0 text-[11.5px] font-extrabold no-underline max-[359px]:mt-1 max-[359px]:px-2.5 max-[359px]:text-[10px] sm:mt-4 sm:px-6 sm:text-base"
                     >
                       {s.ctaText}
                     </Link>

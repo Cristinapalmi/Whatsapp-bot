@@ -94,16 +94,32 @@ export default async function Home() {
   ]);
   const slides: BannerSlideView[] = slidesRaw.length
     ? await Promise.all(slidesRaw.map(async (x) => ({ id: x.id, title: x.title, highlight: x.highlightWord ?? undefined, subtitle: x.subtitle, ctaText: x.ctaText, href: ctaHref(x), imageUrl: await mediaUrl(x.imageKey), videoUrl: await mediaUrl(x.videoKey) })))
-    : [{
-        id: "padrao",
-        title: "MINISSÉRIES ANGOLANAS",
-        subtitle: "As histórias que vais querer ver até ao fim. Descobre minisséries angolanas, acompanha os teus criadores favoritos e não percas nenhum episódio.",
-        ctaText: "Descobrir séries →",
-        href: "/explorar?ver=em-alta",
-        imageUrl: null,
-        videoUrl: null,
-        highlight: "ANGOLANAS",
-      }];
+    : [
+        // Slide 1 (padrão): para criadores
+        {
+          id: "padrao-criadores",
+          title: "E SE AS TUAS SÉRIES TE FIZESSEM GANHAR DINHEIRO?",
+          highlight: "TE FIZESSEM GANHAR DINHEIRO?",
+          compact: true,
+          subtitle: "Entra na KONTA e transforma o teu conteúdo em ganhos.",
+          ctaText: isArtist ? "Ir para o meu painel →" : "Quero ganhar dinheiro →",
+          href: isArtist ? "/artista" : "/criadores",
+          imageUrl: await mediaUrl(creatorsImgSetting?.value),
+          imageFit: "contain",
+          videoUrl: null,
+        },
+        // Slide 2 (padrão): para fãs
+        {
+          id: "padrao-fas",
+          title: "MINISSÉRIES ANGOLANAS",
+          highlight: "ANGOLANAS",
+          subtitle: "As histórias que vais querer ver até ao fim. Descobre minisséries angolanas, acompanha os teus criadores favoritos e não percas nenhum episódio.",
+          ctaText: "Descobrir séries →",
+          href: "/explorar?ver=em-alta",
+          imageUrl: null,
+          videoUrl: null,
+        },
+      ];
   const newEpCovers = await Promise.all(newEps.map((e) => mediaUrl(e.series.coverKey)));
   const creatorPhotos = await Promise.all(creators.map((c) => mediaUrl(c.photoKey)));
   const creatorsImg = await mediaUrl(creatorsImgSetting?.value);
