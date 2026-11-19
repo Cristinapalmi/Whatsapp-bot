@@ -87,7 +87,7 @@ export default async function StatementPage({ searchParams }: { searchParams: Pr
         )}
       </section>
       <p className="mt-6 text-xs text-muted print:text-black">
-        Valores em Kwanzas. "Ganhou no mês" = a parte do artista ({business.artistSharePercent}%) do que o público pagou, depois de eventuais comissões. Documento gerado a {formatDateTime(new Date())}.
+        Valores em Kwanzas. "Ganhou no mês" = o que ganhaste com os desbloqueios, presentes e anúncios do mês (as regras estão na Política do Artista). Documento gerado a {formatDateTime(new Date())}.
       </p>
       <p className="mt-4 print:hidden"><Link href="/artista/carteira" className="text-sm text-accent2 underline">Voltar à carteira</Link></p>
     </div>

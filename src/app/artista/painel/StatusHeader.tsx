@@ -9,8 +9,8 @@ export async function StatusHeader({ artist, level, crowned, share }: {
   artist: { stageName: string; photoKey: string | null; founderNumber: number | null; verifiedAt: Date | null };
   level: { tier: null | "ENTRY" | "NORMAL" | "PREMIUM"; progress: number; now: number; target: number };
   crowned: boolean;
-  /** A parte do artista agora (50% ou 70% para Fundadores nos primeiros meses) e até quando. */
-  share: { percent: number; founderUntil: Date | null };
+  /** Até quando o bónus de Fundador está ativo (null = sem bónus). */
+  share: { founderUntil: Date | null };
 }) {
   const photo = await mediaUrl(artist.photoKey);
   const R = 46;
@@ -36,7 +36,7 @@ export async function StatusHeader({ artist, level, crowned, share }: {
           {artist.founderNumber && <span className="badge-free"><IconStar size={12} /> Fundador n.º {artist.founderNumber}</span>}
           {artist.verifiedAt && <span className="badge-unlocked">✓ Verificado</span>}
           {level.tier && <span className="badge-price">Nível {TIER[level.tier]}</span>}
-          <span className="badge-unlocked">{share.founderUntil ? `A tua parte: ${share.percent}% — Fundador, até ${formatDate(share.founderUntil)}` : `A tua parte: ${share.percent}%`}</span>
+          {share.founderUntil && <span className="badge-unlocked">Bónus de Fundador ativo até {formatDate(share.founderUntil)}</span>}
         </div>
         <p className="mt-1 text-xs text-muted">
           {!level.tier

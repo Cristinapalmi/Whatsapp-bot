@@ -177,3 +177,14 @@ describe("Rei/Rainha da KONTA", () => {
     expect((await monthlyKing(db))?.artistId).toBe(artist.id);
   });
 });
+
+describe("Repor contador de Fundadores", () => {
+  it("renumera os artistas que existem por ordem de registo e liberta as vagas das contas apagadas", async () => {
+    const { resetFounders, foundersLeft } = await import("@/domain/artists/growth");
+    await setSetting(db, "foundersLimit", "20");
+    const r = await resetFounders(db);
+    const nums = (await db.artistProfile.findMany({ where: { founderNumber: { not: null } }, orderBy: { founderNumber: "asc" }, select: { founderNumber: true } })).map((x) => x.founderNumber);
+    expect(nums).toEqual(Array.from({ length: nums.length }, (_, i) => i + 1));
+    expect((await foundersLeft(db)).left).toBe(r.left);
+  });
+});

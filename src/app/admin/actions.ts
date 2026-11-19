@@ -17,6 +17,7 @@ import { approveReview, rejectReview } from "@/domain/series-workflow";
 import { audit, notify } from "@/domain/notify";
 import { saveIntGroup } from "@/domain/settings";
 import { blockFromPoints, voidInvite } from "@/domain/fans/invites";
+import { resetFounders } from "@/domain/artists/growth";
 import { deleteObject, getUploadUrl, inspectObject, newKey, putObject } from "@/domain/storage";
 import { MAX_VIDEO_BYTES, readValidatedFile, sniff } from "@/lib/filetype";
 import { UserFacingError } from "@/domain/errors";
@@ -477,5 +478,18 @@ export async function unblockPaymentsAction(_: ActionResult, fd: FormData): Prom
     await audit(db, admin.id, "PAYMENTS_UNBLOCKED", "User", userId, {});
     revalidatePath("/admin/pagamentos");
     return { ok: "Desbloqueado: já pode voltar a enviar comprovativos." };
+  } catch (e) { return toActionError(e); }
+}
+
+// ---------- Fundadores ----------
+export async function resetFoundersAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    if (fd.get("confirm") !== "on") return { error: "Marca a caixa para confirmar." };
+    const r = await resetFounders(db);
+    await audit(db, admin.id, "FOUNDERS_RESET", "Setting", "founders", r);
+    revalidatePath("/admin/artistas");
+    revalidatePath("/criadores");
+    return { ok: `Contador reposto: ${r.founders} artista(s) ficaram como Fundadores; restam ${r.left} vagas.` };
   } catch (e) { return toActionError(e); }
 }

@@ -362,3 +362,19 @@ export async function artistMoneySnapshot(db: Tx, artistId: string, now = new Da
   };
 }
 export type ArtistMoneySnapshot = Awaited<ReturnType<typeof artistMoneySnapshot>>;
+
+/**
+ * Repor o contador de Fundadores (antes do lançamento, depois de apagar as contas de teste):
+ * os artistas que ainda existem são renumerados por ordem de registo (1, 2, 3…, até ao limite)
+ * e as vagas das contas apagadas voltam a ficar livres. Não mexe em dinheiro.
+ */
+export async function resetFounders(db: PrismaClient) {
+  return db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('founders'))`;
+    const limit = await getInt(tx, "foundersLimit");
+    await tx.artistProfile.updateMany({ where: { founderNumber: { not: null } }, data: { founderNumber: null } });
+    const artists = await tx.artistProfile.findMany({ where: { status: "APPROVED" }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: limit, select: { id: true } });
+    for (let i = 0; i < artists.length; i++) await tx.artistProfile.update({ where: { id: artists[i].id }, data: { founderNumber: i + 1 } });
+    return { founders: artists.length, left: Math.max(0, limit - artists.length) };
+  });
+}

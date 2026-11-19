@@ -24,7 +24,6 @@ export default async function CreatorsPage() {
     getInts(db, ["founderMonths", "founderSharePercent", "payoutFirstMinKz", "pendingDays"]),
   ]);
   const coinKz = cheapest ? cheapest.priceKz / cheapest.coins : 10;
-  const share = business.artistSharePercent;
   const cta = isArtist ? { href: "/artista", label: "Ir para o meu painel" } : { href: "/artista/registar", label: "QUERO GANHAR DINHEIRO" };
 
   return (
@@ -41,37 +40,20 @@ export default async function CreatorsPage() {
       {/* Três destaques */}
       <section className="mt-4 grid gap-3 sm:grid-cols-3">
         <div className="card-warm glow-accent p-4">
-          <p className="font-hero text-4xl font-black text-accent2">{c.founderSharePercent}%</p>
-          <p className="mt-1 text-sm font-bold text-fg">para os primeiros {founders.limit} Artistas Fundadores, durante {c.founderMonths} meses</p>
+          <p className="text-2xl" aria-hidden>⭐</p>
+          <p className="mt-1 text-sm font-bold text-fg">Artistas Fundadores ganham mais nos primeiros {c.founderMonths} meses</p>
           <p className="mt-2 inline-block rounded-full bg-accent/20 px-2.5 py-1 text-xs font-bold text-accent">{founders.left > 0 ? `Restam ${founders.left} de ${founders.limit} vagas` : "Vagas esgotadas"}</p>
         </div>
         <div className="card-warm p-4">
           <p className="font-hero text-3xl font-black text-accent2">{kzLabel(c.payoutFirstMinKz)}</p>
-          <p className="mt-1 text-sm font-bold text-fg">Levantamento a partir de {kzLabel(c.payoutFirstMinKz)} (primeiro levantamento)</p>
+          <p className="mt-1 text-sm font-bold text-fg">Levantamento a partir de {kzLabel(c.payoutFirstMinKz)}</p>
           <p className="mt-1 text-xs text-muted">Por Multicaixa Express ou IBAN.</p>
         </div>
         <div className="card-warm p-4">
           <p className="font-hero text-3xl font-black text-accent2">0 Kz</p>
-          <p className="mt-1 text-sm font-bold text-fg">Sem pagar para entrar: nada de pacotes, níveis ou taxas de inscrição.</p>
+          <p className="mt-1 text-sm font-bold text-fg">Sem pagar para entrar</p>
+          <p className="mt-1 text-xs text-muted">Nada de pacotes, níveis ou taxas de inscrição.</p>
         </div>
-      </section>
-
-      {/* Como dividimos o dinheiro */}
-      <section className="mt-8">
-        <h2 className="text-xl font-bold">Como dividimos o dinheiro</h2>
-        <p className="mt-1 text-sm text-fg/90">Ganhas quando os teus fãs pagam para ver. De cada episódio desbloqueado:</p>
-        <div className="mt-3 overflow-hidden rounded-2xl border border-white/10">
-          <div className="flex h-16 text-center font-hero font-black">
-            <div className="flex flex-col items-center justify-center bg-gradient-to-r from-accent to-accent2 text-[#1A0E05]" style={{ width: `${share}%` }}>
-              <span className="text-2xl leading-none">{share}%</span><span className="text-[11px] font-bold">para ti</span>
-            </div>
-            <div className="flex flex-col items-center justify-center bg-surface2 text-fg" style={{ width: `${100 - share}%` }}>
-              <span className="text-2xl leading-none">{100 - share}%</span><span className="text-[11px] font-bold">para a KONTA</span>
-            </div>
-          </div>
-        </div>
-        <p className="mt-3 text-sm text-fg/85">A metade da KONTA paga os servidores, os vídeos, a divulgação das tuas séries e a equipa.</p>
-        <p className="mt-2 rounded-xl bg-accent2/15 px-3 py-2 text-sm font-semibold text-accent2">Fundadores: {c.founderSharePercent}% para ti nos primeiros {c.founderMonths} meses.</p>
       </section>
 
       <section className="mt-6 card text-center">

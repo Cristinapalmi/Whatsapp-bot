@@ -102,7 +102,7 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
   return (
     <div className="container-app max-w-3xl">
       {sp.apagada && <p role="status" className="mb-3 rounded-xl bg-ok/15 px-4 py-3 text-sm text-ok">Série apagada.</p>}
-      <StatusHeader artist={artist} level={level} crowned={series.some((s) => s.crownedAt)} share={{ percent: share, founderUntil: fUntil && fUntil > new Date() ? fUntil : null }} />
+      <StatusHeader artist={artist} level={level} crowned={series.some((s) => s.crownedAt)} share={{ founderUntil: fUntil && fUntil > new Date() ? fUntil : null }} />
 
       {isNew && <StarterChecklist tasks={tasks} percent={checklist.percent} />}
 
@@ -174,7 +174,7 @@ export default async function ArtistDashboard({ searchParams }: { searchParams: 
         )}
       </section>
 
-      <p className="mt-6 flex items-center gap-2 text-xs text-muted"><IconChart size={16} /> De cada desbloqueio e presente: {share}% para ti, {100 - share}% para a KONTA (servidores, vídeos, divulgação e equipa).</p>
+      <p className="mt-6 flex items-center gap-2 text-xs text-muted"><IconChart size={16} /> Ganhas com cada episódio desbloqueado e cada presente. Os detalhes estão na <Link href="/legal/politica-artista" className="underline">Política do Artista</Link>.</p>
     </div>
   );
 }

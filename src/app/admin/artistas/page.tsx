@@ -8,7 +8,7 @@ import { formatDateTime } from "@/lib/dates";
 import { formatPhone } from "@/lib/phone";
 import { CATEGORY_LABELS } from "@/lib/categories";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
-import { reviewArtistAction } from "../actions";
+import { resetFoundersAction, reviewArtistAction } from "../actions";
 
 export const metadata: Metadata = { title: "Artistas" };
 
@@ -31,6 +31,14 @@ export default async function AdminArtists({ searchParams }: { searchParams: Pro
         <summary className="cursor-pointer font-bold">Regras dos artistas: Fundadores, marcos, levantamentos, convites</summary>
         <p className="mt-2 text-sm text-muted">Os bónus saem da parte da plataforma e ficam no livro-razão. Cada marco paga uma única vez por série.</p>
         <SettingsGroupForm group="artistas" />
+      </details>
+      <details className="card mt-3">
+        <summary className="cursor-pointer font-bold text-danger">Repor contador de Fundadores</summary>
+        <p className="mt-2 text-sm text-muted">Usa antes do lançamento, depois de apagar as contas de teste. Os artistas que ainda existem são renumerados por ordem de registo (1, 2, 3…) e as vagas das contas apagadas voltam a ficar livres. Não mexe em dinheiro.</p>
+        <ActionForm action={resetFoundersAction} className="mt-3 space-y-2">
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="confirm" required className="checkbox mt-0" /> Confirmo que quero repor o contador de Fundadores</label>
+          <SubmitButton className="btn-danger btn-sm">Repor contador de Fundadores</SubmitButton>
+        </ActionForm>
       </details>
       <p className="mt-1 text-sm text-muted">Os artistas ficam ativos logo no registo. Podes suspender quem não cumprir as regras. O BI e o IBAN são verificados no primeiro levantamento.</p>
       <div className="mt-4 flex flex-wrap gap-2">

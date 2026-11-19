@@ -28,13 +28,13 @@ export default async function ArtistRegisterPage({ searchParams }: { searchParam
   return (
     <div className="container-app max-w-xl py-4">
       <h1 className="text-3xl font-bold">Regista-te como artista</h1>
-      <p className="mt-1 text-muted">Publica as tuas minisséries e ganha {pct}% de tudo o que o público pagar. Quanto mais assistirem, mais ganhas. A tua conta fica ativa logo: podes criar a tua primeira série hoje.</p>
+      <p className="mt-1 text-muted">Publica as tuas minisséries e ganha dinheiro com cada episódio desbloqueado pelos teus fãs. Quanto mais assistirem, mais ganhas. A tua conta fica ativa logo: podes criar a tua primeira série hoje.</p>
 
       {inviter && <p className="mt-3 rounded-xl bg-accent2/15 px-4 py-3 text-sm text-accent2">Foste convidado por <strong>{inviter.stageName}</strong>. Bem-vindo, kamba!</p>}
       {founders.left > 0 && (
         <div className="mt-4 rounded-2xl border border-accent/50 bg-accent/10 p-4">
           <p className="font-display text-lg font-extrabold text-accent">Restam {founders.left} de {founders.limit} vagas de Artista Fundador</p>
-          <p className="mt-1 text-sm text-fg/90">Os Artistas Fundadores ganham {fcfg.founderSharePercent}% nos primeiros {fcfg.founderMonths} meses, ficam com o selo “Artista Fundador” para sempre e as séries começam logo no nível Normal.</p>
+          <p className="mt-1 text-sm text-fg/90">Os Artistas Fundadores ganham mais nos primeiros {fcfg.founderMonths} meses, ficam com o selo “Artista Fundador” para sempre e as séries começam logo no nível Normal.</p>
         </div>
       )}
       {paidCents > 0 && <p className="mt-3 text-sm text-ok">A {brand.name} já pagou {formatKz(paidCents)} aos artistas.</p>}
@@ -80,7 +80,7 @@ export default async function ArtistRegisterPage({ searchParams }: { searchParam
           <legend className="px-1 text-sm font-semibold">Para começar, confirma (obrigatório)</legend>
           <Check name="c1">1. Autorizo a {brand.name} a mostrar as minhas séries.</Check>
           <Check name="c2">2. Aceito que os primeiros episódios sejam grátis, para atrair público.</Check>
-          <Check name="c3">3. Ganho {pct}% de cada desbloqueio, e {fcfg.founderSharePercent}% nos primeiros {fcfg.founderMonths} meses se for Artista Fundador.</Check>
+          <Check name="c3">3. Aceito a forma como ganho com cada desbloqueio, descrita na Política e no Acordo do Artista (os Artistas Fundadores ganham mais nos primeiros {fcfg.founderMonths} meses).</Check>
           <Check name="c4">4. O conteúdo é meu e respeita as regras da comunidade.</Check>
           <Check name="c5">5. Aceito as regras de levantamento (o 1.º a partir de {kzLabel(firstMin)}).</Check>
           <p className="text-xs text-muted">Todos os detalhes estão na <Link href="/legal/politica-artista" target="_blank" className="text-accent2 underline">Política do Artista</Link> e no <Link href="/legal/acordo-artista" target="_blank" className="text-accent2 underline">Acordo do Artista</Link> completos.</p>

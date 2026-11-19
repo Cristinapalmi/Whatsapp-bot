@@ -62,7 +62,6 @@ export function ActivityFeed({ items }: { items: { id: string; at: Date; icon: s
             <li key={a.id} className="flex items-center gap-3 py-2 text-sm">
               <span className="text-lg" aria-hidden>{a.icon}</span>
               <span className="min-w-0 flex-1"><span className="block">{a.text}</span><span className="text-xs text-muted">{timeAgo(a.at)}</span></span>
-              {a.cents > 0 && <span className="shrink-0 font-semibold text-ok">+{formatKz(a.cents)}</span>}
             </li>
           ))}
         </ul>

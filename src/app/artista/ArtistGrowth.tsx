@@ -1,4 +1,3 @@
-import { business } from "@config/business";
 import { siteUrl } from "@config/brand";
 import { db } from "@/lib/db";
 import { formatKz, kzToCents } from "@/lib/money";
@@ -49,7 +48,7 @@ export async function ArtistGrowth({ artist }: { artist: Artist }) {
 
   return (
     <>
-      {fUntil && fUntil > new Date() && <p className="mt-3 text-xs text-accent2">Como Artista Fundador ficas com {share}% de cada desbloqueio até {formatDate(fUntil)} (depois, {business.artistSharePercent}%).</p>}
+      {fUntil && fUntil > new Date() && <p className="mt-3 text-xs text-accent2">Bónus de Fundador ativo até {formatDate(fUntil)}: ganhas mais em cada desbloqueio.</p>}
 
       {best && (
         <section className="card mt-3 space-y-3">
