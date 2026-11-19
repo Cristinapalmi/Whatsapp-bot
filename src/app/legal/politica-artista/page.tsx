@@ -32,14 +32,14 @@ export default async function ArtistPolicy() {
         <ul>
           <li>Ganhas <strong>{pct}% de tudo o que o público gastar</strong> nas tuas séries — e os <strong>Artistas Fundadores ganham {c.founderSharePercent}%</strong> nos primeiros {c.founderMonths} meses.</li>
           <li>Cada desbloqueio aparece logo na tua carteira como <strong>pendente</strong> e passa sozinho a <strong>disponível</strong> {c.pendingDays} dias depois.</li>
-          <li>O teu <strong>primeiro levantamento é a partir de {firstMin}</strong>, para o teu IBAN ou Multicaixa Express. Tentamos pagar em 24 horas.</li>
+          <li>Levantas a partir de <strong>{firstMin}</strong>, para o teu IBAN ou Multicaixa Express. Tentamos pagar em 24 horas.</li>
           <li>Bónus quando as tuas séries chegam a marcos, e bónus por cada artista que convidares.</li>
           <li>Entrar é grátis. Tu crias, carregas e geres as tuas séries; nós revemos e publicamos.</li>
         </ul>
       </div>
 
-      <h2>Como dividimos o dinheiro</h2>
-      <p>Ganhas quando os teus fãs pagam para ver. De cada episódio desbloqueado (e de cada presente): <strong>{pct}% para ti, {100 - pct}% para a {n}</strong>. A metade da {n} paga os servidores, os vídeos, a divulgação das tuas séries e a equipa. <strong>Artistas Fundadores: {c.founderSharePercent}% para ti nos primeiros {c.founderMonths} meses</strong> (e {100 - c.founderSharePercent}% para a {n}).</p>
+      <h2>O que ganhas</h2>
+      <p><strong>Ganhas {pct}% do valor de cada episódio desbloqueado pelos teus fãs ({c.founderSharePercent}% nos primeiros {c.founderMonths} meses, se fores Artista Fundador), calculado depois das comissões de pagamento.</strong></p>
 
       <h2>O que ganhas com a {n}</h2>
       <ul>
@@ -97,7 +97,7 @@ export default async function ArtistPolicy() {
 
       <h3 className="mt-5 font-bold">5. A tua carteira e os levantamentos</h3>
       <ul>
-        <li><strong>Primeiro levantamento:</strong> a partir de {firstMin}. <strong>Seguintes:</strong> a partir de {min}.</li>
+        <li><strong>Levantamento mínimo:</strong> {firstMin === min ? <>a partir de {min}.</> : <>o primeiro a partir de {firstMin}; os seguintes a partir de {min}.</>}</li>
         <li><strong>Pendente:</strong> os ganhos ficam {c.pendingDays} dias em pendente e depois passam sozinhos a disponível (a data aparece na carteira). Se uma compra for anulada nesse período, o ganho correspondente sai do pendente. Os bónus da plataforma ficam disponíveis logo.</li>
         <li><strong>Para onde:</strong> uma conta em teu nome, por IBAN angolano ou Multicaixa Express.</li>
         <li><strong>Prazo:</strong> tentamos pagar em 24 horas. No primeiro levantamento confirmamos o teu BI e a conta antes de pagar.</li>

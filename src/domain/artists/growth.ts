@@ -17,6 +17,36 @@ import { formatKz, kzToCents } from "@/lib/money";
 
 export const MS_DAY = 86_400_000;
 
+/* ---------- BLOCOS: o painel do artista só mostra valores em blocos (ex.: 5.000 Kz) ---------- */
+export const blockCentsOf = async (db: Tx) => kzToCents(await getInt(db, "earningsBlockKz"));
+/** Arredonda para baixo ao bloco (ex.: 7.300 Kz → 5.000 Kz). */
+export const floorBlock = (cents: number, block: number) => (cents > 0 ? Math.floor(cents / block) * block : 0);
+/** Progresso dentro do bloco atual (0..1), sem números. */
+export const blockProgress = (cents: number, block: number) => (cents > 0 ? (cents % block) / block : 0);
+/** Texto de um valor só se chegar a um bloco; senão null (não se mostra). */
+const blockText = (cents: number, block: number) => (cents >= block ? formatKz(floorBlock(cents, block)) : null);
+
+/** Avisa quando o disponível completa um novo bloco: "🎉 Ganhaste 5.000 Kz! Já podes levantar." */
+export async function checkAvailableBlocks(db: PrismaClient, artistId: string) {
+  const { balance } = await import("../money/ledger");
+  const [block, artist, available] = await Promise.all([
+    blockCentsOf(db),
+    db.artistProfile.findUnique({ where: { id: artistId }, select: { userId: true, lastAvailableBlock: true } }),
+    balance(db, artistAvailable(artistId)),
+  ]);
+  if (!artist) return 0;
+  const blocks = available > 0 ? Math.floor(available / block) : 0;
+  if (blocks === artist.lastAvailableBlock) return 0;
+  // Só avisa quando sobe; se desceu (levantamento), só atualiza
+  const upd = await db.artistProfile.updateMany({ where: { id: artistId, lastAvailableBlock: artist.lastAvailableBlock }, data: { lastAvailableBlock: blocks } });
+  if (upd.count === 1 && blocks > artist.lastAvailableBlock) {
+    const gained = (blocks - artist.lastAvailableBlock) * block;
+    await notify(db, artist.userId, "Novo bloco disponível 🎉", `🎉 Ganhaste ${formatKz(gained)}! Já podes levantar.`, "/artista/carteira#levantar");
+    return blocks - artist.lastAvailableBlock;
+  }
+  return 0;
+}
+
 /** Parte do artista (%) num dado momento. */
 export async function artistShareFor(db: Tx, artist: { founderNumber: number | null; createdAt: Date }, now = new Date()) {
   if (artist.founderNumber) {
@@ -99,7 +129,9 @@ export async function afterArtistSale(db: PrismaClient, { artistId, seriesId }: 
           if (mark.count !== 1) return;
           await payBonus(tx, inviter.id, kzToCents(bonusKz), `artist-referral:${artistId}`, `Bónus "Traz um kamba": ${artist.stageName} fez a 1.ª venda`);
         });
-        await notify(db, inviter.userId, "Bónus de convite 🤝", `O teu kamba ${artist.stageName} fez a primeira venda. Ganhaste um bónus de ${formatKz(kzToCents(bonusKz))}!`, "/artista/carteira");
+        const bt = blockText(kzToCents(bonusKz), await blockCentsOf(db));
+        await notify(db, inviter.userId, "Bónus de convite 🤝", `O teu kamba ${artist.stageName} fez a primeira venda. Ganhaste um bónus${bt ? ` de ${bt}` : ""}! 🤝`, "/artista/carteira");
+        await checkAvailableBlocks(db, inviter.id);
       }
     }
   }
@@ -125,11 +157,15 @@ export async function afterArtistSale(db: PrismaClient, { artistId, seriesId }: 
       if (m.crown) await tx.series.update({ where: { id: seriesId }, data: { crownedAt: new Date() } });
       return true;
     }).catch(() => false); // dois pedidos ao mesmo tempo: a chave única garante um só bónus
-    if (paid)
+    if (paid) {
+      const bt = blockText(m.bonusCents, await blockCentsOf(db));
       await notify(db, artist.userId, m.crown ? "Série coroada 👑" : "Marco atingido 🏆",
-        `A tua série "${series.title}" chegou a ${m.unlocks.toLocaleString("pt-AO")} desbloqueios!${m.bonusCents ? ` Ganhaste um bónus de ${formatKz(m.bonusCents)}.` : ""}${m.crown ? " Agora tem a coroa 👑." : ""}`,
+        `A tua série "${series.title}" chegou a ${m.unlocks.toLocaleString("pt-AO")} desbloqueios!${m.bonusCents ? ` Ganhaste um bónus${bt ? ` de ${bt}` : ""}.` : ""}${m.crown ? " Agora tem a coroa 👑." : ""}`,
         "/artista/carteira");
+    }
   }
+
+  await checkAvailableBlocks(db, artistId).catch(() => {});
 
   // Marcos de ganhos (só aviso)
   const earned = await db.coinSpend.aggregate({ where: { artistId, reversedAt: null, OR: [{ seriesId }, { episode: { seriesId } }] }, _sum: { artistCents: true } });
@@ -141,16 +177,19 @@ export async function afterArtistSale(db: PrismaClient, { artistId, seriesId }: 
   }
 }
 
-/** Metas de ganhos (Kz) do artista, somando todas as séries. */
-export const ARTIST_GOALS_KZ = [1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000];
-
+/** Metas de ganhos do artista: cada bloco completo (5.000, 10.000, 15.000 Kz…). */
 async function checkArtistGoals(db: PrismaClient, artist: { id: string; userId: string }) {
   const { getArtistWallet } = await import("../money/ledger");
+  const blockKz = await getInt(db, "earningsBlockKz");
   const totalKz = Math.floor((await getArtistWallet(db, artist.id)).earnedTotalCents / 100);
-  for (const kz of ARTIST_GOALS_KZ) {
-    if (totalKz < kz) break;
+  const reached = Math.floor(totalKz / blockKz);
+  if (reached <= 0) return;
+  const last = await db.artistGoal.aggregate({ where: { artistId: artist.id, thresholdKz: { gte: blockKz } }, _max: { thresholdKz: true } });
+  const from = Math.max(1, Math.floor((last._max.thresholdKz ?? 0) / blockKz) + 1, reached - 20);
+  for (let k = from; k <= reached; k++) {
+    const kz = k * blockKz;
     const r = await db.artistGoal.createMany({ data: [{ artistId: artist.id, thresholdKz: kz }], skipDuplicates: true });
-    if (r.count === 1) await notify(db, artist.userId, "Meta atingida 🏆", `Parabéns! As tuas séries já geraram ${formatKz(kzToCents(kz))} para ti.`, "/artista");
+    if (r.count === 1) await notify(db, artist.userId, "Meta atingida 🏆", `🎉 Já acumulaste ${formatKz(kzToCents(kz))}!`, "/artista");
   }
 }
 
@@ -180,10 +219,13 @@ export async function sendDailySummaries(db: PrismaClient, now = new Date()) {
     per.set(s.artistId, x);
   }
   const artists = await db.artistProfile.findMany({ where: { id: { in: [...per.keys()] } }, select: { id: true, userId: true } });
+  const block = await blockCentsOf(db);
   for (const a of artists) {
     const x = per.get(a.id)!;
     if (x.cents <= 0) continue;
-    await notify(db, a.userId, "Resumo do dia 🔥", `Hoje a tua série gerou ${formatKz(x.cents)}! (${x.unlocks} ${x.unlocks === 1 ? "desbloqueio" : "desbloqueios"}) 🔥`, "/artista");
+    const bt = blockText(x.cents, block);
+    const n = `${x.unlocks} ${x.unlocks === 1 ? "desbloqueio" : "desbloqueios"}`;
+    await notify(db, a.userId, "Resumo do dia 🔥", bt ? `Hoje a tua série gerou mais de ${bt}! (${n}) 🔥` : `Hoje tiveste ${n} 🔥 O teu próximo bloco de ganhos está mais perto.`, "/artista");
   }
   return artists.length;
 }
@@ -321,9 +363,10 @@ export async function artistMoneySnapshot(db: Tx, artistId: string, now = new Da
     db.series.findMany({ where: { artistId, status: "PUBLISHED" }, select: { id: true, title: true } }),
   ]);
   const totalKz = Math.floor(wallet.earnedTotalCents / 100);
-  // Próxima meta de ganhos (sem prémio em dinheiro)
-  const nextGoalKz = ARTIST_GOALS_KZ.find((kz) => kz > totalKz) ?? null;
-  const prevGoalKz = [...ARTIST_GOALS_KZ].reverse().find((kz) => kz <= totalKz) ?? 0;
+  // Próxima meta de ganhos: o próximo bloco (sem prémio em dinheiro)
+  const blockKz = await getInt(db, "earningsBlockKz");
+  const prevGoalKz = Math.max(0, Math.floor(totalKz / blockKz) * blockKz);
+  const nextGoalKz = prevGoalKz + blockKz;
   // Próxima conquista com prémio: o marco de desbloqueios mais perto, entre as séries publicadas
   let nextReward: { seriesTitle: string; unlocks: number; target: number; bonusCents: number; crown: boolean } | null = null;
   for (const s of series) {
@@ -341,7 +384,7 @@ export async function artistMoneySnapshot(db: Tx, artistId: string, now = new Da
     db.seriesMilestone.findMany({ where: { kind: "UNLOCKS", series: { artistId }, createdAt: { gt: since } }, include: { series: { select: { title: true, crownedAt: true } } }, orderBy: { createdAt: "asc" } }),
   ]);
   const achievements = [
-    ...newGoals.map((g) => ({ id: `g-${g.id}`, at: g.createdAt.getTime(), title: `As tuas séries já geraram ${formatKz(kzToCents(g.thresholdKz))}!`, prizeCents: 0 })),
+    ...newGoals.filter((g) => g.thresholdKz % blockKz === 0).map((g) => ({ id: `g-${g.id}`, at: g.createdAt.getTime(), title: `🎉 Já acumulaste ${formatKz(kzToCents(g.thresholdKz))}!`, prizeCents: 0 })),
     ...newMilestones.map((m) => ({ id: `m-${m.id}`, at: m.createdAt.getTime(), title: `"${m.series.title}" chegou a ${m.threshold.toLocaleString("pt-AO")} desbloqueios!`, prizeCents: m.bonusCents })),
   ].sort((a, b) => a.at - b.at);
   return {
@@ -378,3 +421,28 @@ export async function resetFounders(db: PrismaClient) {
     return { founders: artists.length, left: Math.max(0, limit - artists.length) };
   });
 }
+
+
+/**
+ * O que o painel MOSTRA (só blocos, sem valores abaixo do bloco). Os valores exatos ficam no
+ * servidor e no extrato da Carteira.
+ */
+export function toMoneyDisplay(s: ArtistMoneySnapshot, blockCents: number) {
+  const nextPending = s.pendingSchedule[0];
+  return {
+    blockCents,
+    total: { shownCents: floorBlock(s.totalCents, blockCents), progress: blockProgress(s.totalCents, blockCents), blocks: Math.floor(Math.max(0, s.totalCents) / blockCents) },
+    pending: { shownCents: floorBlock(s.pendingCents, blockCents), hasSome: s.pendingCents > 0, daysLeft: nextPending ? nextPending.daysLeft : null },
+    available: { shownCents: floorBlock(s.availableCents, blockCents), progress: blockProgress(s.availableCents, blockCents), blocks: Math.floor(Math.max(0, s.availableCents) / blockCents) },
+    canWithdraw: s.availableCents >= s.minPayoutCents,
+    minPayoutCents: s.minPayoutCents,
+    withdrawnCents: s.withdrawnCents,
+    processingCents: s.processingCents,
+    activeToday: s.todayCents > 0,
+    goal: s.goal ? { targetCents: s.goal.targetCents, progress: Math.max(0, Math.min(1, (s.totalCents - s.goal.fromCents) / (s.goal.targetCents - s.goal.fromCents))) } : null,
+    goalsReached: s.goalsReached,
+    nextReward: s.nextReward ? { ...s.nextReward, bonusCents: s.nextReward.bonusCents >= blockCents ? floorBlock(s.nextReward.bonusCents, blockCents) : 0, hasBonus: s.nextReward.bonusCents > 0 } : null,
+    achievements: s.achievements.map((a) => ({ ...a, prizeCents: a.prizeCents >= blockCents ? floorBlock(a.prizeCents, blockCents) : 0, hasPrize: a.prizeCents > 0 })),
+  };
+}
+export type MoneyDisplay = ReturnType<typeof toMoneyDisplay>;

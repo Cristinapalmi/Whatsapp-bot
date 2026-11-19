@@ -80,9 +80,9 @@ export default async function ArtistRegisterPage({ searchParams }: { searchParam
           <legend className="px-1 text-sm font-semibold">Para começar, confirma (obrigatório)</legend>
           <Check name="c1">1. Autorizo a {brand.name} a mostrar as minhas séries.</Check>
           <Check name="c2">2. Aceito que os primeiros episódios sejam grátis, para atrair público.</Check>
-          <Check name="c3">3. Aceito a forma como ganho com cada desbloqueio, descrita na Política e no Acordo do Artista (os Artistas Fundadores ganham mais nos primeiros {fcfg.founderMonths} meses).</Check>
+          <Check name="c3">3. Ganho {pct}% de cada episódio desbloqueado pelos meus fãs ({fcfg.founderSharePercent}% nos primeiros {fcfg.founderMonths} meses, se for Artista Fundador).</Check>
           <Check name="c4">4. O conteúdo é meu e respeita as regras da comunidade.</Check>
-          <Check name="c5">5. Aceito as regras de levantamento (o 1.º a partir de {kzLabel(firstMin)}).</Check>
+          <Check name="c5">5. Aceito as regras de levantamento (a partir de {kzLabel(firstMin)}).</Check>
           <p className="text-xs text-muted">Todos os detalhes estão na <Link href="/legal/politica-artista" target="_blank" className="text-accent2 underline">Política do Artista</Link> e no <Link href="/legal/acordo-artista" target="_blank" className="text-accent2 underline">Acordo do Artista</Link> completos.</p>
         </fieldset>
         <Check name="terms">Li e aceito os <Link href="/legal/termos" target="_blank" className="text-accent2 underline">Termos</Link> e a <Link href="/legal/privacidade" target="_blank" className="text-accent2 underline">Política de Privacidade</Link>.</Check>

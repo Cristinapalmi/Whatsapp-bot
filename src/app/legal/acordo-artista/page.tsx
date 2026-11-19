@@ -31,7 +31,7 @@ export default async function ArtistAgreement() {
         <ul>
           <li>Publicas as tuas séries na {n} e ganhas <strong>{pct}% de tudo o que o público gastar</strong> nelas (Artistas Fundadores: {c.founderSharePercent}% nos primeiros {c.founderMonths} meses).</li>
           <li>As séries continuam a ser tuas.</li>
-          <li>O dinheiro vai para a tua carteira na app; o primeiro levantamento é a partir de {firstMin}.</li>
+          <li>O dinheiro vai para a tua carteira na app; levantas a partir de {firstMin}.</li>
           <li>Bónus por marcos e por artistas que convidares.</li>
           <li>Entrar é grátis e não há exclusividade. Podes apagar ou retirar as tuas séries.</li>
         </ul>
@@ -48,8 +48,8 @@ export default async function ArtistAgreement() {
         Telefone: {blank} · E-mail: {blank}
       </p>
 
-      <h2>Como dividimos o dinheiro</h2>
-      <p>Ganhas quando os teus fãs pagam para ver. De cada episódio desbloqueado (e de cada presente): <strong>{pct}% para ti, {100 - pct}% para a {n}</strong>. A metade da {n} paga os servidores, os vídeos, a divulgação das tuas séries e a equipa. <strong>Artistas Fundadores: {c.founderSharePercent}% para ti nos primeiros {c.founderMonths} meses</strong> (e {100 - c.founderSharePercent}% para a {n}).</p>
+      <h2>O que ganhas</h2>
+      <p><strong>Ganhas {pct}% do valor de cada episódio desbloqueado pelos teus fãs ({c.founderSharePercent}% nos primeiros {c.founderMonths} meses, se fores Artista Fundador), calculado depois das comissões de pagamento.</strong></p>
 
       <h2>O que ganhas com a {n}</h2>
       <ul>
@@ -100,7 +100,7 @@ export default async function ArtistAgreement() {
       <h3 className="mt-5 font-bold">5. Carteira e levantamentos</h3>
       <ul>
         <li>Os ganhos ficam registados na carteira do artista na app: primeiro como pendentes durante {c.pendingDays} dias, depois como disponíveis (pode levantar). Se uma compra for anulada durante esse período, o ganho correspondente é retirado do pendente. Os bónus pagos pela plataforma ficam disponíveis de imediato.</li>
-        <li>Primeiro levantamento a partir de {firstMin}; os seguintes a partir de {min}. Para uma conta em nome do artista (IBAN angolano ou Multicaixa Express).</li>
+        <li>{firstMin === min ? <>Levantamento a partir de {min}.</> : <>Primeiro levantamento a partir de {firstMin}; os seguintes a partir de {min}.</>} Para uma conta em nome do artista (IBAN angolano ou Multicaixa Express).</li>
         <li>A {n} tenta pagar em 24 horas; no primeiro levantamento confirma antes o BI e a conta.</li>
         <li>Se uma compra de moedas for anulada, os ganhos que vieram dessas moedas saem da carteira.</li>
       </ul>

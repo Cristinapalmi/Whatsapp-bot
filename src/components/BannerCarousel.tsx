@@ -85,7 +85,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
       <div className="overflow-hidden border-y border-accent/25 shadow-[0_12px_40px_-14px_rgb(var(--c-accent)/0.55)] sm:rounded-3xl sm:border">
         {/* Formato baixo e largo (2,4:1); no computador até 420 px de altura */}
         <div
-          className="relative aspect-[2.4/1] max-h-[420px] w-full bg-[linear-gradient(120deg,#2b170b_0%,#170d07_30%,#0b0604_55%,#0b0604_100%)]"
+          className="relative aspect-[1.85/1] max-h-[420px] w-full sm:aspect-[2.4/1] bg-[linear-gradient(120deg,#2b170b_0%,#170d07_30%,#0b0604_55%,#0b0604_100%)]"
           onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
           onTouchEnd={(e) => {
             if (touch.current === null) return;
@@ -120,7 +120,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlideView[] }) {
                     <Link
                       href={s.href}
                       tabIndex={k === i ? 0 : -1}
-                      className="btn-glow mt-1.5 min-h-0 self-start rounded-full px-3 py-1 text-[10px] font-extrabold no-underline sm:mt-4 sm:px-6 sm:py-2.5 sm:text-base"
+                      className="btn-glow mt-2 min-h-[44px] self-start whitespace-nowrap rounded-full px-4 py-0 text-[12px] font-extrabold no-underline sm:mt-4 sm:px-6 sm:text-base"
                     >
                       {s.ctaText}
                     </Link>

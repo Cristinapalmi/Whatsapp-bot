@@ -64,6 +64,6 @@ export const business = {
   legalVersions: {
     terms: "2026-11-v4",
     privacy: "2026-11-v1",
-    artistPolicy: "2026-11-v7",
+    artistPolicy: "2026-11-v8",
   },
 } as const;

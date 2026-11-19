@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { releaseDuePending } from "@/domain/money/ledger";
 import { deleteObject } from "@/domain/storage";
 import { purgeWithdrawnSeries } from "@/domain/series-workflow";
-import { sendDailySummaries } from "@/domain/artists/growth";
+import { checkAvailableBlocks, sendDailySummaries } from "@/domain/artists/growth";
 import { processPendingInvites } from "@/domain/fans/invites";
 
 /**
@@ -16,6 +16,8 @@ export async function GET(req: Request) {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`)
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const released = await releaseDuePending(db);
+  // "🎉 Ganhaste 5.000 Kz! Já podes levantar." para quem completou um bloco disponível
+  for (const a of await db.artistProfile.findMany({ where: { status: "APPROVED" }, select: { id: true } })) await checkAvailableBlocks(db, a.id).catch(() => {});
   const summaries = await sendDailySummaries(db);
   const invites = await processPendingInvites(db);
   const purged = await purgeWithdrawnSeries(db, new Date(), (k) => deleteObject("media", k));

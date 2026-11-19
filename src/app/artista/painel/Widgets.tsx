@@ -118,7 +118,7 @@ export async function SeriesCards({ series, today, audience }: {
               <span className={`${STATUS[s.status][1]} mt-0.5`}>{STATUS[s.status][0]}</span>
               <p className="mt-1 text-xs text-muted">
                 {s._count.episodes} ep. · {(audience.get(s.id) ?? 0).toLocaleString("pt-AO")} a acompanhar
-                {s.status === "PUBLISHED" && <> · <span className={(today.get(s.id) ?? 0) > 0 ? "font-semibold text-ok" : ""}>hoje {formatKz(today.get(s.id) ?? 0)}</span></>}
+                {s.status === "PUBLISHED" && (today.get(s.id) ?? 0) > 0 && <> · <span className="font-semibold text-ok">a render hoje 🔥</span></>}
               </p>
             </div>
             <IconChevronRight size={18} className="text-muted" />

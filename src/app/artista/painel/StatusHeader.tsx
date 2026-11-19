@@ -10,7 +10,7 @@ export async function StatusHeader({ artist, level, crowned, share }: {
   level: { tier: null | "ENTRY" | "NORMAL" | "PREMIUM"; progress: number; now: number; target: number };
   crowned: boolean;
   /** Até quando o bónus de Fundador está ativo (null = sem bónus). */
-  share: { founderUntil: Date | null };
+  share: { founderUntil: Date | null; founderPercent: number };
 }) {
   const photo = await mediaUrl(artist.photoKey);
   const R = 46;
@@ -36,7 +36,7 @@ export async function StatusHeader({ artist, level, crowned, share }: {
           {artist.founderNumber && <span className="badge-free"><IconStar size={12} /> Fundador n.º {artist.founderNumber}</span>}
           {artist.verifiedAt && <span className="badge-unlocked">✓ Verificado</span>}
           {level.tier && <span className="badge-price">Nível {TIER[level.tier]}</span>}
-          {share.founderUntil && <span className="badge-unlocked">Bónus de Fundador ativo até {formatDate(share.founderUntil)}</span>}
+          {share.founderUntil && <span className="badge-unlocked">Bónus de Fundador ativo: {share.founderPercent}% até {formatDate(share.founderUntil)}</span>}
         </div>
         <p className="mt-1 text-xs text-muted">
           {!level.tier

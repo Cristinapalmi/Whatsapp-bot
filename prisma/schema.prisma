@@ -166,6 +166,8 @@ model ArtistProfile {
   showEarningsInRanking Boolean @default(false)
   /// Definições: avisar a cada desbloqueio (desligado por defeito).
   notifyEachUnlock Boolean     @default(false)
+  /// Último bloco de ganhos disponível já avisado ("🎉 Ganhaste 5.000 Kz! Já podes levantar.").
+  lastAvailableBlock Int        @default(0)
   /// Até quando o artista já viu as conquistas (para mostrar a animação das novas uma vez).
   achievementsSeenAt DateTime?
   createdAt       DateTime     @default(now())

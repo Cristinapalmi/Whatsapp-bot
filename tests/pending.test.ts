@@ -44,7 +44,7 @@ describe("Pendente de 3 dias", () => {
     expect((await artistMoneySnapshot(db, artist.id)).pendingSchedule[0].daysLeft).toBe(3);
     // não dá para levantar o pendente
     await db.payoutAccount.create({ data: { artistId: artist.id, method: "MULTICAIXA_EXPRESS", holderName: "X", mcxPhone: "+244923000000" } });
-    await expect(requestPayout(db, { artistId: artist.id, amountCents: 100000 })).rejects.toThrow(/insuficiente/);
+    await expect(requestPayout(db, { artistId: artist.id, amountCents: 500000 })).rejects.toThrow(/insuficiente/);
     // ainda não: nada passa
     expect(await releaseDuePending(db, { now: new Date(Date.now() + 2 * D) })).toBe(0);
     // passados 3 dias: passa sozinho, uma vez

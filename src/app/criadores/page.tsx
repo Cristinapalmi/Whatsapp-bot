@@ -67,7 +67,7 @@ export default async function CreatorsPage() {
         {[
           ["Publica", "Cria a tua série na app e carrega os episódios (vídeos verticais). A equipa revê e publica."],
           ["Conquista", "Os fãs veem os 3 primeiros episódios grátis. Partilha o teu link e o kit de promoção nas redes."],
-          ["Monetiza", `Cada episódio desbloqueado entra na tua carteira. O primeiro levantamento é a partir de ${kzLabel(c.payoutFirstMinKz)}, por Multicaixa Express ou IBAN.`],
+          ["Monetiza", `Cada episódio desbloqueado entra na tua carteira. Levantas a partir de ${kzLabel(c.payoutFirstMinKz)}, por Multicaixa Express ou IBAN.`],
         ].map(([t, d], i) => (
           <li key={t} className="card flex gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent font-display font-extrabold text-[#1A0E05]">{i + 1}</span>
@@ -86,7 +86,7 @@ export default async function CreatorsPage() {
         {[
           ["É grátis?", `Sim. Registar-te e publicar na ${brand.name} não custa nada. Só ganhas — nunca pagas.`],
           ["Os vídeos continuam meus?", "Sim. As séries continuam a ser tuas e podes continuar a publicá-las onde quiseres. Podes retirar uma série quando quiseres."],
-          ["Quando e como recebo?", `Cada ganho aparece logo na tua carteira e fica disponível ${c.pendingDays} dias depois. Pedes o levantamento para o teu Multicaixa Express ou IBAN (o primeiro a partir de ${kzLabel(c.payoutFirstMinKz)}) e tentamos pagar em 24 horas.`],
+          ["Quando e como recebo?", `Cada ganho aparece logo na tua carteira e fica disponível ${c.pendingDays} dias depois. Pedes o levantamento para o teu Multicaixa Express ou IBAN (a partir de ${kzLabel(c.payoutFirstMinKz)}) e tentamos pagar em 24 horas.`],
           ["Isto não é esquema?", `Não. Não pedimos dinheiro a ninguém e não prometemos ganhos fixos: ganhas quando o público paga para ver as tuas séries. Tudo fica registado na tua carteira, movimento a movimento, e as regras estão escritas na Política do Artista.`],
         ].map(([q, a]) => (
           <details key={q} className="card">

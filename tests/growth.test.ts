@@ -82,12 +82,16 @@ describe("1.ª venda, convite e marcos", () => {
     // resumo diário: uma vez por dia
     expect(await sendDailySummaries(db)).toBeGreaterThan(0);
     expect(await sendDailySummaries(db)).toBe(0);
-    expect(await db.notification.count({ where: { userId: artist.userId, body: { startsWith: "Hoje a tua série gerou" } } })).toBe(1);
+    expect(await db.notification.count({ where: { userId: artist.userId, body: { startsWith: "Hoje" } } })).toBe(1);
   });
 });
 
 describe("Levantamentos", () => {
-  it("1.º levantamento a partir de 1.000 Kz; os seguintes a partir de 5.000 Kz; contador público", async () => {
+  it("mínimo de levantamento por defeito 5.000 Kz; 1.º e seguintes editáveis; contador público", async () => {
+    const { payoutMinCents: pm } = await import("@/domain/payouts/service");
+    const probe = await makeArtistWithSeries(db);
+    expect(await pm(db, probe.artist.id)).toBe(500000);
+    await setSetting(db, "payoutFirstMinKz", "1000");
     const { artist, episodes } = await makeArtistWithSeries(db, { freeEpisodes: 1, episodes: 8 });
     await db.payoutAccount.create({ data: { artistId: artist.id, method: "MULTICAIXA_EXPRESS", holderName: "X", mcxPhone: "+244923000000" } });
     await db.artistProfile.update({ where: { id: artist.id }, data: { verifiedAt: new Date() } });
@@ -100,6 +104,7 @@ describe("Levantamentos", () => {
     const paidBefore = await totalPaidToArtists(db);
     await markPayoutPaid(db, { payoutId: p.id, adminId: admin.id });
     expect((await totalPaidToArtists(db)) - paidBefore).toBe(100000);
+    await setSetting(db, "payoutFirstMinKz", "5000");
   });
 });
 
@@ -124,8 +129,13 @@ describe("Painel financeiro do artista (dados reais)", () => {
     expect(s1.totalCents).toBe(70000); // 7 × 100 Kz
     expect(s1.availableCents).toBe(70000);
     expect(s1.todayCents).toBe(70000);
-    // meta de 1.000 Kz ainda não; próxima meta 1.000 Kz
-    expect(s1.goal?.targetCents).toBe(100000);
+    // metas em blocos de 5.000 Kz
+    expect(s1.goal?.targetCents).toBe(500000);
+    const { toMoneyDisplay } = await import("@/domain/artists/growth");
+    const disp = toMoneyDisplay(s1, 500000);
+    expect(disp.total.shownCents).toBe(0); // 700 Kz < 5.000 → não se mostra
+    expect(disp.total.progress).toBeCloseTo(0.14, 2);
+    expect(disp.available.shownCents).toBe(0);
     const hist = await earningsHistory(db, artist.id, "day");
     expect(hist).toHaveLength(30);
     expect(hist.at(-1)!.cents).toBe(70000);
@@ -186,5 +196,27 @@ describe("Repor contador de Fundadores", () => {
     const nums = (await db.artistProfile.findMany({ where: { founderNumber: { not: null } }, orderBy: { founderNumber: "asc" }, select: { founderNumber: true } })).map((x) => x.founderNumber);
     expect(nums).toEqual(Array.from({ length: nums.length }, (_, i) => i + 1));
     expect((await foundersLeft(db)).left).toBe(r.left);
+  });
+});
+
+describe("Blocos de 5.000 Kz no painel", () => {
+  it("arredonda para baixo, metas por bloco e aviso 'Ganhaste 5.000 Kz! Já podes levantar.' uma vez por bloco", async () => {
+    const { floorBlock, blockProgress, checkAvailableBlocks, toMoneyDisplay, artistMoneySnapshot } = await import("@/domain/artists/growth");
+    expect(floorBlock(730000, 500000)).toBe(500000);
+    expect(floorBlock(1490000, 500000)).toBe(1000000);
+    expect(floorBlock(499999, 500000)).toBe(0);
+    expect(blockProgress(750000, 500000)).toBeCloseTo(0.5);
+    const { artist } = await makeArtistWithSeries(db);
+    // 12.000 Kz disponíveis (ex.: bónus pago pela plataforma)
+    const { postEntry } = await import("@/domain/money/ledger");
+    const { PLATFORM_REVENUE, artistAvailable } = await import("@/domain/money/accounts");
+    await postEntry(db, { kind: "ARTIST_BONUS", description: "teste", idempotencyKey: `t-${artist.id}`, lines: [{ account: PLATFORM_REVENUE, amountCents: 1200000 }, { account: artistAvailable(artist.id), amountCents: -1200000 }] });
+    expect(await checkAvailableBlocks(db, artist.id)).toBe(2);
+    expect(await checkAvailableBlocks(db, artist.id)).toBe(0); // não repete
+    const n = await db.notification.findFirst({ where: { userId: artist.userId, body: { contains: "Já podes levantar" } } });
+    expect(n?.body).toBe("🎉 Ganhaste 10 000 Kz! Já podes levantar.".replace("10 000", n!.body.match(/Ganhaste (.+) Kz/)![1]));
+    const d = toMoneyDisplay(await artistMoneySnapshot(db, artist.id), 500000);
+    expect(d.available.shownCents).toBe(1000000);
+    expect(d.canWithdraw).toBe(true);
   });
 });
