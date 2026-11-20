@@ -1,4 +1,5 @@
 "use client";
+import { askLogin } from "@/lib/ask-login";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toggleFavoriteAction } from "@/app/lista/actions";
@@ -16,7 +17,7 @@ export function FavoriteButton({ seriesId, initial, next }: { seriesId: string; 
       onClick={() =>
         start(async () => {
           const r = await toggleFavoriteAction(seriesId);
-          if (r.login) router.push(`/entrar?next=${encodeURIComponent(next)}`);
+          if (r.login) askLogin(next);
           else if (r.ok) setSaved(!!r.saved);
         })
       }

@@ -1,4 +1,5 @@
 "use client";
+import { askLogin } from "@/lib/ask-login";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toggleFollowAction } from "@/app/seguir/actions";
@@ -18,7 +19,7 @@ export function FollowButton({ artistId, initial, count, next }: { artistId: str
         onClick={() =>
           start(async () => {
             const r = await toggleFollowAction(artistId);
-            if (r.login) router.push(`/entrar?next=${encodeURIComponent(next)}`);
+            if (r.login) askLogin(next);
             else if (r.ok) {
               setFollowing(!!r.following);
               setN((x) => x + (r.following ? 1 : -1));

@@ -79,3 +79,7 @@ a { @apply underline-offset-4; }
   .btn-glow::after, .animate-floaty, .animate-floaty-slow { animation: none !important; }
   .btn-glow::after { display: none; }
 }
+
+/* Janela de entrada a subir de baixo */
+@keyframes sheetup { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { @keyframes sheetup { from, to { transform: none; opacity: 1; } } }

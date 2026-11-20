@@ -45,7 +45,8 @@ describe("Comprovativos suspeitos (só marca, nunca decide)", () => {
     const fan = await makeUser(db);
     const admin = await makeUser(db, "ADMIN");
     const p = await createCoinPaymentRequest(db, { userId: fan.id, packId: "p1000", method: "MULTICAIXA_EXPRESS", payerPhone: "+244923000000", transactionRef: "784512369", proofHash: randomHash(), storeProof: async () => "k" });
-    const reasons = await checkPaymentProof(db, p.id, Buffer.from(""), "png", async () => facts(good.replace("1.000,00", "500,00")));
+    const hoje = new Date(Date.now() + 3600_000).toISOString().slice(0, 10).split("-").reverse().join("/");
+    const reasons = await checkPaymentProof(db, p.id, Buffer.from(""), "png", async () => facts(good.replace("1.000,00", "500,00").replace("18/11/2026", hoje)));
     expect(reasons!.length).toBe(1);
     const after = await db.paymentRequest.findUniqueOrThrow({ where: { id: p.id } });
     expect(after.suspicious).toBe(true);

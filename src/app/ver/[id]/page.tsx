@@ -17,6 +17,7 @@ import { adOfferStatus } from "@/domain/ads/service";
 import { houseAdProvider } from "@/domain/ads/provider";
 import { watchableSeriesWhere, withdrawnUntil } from "@/domain/series-workflow";
 import { formatDate } from "@/lib/dates";
+import { AuthWall } from "@/components/AuthWall";
 import { ReelPlayer } from "./ReelPlayer";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,11 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
   if (!episode) notFound();
   const { series } = episode;
   const user = await getCurrentUser();
+  // Conta obrigatória para ver (incluindo os episódios grátis)
+  if (!user) {
+    const cover = await mediaUrl(series.coverKey);
+    return <AuthWall next={`/ver/${episode.id}`} title={series.title} episode={episode.number} coverUrl={cover} backHref={`/serie/${series.slug}`} />;
+  }
 
   const [states, cover, points, balance, priceCoins, gifts, fav, adEnts, ads] = await Promise.all([
     episodeStates(db, user?.id ?? null, series, series.episodes),

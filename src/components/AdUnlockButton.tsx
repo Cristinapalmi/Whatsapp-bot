@@ -1,4 +1,5 @@
 "use client";
+import { askLogin } from "@/lib/ask-login";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { completeAdAction, startAdAction } from "@/app/ver/[id]/ad-actions";
@@ -23,7 +24,7 @@ export function AdUnlockButton({ episodeId, disabled, onUnlocked }: { episodeId:
     const r = await startAdAction(episodeId);
     setLoading(false);
     if (!r.ok) {
-      if (r.code === "LOGIN") router.push(`/entrar?next=${encodeURIComponent(`/ver/${episodeId}`)}`);
+      if (r.code === "LOGIN") askLogin(`/ver/${episodeId}`);
       else setError(r.error);
       return;
     }

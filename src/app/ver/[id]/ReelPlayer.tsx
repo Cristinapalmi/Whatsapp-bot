@@ -1,4 +1,5 @@
 "use client";
+import { askLogin } from "@/lib/ask-login";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -272,7 +273,7 @@ export function ReelPlayer(p: Props) {
   // ---------- botões da direita ----------
   async function toggleFav() {
     const r = await toggleFavoriteAction(p.series.id);
-    if (r.login) router.push(`/entrar?next=${encodeURIComponent(`/ver/${ep.id}`)}`);
+    if (r.login) askLogin(`/ver/${ep.id}`);
     else if (r.ok) {
       setFav(!!r.saved);
       flash(r.saved ? "Guardada na tua lista" : "Retirada da tua lista");
@@ -330,7 +331,7 @@ export function ReelPlayer(p: Props) {
     flash(v ? "Legendas ligadas" : "Legendas desligadas");
   }
   async function sendGift(code: string) {
-    if (!p.loggedIn) return router.push(`/entrar?next=${encodeURIComponent(`/ver/${ep.id}`)}`);
+    if (!p.loggedIn) return askLogin(`/ver/${ep.id}`);
     const g = p.gifts.find((x) => x.code === code);
     if (!g) return;
     if (balance < g.priceCoins) return flash(`Precisas de ${g.priceCoins} moedas`);

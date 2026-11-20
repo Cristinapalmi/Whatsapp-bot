@@ -1,4 +1,5 @@
 "use client";
+import { askLogin } from "@/lib/ask-login";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
@@ -106,7 +107,7 @@ export function UnlockSheet(p: Props) {
       setError(null);
       const r = await fn();
       if (r.ok) p.onUnlocked(via);
-      else if (r.code === "LOGIN") router.push(`/entrar?next=${encodeURIComponent(here)}`);
+      else if (r.code === "LOGIN") askLogin(here);
       else setError(r.error ?? "Erro");
     });
 

@@ -7,6 +7,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { RegisterSW } from "@/components/RegisterSW";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import { PresenceToast } from "@/components/PresenceToast";
+import { AuthSheet } from "@/components/AuthSheet";
 import { ChromeGate } from "@/components/ChromeGate";
 import "./globals.css";
 
@@ -66,6 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <RegisterSW />
         <SuggestionCard />
         <PresenceToast />
+        <AuthSheet />
       </body>
     </html>
   );

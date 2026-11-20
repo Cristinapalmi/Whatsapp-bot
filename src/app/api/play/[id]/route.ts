@@ -15,6 +15,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   });
   if (!episode) return NextResponse.json({ error: "Episódio não encontrado." }, { status: 404 });
   const user = await getCurrentUser();
+  // Conta obrigatória para ver qualquer episódio (os 3 primeiros continuam grátis, mas só com conta)
+  if (!user) return NextResponse.json({ error: "Cria a tua conta grátis para ver.", code: "LOGIN" }, { status: 401 });
   const states = await episodeStates(db, user?.id ?? null, episode.series, [episode]);
   // Série retirada: só quem desbloqueou (os grátis também deixam de estar abertos a todos)
   const st = states[episode.id];

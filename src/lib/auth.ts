@@ -74,9 +74,18 @@ export const getSession = cache(async (): Promise<{ user: User; mfa: boolean } |
 
 export const getCurrentUser = cache(async (): Promise<User | null> => (await getSession())?.user ?? null);
 
+/**
+ * Sem sessão: nunca vai para a página "Entrar". Vai para o Início com a janela de entrada aberta
+ * e, depois de entrar, volta a `next`. Sessão expirada ou conta apagada: limpa a sessão e vai para o Início.
+ */
+export async function goHomeToLogin(next?: string): Promise<never> {
+  if ((await cookies()).get(COOKIE)) redirect("/api/sessao/limpar?para=/");
+  redirect(`/?entrar=1${next ? `&next=${encodeURIComponent(next)}` : ""}`);
+}
+
 export async function requireUser(next?: string): Promise<User> {
   const user = await getCurrentUser();
-  if (!user) redirect(`/entrar${next ? `?next=${encodeURIComponent(next)}` : ""}`);
+  if (!user) return goHomeToLogin(next);
   return user;
 }
 
@@ -90,7 +99,7 @@ export async function requireRole(role: Role): Promise<User> {
 /** Admin com o 2.º passo feito. Sem 2 passos configurados → página de configuração. */
 export async function requireAdmin(): Promise<User> {
   const s = await getSession();
-  if (!s) redirect("/entrar?next=/admin");
+  if (!s) return goHomeToLogin("/admin");
   if (s.user.role !== "ADMIN") redirect("/");
   if (!s.user.totpEnabled) redirect("/seguranca/2fa");
   if (!s.mfa) redirect("/entrar/2fa");
